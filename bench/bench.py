@@ -56,7 +56,9 @@ assert [r.allow(0) for _ in range(4)] == [True, True, True, False]
 assert r.allow(1) and not r.allow(1)
 assert [r.allow(10) for _ in range(4)] == [True, True, True, False]
 """
-NO_PLUGINS = json.dumps({"enabledPlugins": {"caveman@caveman": False, "ponytail@ponytail": False}})
+# humanizer is opt-in and interactive, so it stays out of the bench; AskUserQuestion has no user in -p
+NO_PLUGINS = json.dumps({"enabledPlugins": {"caveman@caveman": False, "ponytail@ponytail": False},
+                         "skillOverrides": {"humanizer": "off", "frugal:humanizer": "off"}})
 
 
 def run_one(job, model):
@@ -77,7 +79,7 @@ def run_one(job, model):
         else:
             cmd += ["--session-id", sid] if i == 0 else ["--resume", sid]
         if cond in "AE":
-            cmd += ["--settings", NO_PLUGINS]
+            cmd += ["--settings", NO_PLUGINS, "--disallowedTools", "AskUserQuestion"]
         p = subprocess.run(cmd, cwd=work, capture_output=True, text=True, encoding="utf-8", timeout=900)
         stream += p.stdout
         rcs.append(p.returncode)
