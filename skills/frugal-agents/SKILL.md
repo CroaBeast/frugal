@@ -1,3 +1,9 @@
+---
+name: frugal-agents
+description: Frugal module for automation pipelines, subagent prompts, bots, and machine-read output. Loaded by /frugal.
+disable-model-invocation: true
+---
+
 # Agents profile
 
 ## Output

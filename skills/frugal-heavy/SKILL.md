@@ -1,6 +1,12 @@
+---
+name: frugal-heavy
+description: Frugal module for heavy work: subagent model routing, effort suggestions, and handoff to a fresh chat. Loaded by /frugal.
+disable-model-invocation: true
+---
+
 # Frugal: heavy work
 
-Read once when triage says heavy; keep applying for the rest of the session.
+Apply for the rest of the session once loaded.
 
 ## Model routing
 
@@ -35,7 +41,7 @@ Before any handoff block, including when the user asks for one, call `get_usage`
 
 ````
 ```
-/frugal <rule sets that apply>
+/frugal <modules that apply>
 Goal: <one sentence>
 Done: <bullets with file paths, settings changed, decisions made and why>
 Pending: <bullets, in order>
