@@ -1,9 +1,10 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "frugal",
-  "description": "Token-efficient working mode on top of caveman and ponytail.",
-  "version": "0.2.0",
+  "description": "Token-efficient working mode for Claude Code, bundled with humanizer.",
+  "version": "0.3.0",
   "author": {
     "name": "CroaBeast"
-  }
+  },
+  "keywords": ["tokens", "efficiency", "caveman", "ponytail", "humanizer"]
 }
