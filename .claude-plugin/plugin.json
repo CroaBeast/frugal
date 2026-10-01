@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "frugal",
   "description": "Token-efficient working mode for Claude Code, bundled with humanizer.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": {
     "name": "CroaBeast"
   },
