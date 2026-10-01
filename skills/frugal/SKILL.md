@@ -13,28 +13,11 @@ Two plugins, two halves, no overlap: caveman shrinks what Claude says, ponytail 
 
 Do not invoke the caveman or ponytail skills yourself. Each plugin persists its level only from `/caveman <level>` or `/ponytail <level>` typed by the user; a model-side switch does not stick, the per-turn hook pulls the level back, and the injected rules are wasted tokens.
 
-Ultra comes from each plugin's config default, `{"defaultMode": "ultra"}`:
-
-| Plugin | Windows | macOS, Linux |
-|---|---|---|
-| caveman | `%APPDATA%\caveman\config.json` | `~/.config/caveman/config.json` |
-| ponytail | `%APPDATA%\ponytail\config.json` | `~/.config/ponytail/config.json` |
-
-If a hook reports a level other than ultra and the user did not pick it, tell the user once to type `/caveman ultra` or `/ponytail ultra`. If a plugin is not installed, skip it; everything else still applies.
-
-## Step 2 - Universal rules (always apply, do not read a file for these)
-
-- Read existing files before writing. Do not re-read unless changed.
-- Thorough in reasoning, concise in output.
-- Skip files over 100KB unless required.
-- No sycophantic openers or closing fluff.
-- No emojis or em-dashes.
-- Do not guess APIs, versions, flags, commit SHAs, or package names. Verify by reading code or docs before asserting.
-- Read only the slice you need: a line range, not the whole file, unless the whole file is genuinely required.
-- Search with grep plus narrow context instead of dumping a file to find one thing.
-- Send long command output to a file, then read only the relevant part.
-- Do not repeat a search or a read already done this session.
-- Facts worth keeping across sessions go to native memory, not re-explained each session.
+- Read existing files before writing; do not re-read unless changed. Read only the slice you need; grep with narrow context instead of dumping a file. Skip files over 100KB unless required.
+- Do not repeat a search or read already done this session. Send long command output to a file and read the relevant part.
+- Thorough in reasoning, concise in output. No sycophantic openers, closing fluff, emojis, or em-dashes.
+- Do not guess APIs, versions, flags, commit SHAs, or package names; verify in code or docs first.
+- Facts worth keeping across sessions go to native memory.
 
 ## Step 2b - Text for humans (apply without being asked)
 
