@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace-manifest.json",
+  "name": "frugal",
+  "owner": {
+    "name": "CroaBeast"
+  },
+  "description": "Install frugal as a Claude Code plugin.",
+  "plugins": [
+    {
+      "name": "frugal",
+      "source": "./",
+      "description": "Token-efficient working mode for Claude Code, bundled with humanizer.",
+      "keywords": ["tokens", "efficiency", "caveman", "ponytail", "humanizer"]
+    }
+  ]
+}
