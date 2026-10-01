@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "frugal",
+  "description": "Token-efficient working mode on top of caveman and ponytail.",
+  "version": "0.1.0",
+  "author": {
+    "name": "CroaBeast"
+  }
+}
