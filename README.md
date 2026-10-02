@@ -55,6 +55,8 @@ Open a new session and type `/frugal`. If you also have a separate copy of `huma
 
 Say `normal mode` to turn it off.
 
+**Questions cost tokens too.** Each question is one extra call: the model writes the question, your answer comes back, and the whole context is read again (mostly from cache, which is cheaper). That is why frugal asks only when missing information would change the result: one question is much cheaper than redoing work built on a wrong guess.
+
 ## Benchmarks
 
 `bench/bench.py` runs each task as a real headless Claude Code session (`claude -p`) in a temp copy of a fixture and checks the result automatically: tests pass, the right numbers appear, the file exists. Costs are the `total_cost_usd` Claude Code reports.
