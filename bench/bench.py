@@ -126,6 +126,10 @@ def run_one(job, model):
         p = subprocess.run(cmd, cwd=work, capture_output=True, text=True, encoding="utf-8", timeout=900)
         stream += p.stdout
         rcs.append(p.returncode)
+        if "hit your session limit" in p.stdout:  # not saved, so a later run with the same --out retries it
+            shutil.rmtree(work.parent, ignore_errors=True)
+            print(f"limit {out.name}", flush=True)
+            return
     out.mkdir(parents=True, exist_ok=True)
     (out / "stream.jsonl").write_text(stream, encoding="utf-8")
     shutil.copytree(work, out / "workdir", dirs_exist_ok=True)
