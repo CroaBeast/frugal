@@ -128,6 +128,7 @@ def run_one(job, model):
     out.mkdir(parents=True, exist_ok=True)
     (out / "stream.jsonl").write_text(stream, encoding="utf-8")
     shutil.copytree(work, out / "workdir", dirs_exist_ok=True)
+    shutil.rmtree(work.parent, ignore_errors=True)
     print(f"done {out.name} rc={max(rcs)}", flush=True)
 
 
