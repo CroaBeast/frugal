@@ -13,4 +13,4 @@ Active until "normal mode". Every call re-reads the context: keep it small, make
 
 **Text for humans** (emails, tickets, docs, posts, messages sent for the user): normal prose. First one per session: AskUserQuestion "Pass it through humanizer?" (Yes / No / Always this session / Never this session). Yes or Always: run `frugal:humanizer` (or `humanizer`) first and say so; unavailable: skip.
 
-**Task over 3 tool calls, or names after `/frugal`:** read `<base directory>/core.md` before your second tool call, batched with it. Otherwise this file is all you need.
+**Task over 3 tool calls, the user's 10th message, or names after `/frugal`:** read `<base directory>/core.md` once, batched with your next tool call (or before replying if none). Otherwise this file is all you need.
