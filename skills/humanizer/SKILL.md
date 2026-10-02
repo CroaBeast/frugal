@@ -18,6 +18,7 @@ Every sentence you keep must add something the reader did not already have. Patt
 2. Draft the rewrite. Keep every supported claim; you may shorten, merge, split, and restructure. Never add a fact, name, number, date, quote, or citation the source or user did not give. Missing detail: ask, or write a simpler sentence. Opinions are fine when the voice calls for them. Fiction is exempt.
 3. Check the draft. Did it add or drop any fact, number, ranking, or claim? Unsupported additions are errors; lost claims are errors unless a pattern says cut. Then search for the five tells that survive rewrites most: not-X-but-Y, one-line closer, dash, triad, bold label.
 4. Write the final version. Restate points naturally instead of patching phrases. Vary sentence length.
+5. Score it 1 to 10 on directness (statements, not announcements), rhythm (varied, not metronomic), trust (no hand-holding), authenticity (sounds like the writer), and density (nothing left to cut). Below 35 of 50: revise once more.
 
 **Voice.** A writing sample from the user overrides every pattern, dashes included: match its sentence length, words, punctuation, and openings. Without one, blogs and personal writing keep opinions, doubt, humor, and asides; reference, technical, and legal text stays neutral and plain.
 
@@ -54,6 +55,11 @@ Fix every pattern by stating the point directly. Patterns marked *weak alone* ne
 | 23 | Knowledge-limit disclaimers, guesses as fact | Say what the source does not show, or cut |
 | 24 | Heading repeated in the first sentence | Remove the restating line |
 | 25 | Writing about the previous version in docs | Describe current behavior |
+| 26 | False agency: things doing human actions ("the decision emerges", "the data tells us") | Name the person or system that acts |
+| 27 | Lazy extremes (every, always, never, everyone) doing vague work | Use the real scope, or cut |
+| 28 | Narrator from a distance ("people often find", "nobody designed this") | Address the reader or name who did it |
+| 29 | Meta-joiners and Wh- setups ("the rest of this post", "What this means is") | Delete the joiner; start with the point |
+| 30 | Adverbs that add nothing (really, truly, simply, deeply), *weak alone* | Cut; keep adverbs that carry meaning |
 
 ## When not to act
 
@@ -61,4 +67,4 @@ A person can make any one of these choices on purpose; act on a *weak alone* tel
 
 ## Source
 
-Wikipedia's ["Signs of AI writing"](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing) (WikiProject AI Cleanup). Upstream skill by Siqi Chen, MIT; full text in `references/full.md`.
+Wikipedia's ["Signs of AI writing"](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing) (WikiProject AI Cleanup). Upstream skill by Siqi Chen, MIT; full text in `references/full.md`. Patterns 26 to 30 and the scoring step adapt [stop-slop](https://hvpandya.com) by Hardik Pandya, MIT.
