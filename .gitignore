@@ -1,2 +1,4 @@
 bench/results*/
 __pycache__/
+bench/*.log
+bench/_aborted/
