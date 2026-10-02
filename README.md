@@ -61,26 +61,43 @@ Say `normal mode` to turn it off.
 
 Tasks: t1 fix a bug without touching the test; t2 find the largest month-over-month drop in a CSV; t3 draft a support reply with placeholders for unknown facts; t4 a 16-message session (bug fix, catalog change, CSV analysis, new function, email, review); t5 log triage, a rate limiter written from scratch, and a long explanation.
 
-### Opus 5.5, 2026-10-01, n=2 per cell
+Every run below passed every check, so the differences are cost. Cells are the mean cost per run in USD, n=2. caveman and ponytail ran at `ultra`, their strongest level. Humanizer was off in every arm. Arms are only compared within the same batch, because the system prompt changes between batches.
 
-All arms ran in the same batch. caveman and ponytail ran at `ultra`, their strongest level. Humanizer was off in every arm. Cells are the mean cost per run in USD. t1 uses only the second run of each arm, because the first run of a batch pays for writing the system prompt cache (up to 0.40 USD) and that landed on different arms by chance.
+### frugal 4, Opus 5.5 (batch 2, 2026-10-01)
 
-| Arm | t1 | t2 | t3 | t4 (16 msgs) | t5 | Sum | vs no plugins | First-call context | Checks passed |
-|---|---|---|---|---|---|---|---|---|---|
-| Claude Code, no plugins | 0.144 | 0.132 | 0.145 | 0.635 | 0.295 | 1.351 | | 38.7k | 10/10 |
-| caveman ultra | 0.171 | 0.166 | 0.171 | 0.698 | 0.324 | 1.530 | +13% | 42.4k | 10/10 |
-| ponytail ultra | 0.165 | 0.162 | 0.164 | 0.708 | 0.350 | 1.549 | +15% | 41.6k | 10/10 |
-| caveman ultra + ponytail ultra | 0.181 | 0.184 | 0.203 | 0.729 | 0.360 | 1.657 | +23% | 45.3k | 10/10 |
-| frugal 3.3 | 0.149 | 0.141 | 0.147 | 0.641 | 0.302 | 1.380 | +2% | 39.7k | 10/10 |
+| Arm | t1 | t2 | t3 | t4 (16 msgs) | t5 | Sum | vs no plugins | Output tokens per rep |
+|---|---|---|---|---|---|---|---|---|
+| Claude Code, no plugins | 0.133 | 0.129 | 0.144 | 0.669 | 0.323 | 1.398 | | 16.9k |
+| caveman ultra + ponytail ultra | 0.187 | 0.182 | 0.196 | 0.733 | 0.384 | 1.681 | +20% | 15.4k |
+| frugal 4, `tight` | 0.158 | 0.157 | 0.163 | 0.644 | 0.302 | 1.425 | +2% | 13.7k |
+| **frugal 4** | 0.153 | 0.153 | 0.152 | 0.649 | 0.280 | **1.387** | **-1%** | **13.9k (-18%)** |
 
-frugal 4 (tight profile, delegation) has not been benchmarked yet.
+### frugal 4, Sonnet 5.5 (batch 3, 2026-10-01)
 
-What the numbers say:
+| Arm | t1 | t2 | t3 | t4 (16 msgs) | t5 | Sum | vs no plugins | Output tokens per rep |
+|---|---|---|---|---|---|---|---|---|
+| Claude Code, no plugins | 0.083 | 0.072 | 0.078 | 0.447 | 0.185 | 0.865 | | 13.0k |
+| **frugal 4** | 0.092 | 0.087 | 0.086 | 0.441 | 0.176 | **0.883** | **+2%** | **11.1k (-15%)** |
 
-- Every arm passed every check, so the difference is cost.
-- Each task reads about 120k input tokens and writes 600 to 1,000. Opus in Claude Code already answers briefly, so cutting output saves little.
-- caveman and ponytail add 3k to 7k tokens to every call. That costs 13 to 23% more than no plugins, and stacking them adds the overheads while the output savings overlap.
-- frugal adds about 1k tokens and wrote the least output of any arm except caveman + ponytail (median 798 tokens per task, against 943 with no plugins). It lands within about 2% of plain Claude Code, inside the noise of two runs per cell.
+### caveman and ponytail separately, Opus 5.5 (batch 1, frugal 3.3)
+
+t1 uses only the second run of each arm here: the first run of a batch pays for writing the system prompt cache (up to 0.40 USD), and that landed on different arms by chance.
+
+| Arm | t1 | t2 | t3 | t4 (16 msgs) | t5 | Sum | vs no plugins | First-call context |
+|---|---|---|---|---|---|---|---|---|
+| Claude Code, no plugins | 0.144 | 0.132 | 0.145 | 0.635 | 0.295 | 1.351 | | 38.7k |
+| caveman ultra | 0.171 | 0.166 | 0.171 | 0.698 | 0.324 | 1.530 | +13% | 42.4k |
+| ponytail ultra | 0.165 | 0.162 | 0.164 | 0.708 | 0.350 | 1.549 | +15% | 41.6k |
+| caveman ultra + ponytail ultra | 0.181 | 0.184 | 0.203 | 0.729 | 0.360 | 1.657 | +23% | 45.3k |
+| frugal 3.3 | 0.149 | 0.141 | 0.147 | 0.641 | 0.302 | 1.380 | +2% | 39.7k |
+
+### What the numbers say
+
+- Each task reads about 120k input tokens and writes 600 to 1,000. Opus and Sonnet in Claude Code already answer briefly, so cutting output alone saves little.
+- caveman and ponytail add 3k to 7k tokens to every call: 13 to 23% more than no plugins, with no quality gain on these checks. Stacking them adds the overheads while the output savings overlap.
+- frugal 4 adds about 1.5k tokens, writes 15 to 18% less, and makes no extra calls. It costs the same as plain Claude Code overall: about 0.01 to 0.02 USD more on one-message tasks, and 3 to 13% less on the long session and the heavy task.
+- `tight` did not cut output further than the default profile, so the default already sits near the floor for these tasks. What is left is deliverables (code, emails, explanations), which frugal never shortens.
+- No run delegated to a subagent. On the 420KB log in t5 the model used grep, which is cheaper than starting a subagent. Delegation is not measured yet.
 
 ### How this relates to the published numbers
 
