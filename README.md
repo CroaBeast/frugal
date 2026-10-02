@@ -36,8 +36,26 @@ frugal covers what caveman and ponytail do, so you do not need them. If they are
 
 ## Install
 
+### Let your agent install it
+
+Paste this into Claude Code (CLI, desktop, or IDE), Claude Cowork, Codex, Cursor, or any agent that can run shell commands:
+
+```text
+Install the frugal plugin from https://github.com/<github-user>/frugal for me.
+
+1. If you are Claude Code: run `claude plugin marketplace add <github-user>/frugal`, then `claude plugin install frugal@frugal`. Tell me to start a new session and type /frugal.
+2. Otherwise, if you support Agent Skills (folders containing a SKILL.md): clone the repo to a temporary folder and copy every folder under skills/ into your user skills directory. Tell me how to invoke the frugal skill.
+3. Otherwise: add the text of skills/frugal/SKILL.md, without its front matter, to your persistent instructions file (for example AGENTS.md) and tell me which file you changed.
+
+Change nothing else. If the caveman or ponytail plugins are enabled, tell me, but do not disable them yourself.
 ```
-/plugin marketplace add <path-or-repo>
+
+Outside Claude Code, the subagents (`frugal-scout`, `frugal-worker`) and the model routing in `frugal-delegate` do not apply, and step 3 installs only the core rules.
+
+### By hand, in Claude Code
+
+```
+/plugin marketplace add <github-user>/frugal
 /plugin install frugal@frugal
 ```
 
@@ -75,23 +93,25 @@ Tasks: t1 fix a bug without touching the test; t2 find the largest month-over-mo
 
 Every run below passed every check, so the differences are cost. Cells are the mean cost per run in USD, n=2. caveman and ponytail ran at `ultra`, their strongest level. Humanizer was off in every arm. Arms are only compared within the same batch, because the system prompt changes between batches.
 
-### frugal 4, Opus 5.5 (batch 2, 2026-10-01)
+### frugal 1.0, Opus 5.5 (batch 2, 2026-10-01)
+
+Batches 2 and 3 ran on 0.4.x, which is 1.0 plus the experimental `tight` profile described below; `/frugal` itself did not load it.
+
 
 | Arm | t1 | t2 | t3 | t4 (16 msgs) | t5 | Sum | vs no plugins | Output tokens per rep |
 |---|---|---|---|---|---|---|---|---|
 | Claude Code, no plugins | 0.133 | 0.129 | 0.144 | 0.669 | 0.323 | 1.398 | | 16.9k |
 | caveman ultra + ponytail ultra | 0.187 | 0.182 | 0.196 | 0.733 | 0.384 | 1.681 | +20% | 15.4k |
-| frugal 4.0 `tight` (removed in 4.1) | 0.158 | 0.157 | 0.163 | 0.644 | 0.302 | 1.425 | +2% | 13.7k |
-| **frugal 4** | 0.153 | 0.153 | 0.152 | 0.649 | 0.280 | **1.387** | **-1%** | **13.9k (-18%)** |
+| **frugal 1.0** | 0.153 | 0.153 | 0.152 | 0.649 | 0.280 | **1.387** | **-1%** | **13.9k (-18%)** |
 
-### frugal 4, Sonnet 5.5 (batch 3, 2026-10-01)
+### frugal 1.0, Sonnet 5.5 (batch 3, 2026-10-01)
 
 | Arm | t1 | t2 | t3 | t4 (16 msgs) | t5 | Sum | vs no plugins | Output tokens per rep |
 |---|---|---|---|---|---|---|---|---|
 | Claude Code, no plugins | 0.083 | 0.072 | 0.078 | 0.447 | 0.185 | 0.865 | | 13.0k |
-| **frugal 4** | 0.092 | 0.087 | 0.086 | 0.441 | 0.176 | **0.883** | **+2%** | **11.1k (-15%)** |
+| **frugal 1.0** | 0.092 | 0.087 | 0.086 | 0.441 | 0.176 | **0.883** | **+2%** | **11.1k (-15%)** |
 
-### caveman and ponytail separately, Opus 5.5 (batch 1, frugal 3.3)
+### caveman and ponytail separately, Opus 5.5 (batch 1, frugal 0.3.3)
 
 t1 uses only the second run of each arm here: the first run of a batch pays for writing the system prompt cache (up to 0.40 USD), and that landed on different arms by chance.
 
@@ -101,15 +121,20 @@ t1 uses only the second run of each arm here: the first run of a batch pays for 
 | caveman ultra | 0.171 | 0.166 | 0.171 | 0.698 | 0.324 | 1.530 | +13% | 42.4k |
 | ponytail ultra | 0.165 | 0.162 | 0.164 | 0.708 | 0.350 | 1.549 | +15% | 41.6k |
 | caveman ultra + ponytail ultra | 0.181 | 0.184 | 0.203 | 0.729 | 0.360 | 1.657 | +23% | 45.3k |
-| frugal 3.3 | 0.149 | 0.141 | 0.147 | 0.641 | 0.302 | 1.380 | +2% | 39.7k |
+| frugal 0.3.3 | 0.149 | 0.141 | 0.147 | 0.641 | 0.302 | 1.380 | +2% | 39.7k |
 
 ### What the numbers say
 
 - Each task reads about 120k input tokens and writes 600 to 1,000. Opus and Sonnet in Claude Code already answer briefly, so cutting output alone saves little.
 - caveman and ponytail add 3k to 7k tokens to every call: 13 to 23% more than no plugins, with no quality gain on these checks. Stacking them adds the overheads while the output savings overlap.
-- frugal 4 adds about 1.5k tokens, writes 15 to 18% less, and makes no extra calls. It costs the same as plain Claude Code overall: about 0.01 to 0.02 USD more on one-message tasks, and 3 to 13% less on the long session and the heavy task.
-- A `tight` profile with harder reply rules did not cut output further than the default, and the model loaded it in only 4 of 10 runs, so 4.1 removed it. What output is left is mostly deliverables (code, emails, explanations), which frugal never shortens, and reasoning, which a skill cannot limit. `/effort low` is the setting that limits reasoning; it is not benchmarked here.
+- frugal 1.0 adds about 1.5k tokens, writes 15 to 18% less, and makes no extra calls. It costs the same as plain Claude Code overall: about 0.01 to 0.02 USD more on one-message tasks, and 3 to 13% less on the long session and the heavy task.
 - No run delegated to a subagent. On the 420KB log in t5 the model used grep, which is cheaper than starting a subagent. Delegation is not measured yet.
+
+### Experiment: a `tight` profile (discarded)
+
+0.4 shipped an opt-in `tight` profile to test whether cutting output harder than the default would lower total cost. It replaced the reply rules with `Done.` confirmations, bare answers, no headings or tables, short reasoning, and the fewest calls, while keeping exact values, warnings, deliverables, and tests.
+
+It did not work. On Opus 5.5 in batch 2 it cost 1.425 USD (+2% vs no plugins) against 1.387 for the default profile, and wrote about the same output (13.7k vs 13.9k tokens per rep). The model loaded the profile in only 4 of 10 runs even after the rule was made mandatory, and one t4 run made 29 tool calls instead of 17. The default profile already sits near the floor: what output is left is deliverables (code, emails, explanations), which frugal never shortens, and reasoning, which a skill cannot limit (`/effort low` does that, and is not benchmarked here). 1.0 removed `tight`.
 
 ### How this relates to the published numbers
 
@@ -130,6 +155,13 @@ python bench.py report
 ```
 
 `bench.py run` skips any run that already has results, so move old `results/<cond>_*` folders aside before re-running a condition. The system prompt changes between days (org skills, connector notices), so compare arms from the same batch.
+
+## Versions
+
+- **1.0.0**: per-task modules, `frugal-delegate` with haiku and sonnet subagents shipped in the plugin, `frugal-session`, questions only when needed, opt-in humanizer with a shorter core. Benchmarked equal in cost to plain Claude Code on Opus 5.5 and Sonnet 5.5, with 15 to 18% less output.
+- **0.4**: first plugin build of the above, plus the experimental `tight` profile (discarded).
+- **0.3**: modular skills loaded on demand, standalone (no caveman or ponytail needed).
+- **0.1, 0.2**: single skill on top of caveman and ponytail at `ultra`; the most expensive setup in the benchmarks.
 
 ## Licenses
 
