@@ -1,9 +1,3 @@
----
-name: frugal-analysis
-description: Frugal module for data analysis, research, investigation, metrics, and reports. Loaded by /frugal.
-disable-model-invocation: true
----
-
 # Frugal: analysis
 
 **Output**

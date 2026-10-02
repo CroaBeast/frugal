@@ -1,9 +1,3 @@
----
-name: frugal-session
-description: Frugal module for long sessions: effort suggestions and handoff to a fresh chat. Loaded by /frugal.
-disable-model-invocation: true
----
-
 # Frugal: session
 
 **Effort.** A session cannot change its own effort. When the work clearly mismatches the level, suggest once in one line, then continue: `/effort low` for lookups, small edits, short answers; `/effort high` for ambiguous bugs, architecture, multi-step reasoning.

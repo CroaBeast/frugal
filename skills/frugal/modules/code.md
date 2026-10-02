@@ -1,9 +1,3 @@
----
-name: frugal-code
-description: Frugal module for writing, reviewing, debugging, and refactoring code. Loaded by /frugal.
-disable-model-invocation: true
----
-
 # Frugal: code
 
 **Ladder.** Read the task and the code it touches, trace the real flow, then stop at the first rung that holds:

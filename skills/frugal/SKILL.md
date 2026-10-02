@@ -1,6 +1,6 @@
 ---
 name: frugal
-description: Low-token mode. Terse replies, small context, fewer calls; code, analysis, delegation, and long-session modules load per task. Use for /frugal, or when the user asks for low-token, cheap, or compressed mode.
+description: Low-token mode. Terse replies, small context, fewer calls; code, analysis, delegation, and long-session rules load per task. Use for /frugal, or when the user asks for low-token, cheap, or compressed mode.
 ---
 
 # Frugal
@@ -17,12 +17,12 @@ Active until "normal mode". Every call re-reads the context: keep it small, make
 
 **Text for humans** (customer emails, ticket replies, docs, posts, messages sent for the user): normal prose. Before the first one per session, AskUserQuestion "Pass it through humanizer?": Yes / No / Always this session / Never this session (then stop asking). Yes or Always: run `humanizer` (`frugal:humanizer` as a plugin) before delivering, say so in one line. Either unavailable: skip. Not for code, commits, internal notes.
 
-**Modules.** Per task (one user goal, possibly several messages), not per message: pick only what it needs, none if none fit; keep until the task changes. Read `<base directory>/../<name>/SKILL.md` once, batched with your next tool call.
-- `frugal-code`: writing, reviewing, debugging code.
-- `frugal-analysis`: data, research, metrics, reports.
-- `frugal-delegate`: the task reads far more than it returns (big logs, many files, web pages) or splits into independent parts.
-- `frugal-session`: the user's 10th message, a compaction, an unrelated new task after a finished one, or effort clearly mismatched.
-- `frugal-agents`: pipelines, subagent prompts, machine-read output.
-Names after `/frugal` select them (`coding` is `frugal-code`).
+**Modules.** Per task (one user goal, possibly several messages), not per message: pick only what it needs, none if none fit; keep until the task changes. Read `<base directory>/modules/<name>.md` once, batched with your next tool call.
+- `code`: writing, reviewing, debugging code.
+- `analysis`: data, research, metrics, reports.
+- `delegate`: the task reads far more than it returns (big logs, many files, web pages) or splits into independent parts.
+- `session`: the user's 10th message, a compaction, an unrelated new task after a finished one, or effort clearly mismatched.
+- `agents`: pipelines, subagent prompts, machine-read output.
+Names after `/frugal` select them (`coding` is `code`).
 
 **Precedence:** user > modules > this file; on accuracy, the stricter rule. Terseness never removes sources, units, caveats, confidence labels, validation, security checks, or required tests.

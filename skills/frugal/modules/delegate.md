@@ -1,9 +1,3 @@
----
-name: frugal-delegate
-description: Frugal module that hands reading-heavy or independent work to cheaper subagents. Loaded by /frugal.
-disable-model-invocation: true
----
-
 # Frugal: delegate
 
 The main thread keeps judgment: architecture, ambiguous bugs, cross-file design, synthesis, the final answer and its verification. A subagent only pays off when it reads much more than it returns, because it starts with an empty cache and re-reads its own system prompt.
