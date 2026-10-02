@@ -196,7 +196,9 @@ if __name__ == "__main__":
     ap.add_argument("--model", default="claude-opus-5-5")
     ap.add_argument("--conds", default="ABC", help="D = C after swapping in a new frugal version; E = plugins off + /frugal")
     ap.add_argument("--tasks", default=",".join(TASKS), help="comma-separated task names")
+    ap.add_argument("--out", default="results", help="results folder under bench/")
     a = ap.parse_args()
+    RES = HERE / a.out
     if a.cmd == "report":
         report()
     else:
