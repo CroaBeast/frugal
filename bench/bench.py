@@ -54,6 +54,32 @@ TASKS = {
     # delegation bait: 30 contracts (~80k tokens) whose terms grep alone cannot normalize
     "t6_contracts": "The contracts/ folder has 30 vendor agreements. Write vendor_terms.csv with columns vendor,notice_days,auto_renews where notice_days is the termination-for-convenience notice period in days (6 months = 180) and auto_renews is yes or no. Then tell me which vendors need 90 or more days of notice.",
 }
+TASKS["t7_long40"] = TASKS["t4_long"] + [
+    "Add SKU D400 to the catalog: price 19.99, bulk_min 5, bulk_discount 0.2.",
+    "What is the order total for 5 x D400? Reply with the number only.",
+    "Add catalog_skus() to inventory/catalog.py, returning the SKUs sorted alphabetically, with one assert for it in the test.",
+    "Run the tests.",
+    "Using sales.csv, what was Echo's average monthly revenue in 2025, rounded to the nearest dollar?",
+    "Which product fell the least from 2025-01 to 2025-12, and by how much?",
+    "Write monthly_totals.csv with columns month,total_usd for every month of 2025.",
+    "Which quarter of 2025 had the highest total revenue, and what was it?",
+    "Draft a two-sentence internal note to the sales team about the top quarter. Save it to note.txt.",
+    "Rename TAX to TAX_RATE everywhere and run the tests.",
+    "What does order_count_by_sku([(\"A100\", 2), (\"A100\", 3), (\"B200\", 1)]) return?",
+    "Make line_total raise ValueError when qty is not a positive integer. Add an assert for it in the test and run the tests.",
+    "Summarize the changes to inventory/ so far in 4 bullets.",
+    "What is the order total for 30 x B200 and 12 x A100 now? Reply with the number only.",
+    "Add a README.md in this folder explaining how to run the tests, in under 10 lines.",
+    "Which SKU has the highest bulk discount?",
+    "Change D400's price to 18.50.",
+    "Is there any SKU whose bulk_min is above 40? Name it.",
+    "Add an assert to the test that catalog_skus() includes D400.",
+    "Run the tests again.",
+    "List every file you created in this session.",
+    "Which month had the lowest total revenue across all products, and what was the total?",
+    "Draft a short reply to a customer asking whether D400 has a bulk discount. Save it to d400_reply.txt.",
+    "Summarize everything done in this session in 6 bullets.",
+]
 T5_HIDDEN = """
 from ratelimit import RateLimiter
 r = RateLimiter(1, 3)
