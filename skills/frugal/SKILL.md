@@ -5,7 +5,7 @@ description: Low-token mode. Terse replies, small context, fewer calls; code, an
 
 # Frugal
 
-**First:** if this task needs more than 3 tool calls, it is the user's 10th message, or names follow `/frugal`, your first tool call batch includes Read `<base directory>/core.md` (once per task). Short tasks: this file is all you need.
+**First:** if this task needs more than 3 tool calls, it is the user's 10th message, or names follow `/frugal`, your first tool call batch includes Read `<base directory>/core.md`, plus `<base directory>/code.md` if the task writes, fixes, or reviews code (once per task). Short tasks: this file is all you need.
 
 Active until "normal mode". Every call re-reads the context: keep it small, make fewer calls.
 
