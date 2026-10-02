@@ -1,0 +1,122 @@
+{
+ "Acorn Logistics": {
+  "notice_days": 120,
+  "auto_renews": "no"
+ },
+ "Birchway Foods": {
+  "notice_days": 60,
+  "auto_renews": "yes"
+ },
+ "Cobalt Printing": {
+  "notice_days": 45,
+  "auto_renews": "yes"
+ },
+ "Dunmore Security": {
+  "notice_days": 90,
+  "auto_renews": "no"
+ },
+ "Elmstead Cleaning": {
+  "notice_days": 60,
+  "auto_renews": "yes"
+ },
+ "Fairlight IT": {
+  "notice_days": 30,
+  "auto_renews": "no"
+ },
+ "Granite Couriers": {
+  "notice_days": 60,
+  "auto_renews": "no"
+ },
+ "Harbor Staffing": {
+  "notice_days": 45,
+  "auto_renews": "yes"
+ },
+ "Ironbridge Legal": {
+  "notice_days": 45,
+  "auto_renews": "yes"
+ },
+ "Juniper Catering": {
+  "notice_days": 180,
+  "auto_renews": "no"
+ },
+ "Kestrel Telecom": {
+  "notice_days": 120,
+  "auto_renews": "yes"
+ },
+ "Lindale Waste": {
+  "notice_days": 45,
+  "auto_renews": "no"
+ },
+ "Marlow Facilities": {
+  "notice_days": 180,
+  "auto_renews": "no"
+ },
+ "Northfield Insurance": {
+  "notice_days": 60,
+  "auto_renews": "no"
+ },
+ "Oakridge Software": {
+  "notice_days": 90,
+  "auto_renews": "yes"
+ },
+ "Pinecrest Travel": {
+  "notice_days": 45,
+  "auto_renews": "no"
+ },
+ "Quarry Office Supply": {
+  "notice_days": 60,
+  "auto_renews": "yes"
+ },
+ "Redfern Marketing": {
+  "notice_days": 60,
+  "auto_renews": "no"
+ },
+ "Stonegate Payroll": {
+  "notice_days": 90,
+  "auto_renews": "yes"
+ },
+ "Thistle Translation": {
+  "notice_days": 60,
+  "auto_renews": "no"
+ },
+ "Upland Fleet": {
+  "notice_days": 45,
+  "auto_renews": "yes"
+ },
+ "Vantage Analytics": {
+  "notice_days": 60,
+  "auto_renews": "no"
+ },
+ "Willow HVAC": {
+  "notice_days": 120,
+  "auto_renews": "no"
+ },
+ "Yarrow Design": {
+  "notice_days": 180,
+  "auto_renews": "no"
+ },
+ "Zephyr Hosting": {
+  "notice_days": 45,
+  "auto_renews": "no"
+ },
+ "Alder Medical": {
+  "notice_days": 30,
+  "auto_renews": "yes"
+ },
+ "Bramble Events": {
+  "notice_days": 60,
+  "auto_renews": "yes"
+ },
+ "Cedar Utilities": {
+  "notice_days": 45,
+  "auto_renews": "no"
+ },
+ "Driftwood Media": {
+  "notice_days": 120,
+  "auto_renews": "no"
+ },
+ "Ember Training": {
+  "notice_days": 30,
+  "auto_renews": "yes"
+ }
+}
