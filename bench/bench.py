@@ -8,6 +8,7 @@ Conditions (caveman and ponytail at the level in %APPDATA%/<plugin>/config.json,
   E  /frugal alone
   F  caveman alone
   G  ponytail alone
+  R  /frugal delegate (delegation module forced on)
   T  /frugal tight (experimental in 0.4, removed in 1.0; E is plain /frugal on the plugin from 0.4 on)
 
 Usage:
@@ -93,8 +94,8 @@ assert [r.allow(10) for _ in range(4)] == [True, True, True, False]
 """
 # humanizer is opt-in and interactive, so it stays out of the bench; AskUserQuestion has no user in -p
 PLUGINS = {"A": (0, 0, 0), "B": (1, 1, 0), "C": (1, 1, 0), "D": (1, 1, 0), "E": (0, 0, 1), "F": (1, 0, 0), "G": (0, 1, 0),
-           "T": (0, 0, 1)}  # (caveman, ponytail, frugal plugin)
-PREFIX = {"C": "/frugal ", "D": "/frugal ", "E": "/frugal:frugal ", "T": "/frugal:frugal tight "}  # C, D: loose-skill era
+           "T": (0, 0, 1), "R": (0, 0, 1)}  # (caveman, ponytail, frugal plugin)
+PREFIX = {"C": "/frugal ", "D": "/frugal ", "E": "/frugal:frugal ", "T": "/frugal:frugal tight ", "R": "/frugal:frugal delegate "}  # C, D: loose-skill era
 
 
 def cond_settings(cond):
@@ -128,6 +129,7 @@ def run_one(job, model):
     out.mkdir(parents=True, exist_ok=True)
     (out / "stream.jsonl").write_text(stream, encoding="utf-8")
     shutil.copytree(work, out / "workdir", dirs_exist_ok=True)
+    shutil.rmtree(work.parent, ignore_errors=True)
     print(f"done {out.name} rc={max(rcs)}", flush=True)
 
 
@@ -236,18 +238,18 @@ def report():
         print(f"| {r['cond']} | {r['task']} | {r['rep']} | {r['ok']} | {r['out']} | {r['inp']} | {r['turns']} | {r['tools']} | {r['cost']:.3f} | {r['sec']:.0f} | {r['skills']} |")
     print("\n| cond | runs | passed | median output tok | median input tok | median cost USD | total cost USD |")
     print("|---|---|---|---|---|---|---|")
-    for c in "ABCDEFGT":
+    for c in "ABCDEFGRT":
         g = [r for r in rows if r["cond"] == c and r["task"] != "t4_long"]
         if g:
             print(f"| {c} | {len(g)} | {sum(r['ok'] for r in g)} | {st.median(r['out'] for r in g):.0f} | {st.median(r['inp'] for r in g):.0f} | "
                   f"{st.median(r['cost'] for r in g):.3f} | {sum(r['cost'] for r in g):.3f} |")
     long = [r for r in rows if r["task"] == "t4_long"]
     if long:
-        print("\n| t4_long msg | " + " | ".join(f"{c} median cost USD | {c} median input tok" for c in "ABCDEFGT") + " |")
-        print("|---|" + "---|---|" * 8)
+        print("\n| t4_long msg | " + " | ".join(f"{c} median cost USD | {c} median input tok" for c in "ABCDEFGRT") + " |")
+        print("|---|" + "---|---|" * 9)
         for i in range(len(TASKS["t4_long"])):
             cells = []
-            for c in "ABCDEFGT":
+            for c in "ABCDEFGRT":
                 g = [r["per_msg"][i] for r in long if r["cond"] == c]
                 cells += [f"{st.median(m['cost'] for m in g):.3f}", f"{st.median(m['inp'] for m in g):.0f}"] if g else ["-", "-"]
             print(f"| {i + 1} | " + " | ".join(cells) + " |")
