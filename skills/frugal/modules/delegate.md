@@ -1,10 +1,16 @@
 # Frugal: delegate
 
-The main thread keeps judgment: architecture, ambiguous bugs, cross-file design, synthesis, the final answer and its verification. A subagent only pays off when it reads much more than it returns, because it starts with an empty cache and re-reads its own system prompt.
+The main thread keeps judgment: architecture, ambiguous bugs, cross-file design, synthesis, the final answer. A subagent starts cold and re-pays its own system prompt, and its result still has to be read here. Reading ~30k tokens directly in one batched call is cheaper than any delegation.
 
-**Delegate when** a self-contained, fully specified part would pull more than ~20k tokens of raw material (logs, many files, web pages, a codebase sweep) into this context and only a short result is needed back, or the work splits into independent parts that can run in parallel. Never for a lookup of one or two tool calls.
+**Delegate only when** one holds, else read it yourself:
+- The raw material is too big for this context (roughly 100k+ tokens: huge logs, a whole-codebase sweep, many web pages) and only a short result is needed back.
+- More than ~30k tokens of raw material, and the session continues for many turns after this step, so reading it here would re-bill it every later turn.
+- Independent parts each need heavy reading and can run in parallel.
+Never for a lookup of one or two tool calls.
 
-**Model.** Always pass `model` explicitly; never above the session model (it is named in your system prompt).
+**Once delegated, do not redo the work.** Never re-read, re-grep, or re-sweep the delegated material. Spot-check at most 2 items the final answer hinges on, by the exact `path:line` the agent returned. A part comes back missing or contradictory: re-delegate only that part with a narrower scope.
+
+**Model.** Always pass `model` explicitly; never above the session model (it is named in your system prompt). Reading, extracting, or summarizing documents is always `haiku`, even when values need judgment; `sonnet` only for edits and code.
 
 | Session model | Search, read, extract | Bounded edits, single-file review, code from a clear spec |
 |---|---|---|
@@ -12,14 +18,14 @@ The main thread keeps judgment: architecture, ambiguous bugs, cross-file design,
 | Sonnet | `haiku` | `sonnet` |
 | Haiku | `haiku` | `haiku` |
 
-**Agent.** `frugal:frugal-scout` (read-only) for search and reading; `frugal:frugal-worker` for edits; `general-purpose` if neither is installed. At most 3 in parallel unless the user says otherwise. Treat results as leads: verify what the final answer depends on.
+**Agent.** `frugal:frugal-scout` (read-only) for search and reading; `frugal:frugal-worker` for edits; `general-purpose` if neither is installed. Fewest agents: one per independent part, never a split of one sweep just to parallelize; at most 3 unless the user says otherwise. Run in the foreground unless this thread has its own work meanwhile; every background completion wakes this thread and re-reads its context.
 
 **Prompt** (fill every line, nothing else):
 
 ```
 Goal: <one sentence>
 Scope: <exact paths, URLs, or search terms; what is out of scope>
-Return: <file:line table | bullets | JSON>, max <N> lines
+Return: <the final shape, ready to use as-is: CSV rows | file:line table | JSON>, max <N> lines, each with its path:line
 Stop when: <done condition>
 Do not: edit files | suggest fixes | explain (pick what applies)
 ```
