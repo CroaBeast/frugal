@@ -18,6 +18,7 @@ Every sentence you keep must add something the reader did not already have. Patt
 2. Draft the rewrite. Keep every supported claim; you may shorten, merge, split, and restructure. Never add a fact, name, number, date, quote, or citation the source or user did not give. Missing detail: ask, or write a simpler sentence. Opinions are fine when the voice calls for them. Fiction is exempt.
 3. Check the draft. Did it add or drop any fact, number, ranking, or claim? Unsupported additions are errors; lost claims are errors unless a pattern says cut. Then search for the five tells that survive rewrites most: not-X-but-Y, one-line closer, dash, triad, bold label.
 4. Write the final version. Restate points naturally instead of patching phrases. Vary sentence length.
+5. Score it 1 to 10 on directness (statements, not announcements), rhythm (varied, not metronomic), trust (no hand-holding), authenticity (sounds like the writer), and density (nothing left to cut). Below 35 of 50: revise once more.
 
 **Voice.** A writing sample from the user overrides every pattern, dashes included: match its sentence length, words, punctuation, and openings. Without one, blogs and personal writing keep opinions, doubt, humor, and asides; reference, technical, and legal text stays neutral and plain.
 
