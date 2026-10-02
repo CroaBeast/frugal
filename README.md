@@ -58,9 +58,9 @@ Mean cost per run in USD. Humanizer is off in every arm.
 |---|---|---|---|---|---|---|---|
 | Claude Code, no plugins | 0.141 | 0.134 | 0.143 | 0.732 | 0.303 | 38.6k | 10/10 |
 | caveman + ponytail (`full`) | 0.183 | 0.184 | 0.195 | 0.749 | 0.379 | 45.3k | 9/10 |
-| frugal | 0.156 | 0.144 | 0.150 | 0.684 | 0.310 | 39.7k | 10/10 |
 | caveman alone | pending | | | | | | |
 | ponytail alone | pending | | | | | | |
+| frugal | 0.156 | 0.144 | 0.150 | 0.684 | 0.310 | 39.7k | 10/10 |
 
 The t2 and t5 frugal figures come from the run before the entry skill was trimmed to 2.4KB. With two runs per cell, differences under about 0.01 USD on t1 to t3 are within noise. The no-plugins t4 cost moved between 0.63 and 0.75 across three batches on the same day.
 
