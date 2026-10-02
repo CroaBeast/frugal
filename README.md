@@ -11,7 +11,7 @@ frugal is built around one fact about agent sessions: most of the bill is input,
 | Part | Loaded | What it does |
 |---|---|---|
 | `frugal` | on `/frugal` | Terse replies that report results, not process; exact terms, numbers, and negations; batched tool calls; no re-reading unchanged files; verify instead of guessing APIs and versions; asks only when missing information changes the result |
-| `modules/code.md` | writing, reviewing, or debugging code | Minimal code: reuse before writing, stdlib before dependencies, root-cause fixes, one runnable check for non-trivial logic. Never cuts validation, security, or error handling that prevents data loss |
+| `code.md` | read with `core.md` when a task over 3 tool calls writes, fixes, or reviews code | Minimal code: reuse before writing, stdlib before dependencies, root-cause fixes, one runnable check for non-trivial logic. Never cuts validation, security, or error handling that prevents data loss |
 | `modules/analysis.md` | data, research, metrics, reports | Finding first; every number with a source or derivation and units; missing data, low confidence, and inferences labeled |
 | `modules/delegate.md` | the raw material is too big to read directly (roughly 100k+ tokens), or splits into independent heavy parts | Hands reading to `haiku` and bounded edits to `sonnet`, never above the session model |
 | `modules/session.md` | the 10th message, a compaction, or a new unrelated task | Effort suggestions and a handoff block for a fresh chat |
