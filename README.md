@@ -2,86 +2,95 @@
 
 A low-token working mode for Claude Code. Type `/frugal` and it stays on for the rest of the session.
 
-The plugin ships two skills:
+frugal is built around one fact about agent sessions: most of the bill is input, not output. Every call re-reads the system prompt, the history, and every file and tool result in context. Shorter replies help a little; keeping the context small and making fewer calls helps much more.
 
-| Skill | What it does | Source |
+## What it does
+
+`/frugal` loads a 2.4KB entry skill. It keeps replies short, keeps exact values exact, and points to modules that are read only when a task needs them.
+
+| Skill | Loaded | What it does |
 |---|---|---|
-| `frugal` | Token-saving rules, task profiles, model routing for subagents, and handoff to a fresh chat | this repo |
-| `humanizer` | Rewrites AI-sounding text so it reads like a person wrote it | [blader/humanizer](https://github.com/blader/humanizer), MIT |
+| `frugal` | on `/frugal` | Terse replies; exact terms, numbers, and negations; batched tool calls; no re-reading unchanged files; verify instead of guessing APIs and versions; one round of questions when the answer changes the result |
+| `frugal-code` | writing, reviewing, or debugging code | Minimal code: reuse before writing, stdlib before dependencies, root-cause fixes, one runnable check for non-trivial logic. Never cuts validation, security, or error handling that prevents data loss |
+| `frugal-analysis` | data, research, metrics, reports | Finding first; every number with a source or derivation and units; missing data, low confidence, and inferences labeled |
+| `frugal-heavy` | more than two files, outputs over ~500 lines, multi-step plans, or the 10th message | Subagent model routing, effort suggestions, handoff block for a fresh chat |
+| `frugal-agents` | pipelines, subagent prompts, machine-read output | Structured, parseable output; no narration; never invents paths, endpoints, or field names |
+| `frugal-benchmark` | benchmark runs | Edit instead of rewriting, test before declaring done, nothing extra |
+| `frugal-compressed` | high-volume prose | Short sentences, result first. Drops the fabrication guards, so pair it with `coding` or `analysis` when accuracy matters |
+| `humanizer` | only if you say yes | Rewrites AI-sounding text. Based on [blader/humanizer](https://github.com/blader/humanizer), MIT |
 
-## What frugal does
+Modules are marked `disable-model-invocation`, so their descriptions do not sit in every session's context. You can pick them yourself: `/frugal analysis coding`.
 
-On top of whatever you ask for, Claude follows these rules for the session:
+**Humanizer is opt-in.** The first time frugal is about to write text for people (a customer email, a ticket reply, docs, a post), it asks once: Yes, No, Always this session, or Never this session. It never runs for code, commits, or internal notes.
 
-1. [caveman](https://github.com/juliusbrussee/caveman) shortens Claude's chat replies, and [ponytail](https://github.com/DietrichGebert/ponytail) pushes it toward the shortest code that works. frugal does not switch them on; both have to be installed and set to `ultra` (see below).
-2. Claude reads a file before editing it and does not read it again unless it changed. It reads only the slice it needs and uses grep instead of opening whole files. It does not guess APIs, versions, or package names, and it skips emojis and filler.
-3. Customer emails, support-ticket replies, tickets, and docs are written in normal prose and then run through `humanizer`.
-4. Five profiles live in `skills/frugal/profiles/`: coding, analysis, agents, compressed, and benchmark. Claude loads only the ones the current task needs and checks again on every message. You can also pick them yourself with `/frugal analysis coding`.
-5. Large searches and log reading go to a `haiku` subagent, and bounded edits go to `sonnet`. Decisions and the final answer stay with the main model.
-6. When the `/effort` level does not fit the task, Claude suggests a change once.
-7. When something ambiguous would change the result, Claude asks before guessing and batches its questions into one round.
-8. Every message re-sends the whole history, so long chats get expensive. Between the 10th and 20th message, if work remains, Claude gives you a block to paste into a new chat. The block includes current usage from `get_usage`.
-
-## What you get
-
-- Shorter replies, so fewer output tokens.
-- Less context piling up, because Claude reads in slices, delegates, and hands off long chats in time.
-- Heavy mechanical work done by cheaper models.
-- Less rework, since Claude checks APIs instead of guessing and asks when something is unclear.
-- Emails and docs that do not read like AI wrote them.
-
-There is no measurement of frugal's total savings. To see your real usage, run `/usage`, or ask for session usage in the desktop app.
-
-## Requirements
-
-| Requirement | Required | Without it |
-|---|---|---|
-| Claude Code (CLI or desktop app) | yes | nothing works |
-| caveman plugin | no | chat replies are not compressed |
-| ponytail plugin | no | the minimal-code rule does not apply |
-| `ultra` config for caveman and ponytail | no | both plugins run at their default level |
-| `get_usage` (desktop app only) | no | the handoff block shows `Usage: unavailable` |
-| `CLAUDE_CODE_SUBAGENT_MODEL` in settings | no | subagents without an explicit model use the session model |
+frugal covers what caveman and ponytail do, so you do not need them. If they are enabled, disable them: their rules are added to every call and cost more than they save in this setup (see [Benchmarks](#benchmarks)).
 
 ## Install
 
-1. Add this plugin from its folder, or from the repo if you publish it:
+```
+/plugin marketplace add <path-or-repo>
+/plugin install frugal@frugal
+```
 
-   ```
-   /plugin marketplace add <path-to-this-folder>
-   /plugin install frugal@frugal
-   ```
-
-2. Install caveman and ponytail:
-
-   ```
-   /plugin marketplace add juliusbrussee/caveman
-   /plugin install caveman@caveman
-   /plugin marketplace add DietrichGebert/ponytail
-   /plugin install ponytail@ponytail
-   ```
-
-3. Create these two files, each containing `{"defaultMode": "ultra"}`:
-
-   | OS | caveman | ponytail |
-   |---|---|---|
-   | Windows | `%APPDATA%\caveman\config.json` | `%APPDATA%\ponytail\config.json` |
-   | macOS, Linux | `~/.config/caveman/config.json` | `~/.config/ponytail/config.json` |
-
-4. Open a new session and type `/frugal`.
-
-If you already have `humanizer` installed separately, uninstall that copy. Otherwise it shows up twice in the skill list, which costs extra tokens and can make Claude pick the wrong one.
+Open a new session and type `/frugal`. If you also have a separate copy of `humanizer` or of the frugal skills in `~/.claude/skills`, remove it so they do not show up twice.
 
 ## Usage
 
 ```
-/frugal                   # profiles picked automatically per task
-/frugal analysis          # force the analysis profile for this message
-/frugal coding agents     # several profiles
+/frugal                   # modules picked per task
+/frugal analysis          # force a module
+/frugal coding agents     # several modules
 ```
 
-To change a plugin's level mid-session, type `/caveman <level>` or `/ponytail <level>` yourself. A level change made by Claude does not stick.
+Say `normal mode` to turn it off.
+
+## Benchmarks
+
+`bench/bench.py` runs each task as a real headless Claude Code session (`claude -p`) in a temp copy of a fixture and checks the result automatically: tests pass, the right numbers appear, the file exists. Costs are the `total_cost_usd` Claude Code reports.
+
+Tasks: t1 fix a bug without touching the test; t2 find the largest month-over-month drop in a CSV; t3 draft a support reply with placeholders for unknown facts; t4 a 16-message session (bug fix, catalog change, CSV analysis, new function, email, review); t5 log triage, a rate limiter written from scratch, and a long explanation.
+
+### Opus 5.5, 2026-10-01, n=2 per cell
+
+Mean cost per run in USD. Humanizer is off in every arm.
+
+| Arm | t1 | t2 | t3 | t4 (16 msgs) | t5 | First-call context | Checks passed |
+|---|---|---|---|---|---|---|---|
+| Claude Code, no plugins | 0.141 | 0.134 | 0.143 | 0.732 | 0.303 | 38.6k | 10/10 |
+| caveman + ponytail (`full`) | 0.183 | 0.184 | 0.195 | 0.749 | 0.379 | 45.3k | 9/10 |
+| frugal | 0.156 | 0.144 | 0.150 | 0.684 | 0.310 | 39.7k | 10/10 |
+| caveman alone | pending | | | | | | |
+| ponytail alone | pending | | | | | | |
+
+The t2 and t5 frugal figures come from the run before the entry skill was trimmed to 2.4KB. With two runs per cell, differences under about 0.01 USD on t1 to t3 are within noise. The no-plugins t4 cost moved between 0.63 and 0.75 across three batches on the same day.
+
+What the numbers say so far:
+
+- Each task reads about 120k input tokens and writes 600 to 1,000. Opus in Claude Code already answers briefly, so cutting output saves little.
+- caveman and ponytail add about 6.7k tokens to every call. That costs 30 to 40% more on short tasks. They did cut some output (t1: 448 vs 594 tokens), not enough to pay for it.
+- frugal adds about 1k tokens. It costs 0.007 to 0.015 USD more on one-message tasks and was cheaper on the 16-message session, mainly through fewer tool calls.
+- Stacking frugal on top of caveman and ponytail was the most expensive setup in earlier runs (t4: 0.81 to 0.88).
+
+### How this relates to the published numbers
+
+caveman and ponytail publish their own benchmarks, measured in other setups:
+
+- **caveman** reports 65% fewer output tokens on single API calls against a model with no system prompt, whose average reply was 1,214 tokens. Its README notes that the rules cost 1 to 1.5k input tokens per turn and that already-terse workloads can lose money.
+- **ponytail** reports 54% fewer lines of code and 20% lower cost in headless Claude Code sessions on 12 feature tasks in a FastAPI + React template, with Haiku 4.5 and n=4. The savings are largest where the baseline over-builds (a date picker went from 404 to 23 lines) and near zero where the code is already minimal.
+
+Both results can hold at the same time as ours. These tasks are mostly fixes, analysis, and writing with Opus 5.5, where replies are already short and input dominates the cost. A run of frugal on ponytail's own harness is planned.
+
+### Reproduce
+
+```
+cd bench
+python bench.py run --conds AE --reps 2            # A: no plugins, E: /frugal
+python bench.py run --conds AE --tasks t1_bug,t4_long
+python bench.py report
+```
+
+`bench.py run` skips any run that already has results, so move old `results/<cond>_*` folders aside before re-running a condition. The system prompt changes between days (org skills, connector notices), so compare arms from the same batch.
 
 ## Licenses
 
-`humanizer` is MIT licensed and keeps its `LICENSE` file in its folder.
+`humanizer` is MIT and keeps its `LICENSE` file in its folder. frugal itself has no license file yet.
