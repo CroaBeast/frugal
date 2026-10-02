@@ -93,7 +93,7 @@ Tasks: t1 fix a bug without touching the test; t2 find the largest month-over-mo
 
 Every run below passed every check, so the differences are cost. Cells are the mean cost per run in USD, n=2. caveman and ponytail ran at `ultra`, their strongest level. Humanizer was off in every arm. Arms are only compared within the same batch, because the system prompt changes between batches.
 
-### frugal 1.0, Opus 5.5 (batch 2, 2026-10-01)
+### frugal 0.11, Opus 5.5 (batch 2, 2026-10-01)
 
 Batches 2 and 3 ran on 0.4.x, which is 1.0 plus the experimental `tight` profile described below; `/frugal` itself did not load it.
 
