@@ -55,6 +55,11 @@ Fix every pattern by stating the point directly. Patterns marked *weak alone* ne
 | 23 | Knowledge-limit disclaimers, guesses as fact | Say what the source does not show, or cut |
 | 24 | Heading repeated in the first sentence | Remove the restating line |
 | 25 | Writing about the previous version in docs | Describe current behavior |
+| 26 | False agency: things doing human actions ("the decision emerges", "the data tells us") | Name the person or system that acts |
+| 27 | Lazy extremes (every, always, never, everyone) doing vague work | Use the real scope, or cut |
+| 28 | Narrator from a distance ("people often find", "nobody designed this") | Address the reader or name who did it |
+| 29 | Meta-joiners and Wh- setups ("the rest of this post", "What this means is") | Delete the joiner; start with the point |
+| 30 | Adverbs that add nothing (really, truly, simply, deeply), *weak alone* | Cut; keep adverbs that carry meaning |
 
 ## When not to act
 
@@ -62,4 +67,4 @@ A person can make any one of these choices on purpose; act on a *weak alone* tel
 
 ## Source
 
-Wikipedia's ["Signs of AI writing"](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing) (WikiProject AI Cleanup). Upstream skill by Siqi Chen, MIT; full text in `references/full.md`.
+Wikipedia's ["Signs of AI writing"](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing) (WikiProject AI Cleanup). Upstream skill by Siqi Chen, MIT; full text in `references/full.md`. Patterns 26 to 30 and the scoring step adapt [stop-slop](https://hvpandya.com) by Hardik Pandya, MIT.

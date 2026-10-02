@@ -41,3 +41,11 @@ Trigger phrases and fixes for each pattern in `SKILL.md`. §1 to §5 justify an 
 23. **Knowledge-limit disclaimers and guesses.** as of my last update, based on available information, not publicly documented, maintains a low profile, likely grew up, it is believed. State what the source does not show or cut; never present a guess as fact.
 24. **Heading repeated in the first sentence.** Remove the restating line.
 25. **Writing about the previous version** in docs or comments. Describe current behavior; history belongs in changelogs and migration guides.
+
+## F. Added from stop-slop (Hardik Pandya, MIT)
+
+26. **False agency.** An inanimate thing performs a human verb: "the complaint becomes a fix", "the decision emerges", "the data tells us", "the market rewards". Name who acts. Keep it in code and system descriptions where the system is the actor ("the server retries").
+27. **Lazy extremes.** every, always, never, everyone, no one, all used for emphasis rather than as a checked claim. Give the real scope ("most of the 30 contracts") or cut. Keep them when literally true.
+28. **Narrator from a distance.** "People often find", "Nobody designed this", "It is worth noting". Address the reader ("you") or name who did it. Reference and legal text may stay impersonal.
+29. **Meta-joiners and Wh- setups.** "The rest of this essay", "As we will see", "What this means is", "Why does this matter? Because". Delete the joiner; start with the point.
+30. **Empty adverbs.** really, truly, simply, deeply, incredibly, extremely, fundamentally. Cut them; keep adverbs that change meaning (only, never, already, approximately). *Weak alone.*
