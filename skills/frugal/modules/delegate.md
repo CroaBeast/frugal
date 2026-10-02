@@ -5,6 +5,8 @@ The main thread keeps judgment: architecture, ambiguous bugs, cross-file design,
 **Delegate when** a self-contained, fully specified part would pull more than ~20k tokens of raw material (logs, many files, web pages, a codebase sweep) into this context and only a short result is needed back, or the work splits into independent parts that can run in parallel. Never for a lookup of one or two tool calls.
 
 **Model.** Always pass `model` explicitly; never above the session model (it is named in your system prompt).
+**Once delegated, do not redo the work.** Never re-read, re-grep, or re-sweep the delegated material. Spot-check at most 2 items the final answer hinges on, by the exact `path:line` the agent returned. A part comes back missing or contradictory: re-delegate only that part with a narrower scope.
+
 
 | Session model | Search, read, extract | Bounded edits, single-file review, code from a clear spec |
 |---|---|---|
