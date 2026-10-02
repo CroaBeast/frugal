@@ -1,6 +1,6 @@
 """A/B/C token benchmark for frugal.
 
-Conditions (caveman and ponytail at the level in %APPDATA%\<plugin>\config.json, ultra here; humanizer off everywhere):
+Conditions (caveman and ponytail at the level in %APPDATA%/<plugin>/config.json, ultra here; humanizer off everywhere):
   A  plain Claude Code
   B  caveman + ponytail
   C  caveman + ponytail, prompt prefixed with /frugal
@@ -8,6 +8,7 @@ Conditions (caveman and ponytail at the level in %APPDATA%\<plugin>\config.json,
   E  /frugal alone
   F  caveman alone
   G  ponytail alone
+  T  /frugal tight (frugal 4 plugin; E is plain /frugal on the plugin from 4.0 on)
 
 Usage:
   python bench.py run [--reps 2] [--workers 3] [--model claude-opus-5-5]
@@ -59,12 +60,15 @@ assert r.allow(1) and not r.allow(1)
 assert [r.allow(10) for _ in range(4)] == [True, True, True, False]
 """
 # humanizer is opt-in and interactive, so it stays out of the bench; AskUserQuestion has no user in -p
-PLUGINS = {"A": (0, 0), "B": (1, 1), "C": (1, 1), "D": (1, 1), "E": (0, 0), "F": (1, 0), "G": (0, 1)}  # (caveman, ponytail)
+PLUGINS = {"A": (0, 0, 0), "B": (1, 1, 0), "C": (1, 1, 0), "D": (1, 1, 0), "E": (0, 0, 1), "F": (1, 0, 0), "G": (0, 1, 0),
+           "T": (0, 0, 1)}  # (caveman, ponytail, frugal plugin)
+PREFIX = {"C": "/frugal ", "D": "/frugal ", "E": "/frugal:frugal ", "T": "/frugal:frugal tight "}  # C, D: loose-skill era
 
 
 def cond_settings(cond):
-    cav, pony = PLUGINS[cond]
-    return json.dumps({"enabledPlugins": {"caveman@caveman": bool(cav), "ponytail@ponytail": bool(pony)},
+    cav, pony, fru = PLUGINS[cond]
+    return json.dumps({"enabledPlugins": {"caveman@caveman": bool(cav), "ponytail@ponytail": bool(pony),
+                                          "frugal@frugal": bool(fru)},
                        "skillOverrides": {"humanizer": "off", "frugal:humanizer": "off"}})
 
 
@@ -78,7 +82,7 @@ def run_one(job, model):
     msgs = TASKS[task] if isinstance(TASKS[task], list) else [TASKS[task]]
     sid, stream, rcs = str(uuid.uuid4()), "", []
     for i, msg in enumerate(msgs):
-        prompt = ("/frugal " if cond in "CDE" and i == 0 else "") + msg
+        prompt = (PREFIX.get(cond, "") if i == 0 else "") + msg
         cmd = [shutil.which("claude"), "-p", prompt, "--model", model, "--output-format", "stream-json",
                "--verbose", "--permission-mode", "bypassPermissions"]
         if len(msgs) == 1:
@@ -170,18 +174,18 @@ def report():
         print(f"| {r['cond']} | {r['task']} | {r['rep']} | {r['ok']} | {r['out']} | {r['inp']} | {r['turns']} | {r['tools']} | {r['cost']:.3f} | {r['sec']:.0f} | {r['skills']} |")
     print("\n| cond | runs | passed | median output tok | median input tok | median cost USD | total cost USD |")
     print("|---|---|---|---|---|---|---|")
-    for c in "ABCDEFG":
+    for c in "ABCDEFGT":
         g = [r for r in rows if r["cond"] == c and r["task"] != "t4_long"]
         if g:
             print(f"| {c} | {len(g)} | {sum(r['ok'] for r in g)} | {st.median(r['out'] for r in g):.0f} | {st.median(r['inp'] for r in g):.0f} | "
                   f"{st.median(r['cost'] for r in g):.3f} | {sum(r['cost'] for r in g):.3f} |")
     long = [r for r in rows if r["task"] == "t4_long"]
     if long:
-        print("\n| t4_long msg | " + " | ".join(f"{c} median cost USD | {c} median input tok" for c in "ABCDEFG") + " |")
-        print("|---|" + "---|---|" * 7)
+        print("\n| t4_long msg | " + " | ".join(f"{c} median cost USD | {c} median input tok" for c in "ABCDEFGT") + " |")
+        print("|---|" + "---|---|" * 8)
         for i in range(len(TASKS["t4_long"])):
             cells = []
-            for c in "ABCDEFG":
+            for c in "ABCDEFGT":
                 g = [r["per_msg"][i] for r in long if r["cond"] == c]
                 cells += [f"{st.median(m['cost'] for m in g):.3f}", f"{st.median(m['inp'] for m in g):.0f}"] if g else ["-", "-"]
             print(f"| {i + 1} | " + " | ".join(cells) + " |")
@@ -196,7 +200,9 @@ if __name__ == "__main__":
     ap.add_argument("--model", default="claude-opus-5-5")
     ap.add_argument("--conds", default="ABC", help="D = C after swapping in a new frugal version; E = plugins off + /frugal")
     ap.add_argument("--tasks", default=",".join(TASKS), help="comma-separated task names")
+    ap.add_argument("--out", default="results", help="results folder under bench/")
     a = ap.parse_args()
+    RES = HERE / a.out
     if a.cmd == "report":
         report()
     else:
