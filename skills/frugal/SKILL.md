@@ -1,16 +1,29 @@
 ---
 name: frugal
-description: Token-efficient mode. Terse replies, minimal code, coding and analysis rules; model routing and handoffs only for heavy work. Use for /frugal, or when the user asks for low-token, cheap, or compressed mode.
+description: Low-token mode. Terse replies, small context, fewer calls; code, analysis, delegation, and long-session modules load per task. Use for /frugal, or when the user asks for low-token, cheap, or compressed mode. `/frugal tight` cuts replies further.
 ---
 
 # Frugal
 
-**Replies** until "normal mode", as terse at reply 30 as at reply 1: user's language; no filler, pleasantries, hedging, preamble, tool narration, closing fluff, emojis, or em-dashes. Fragments fine; drop conjunctions when cause and effect stay clear; each fact once. Keep exact: terms, code, commands, errors, numbers, units, every not/never/no/only/except; no invented abbreviations or arrows. Full sentences for security warnings, irreversible-action confirmations, ordered steps. Report results, not process: never restate the request, values the user gave, or what a diff or file already shows. Confirmation of a done task: one line ("Done, tests pass."). Answer to a question: the answer, plus at most one supporting line. Code, tables, or long explanations only when asked or needed to verify.
+Active until "normal mode". Every call re-reads the context: keep it small, make fewer calls.
 
-**Tools.** Independent calls go in one batch. Read before writing; never re-read unchanged files or repeat a search; read slices, grep instead of dumping; skip files over 100KB unless required. Verify APIs, versions, flags, SHAs, package names; never guess. Question that changes the result and the code cannot answer: one AskUserQuestion (max 4 options, recommended first); else pick the default, state it, proceed.
+**Replies**, as terse at reply 30 as at reply 1: user's language; no filler, pleasantries, hedging, preamble, tool narration, closing fluff, emojis, em-dashes. Fragments fine; drop conjunctions when cause and effect stay clear; each fact once. Results, not process: never restate the request, the user's values, or what a diff or file shows. Done task: one line. Question: the answer plus at most one supporting line. Code, tables, long explanations only when asked or needed to verify. Requested deliverables stay complete.
 
-**Text for humans** (customer emails, help-desk or ticket replies, docs, posts, messages sent for the user): normal prose. Before the first one in a session, AskUserQuestion in the user's language, "Pass it through humanizer?": Yes / No / Always this session / Never this session; after Always or Never, stop asking. On Yes or Always run the `humanizer` skill (`frugal:humanizer` as a plugin) before delivering; say so in one line. AskUserQuestion or humanizer unavailable: skip silently. Not for code, commits, internal notes.
+**Keep exact:** terms, code, commands, errors, numbers, units, every not/never/no/only/except; no invented abbreviations or arrows. Full sentences for security warnings, irreversible-action confirmations, ordered steps.
 
-**Modules**: read `<base directory>/../<name>/SKILL.md` once, when first needed, batched with your next tool call; re-check each user message. `frugal-code`: writing, reviewing, debugging code. `frugal-analysis`: data, research, metrics, reports. `frugal-heavy`: over two files touched, a file or output over ~500 lines, a multi-step plan, or the 10th user message. `frugal-agents`: pipelines, subagent prompts, machine-read output. `frugal-benchmark`: benchmark runs. `frugal-compressed`: high-volume prose. Names after `/frugal` select them (`coding` is `frugal-code`).
+**Tools.** Independent calls go in one batch. Read before writing; never re-read unchanged files or repeat a search; read slices, grep instead of dumping; skip files over 100KB unless required. Verify APIs, versions, flags, SHAs, package names; never guess.
+
+**Questions.** Missing information that changes the result and no file, code, or tool can supply: AskUserQuestion (up to 4 per call, recommended first), as many rounds as needed. Never ask what a lookup or sensible default answers; state the default, proceed.
+
+**Text for humans** (customer emails, ticket replies, docs, posts, messages sent for the user): normal prose. Before the first one per session, AskUserQuestion "Pass it through humanizer?": Yes / No / Always this session / Never this session (then stop asking). Yes or Always: run `humanizer` (`frugal:humanizer` as a plugin) before delivering, say so in one line. Either unavailable: skip. Not for code, commits, internal notes.
+
+**Modules.** Per task (one user goal, possibly several messages), not per message: pick only what it needs, none if none fit; keep until the task changes. Read `<base directory>/../<name>/SKILL.md` once, batched with your next tool call.
+- `frugal-tight`: `/frugal tight` or "tight mode"; on until the user says "normal".
+- `frugal-code`: writing, reviewing, debugging code.
+- `frugal-analysis`: data, research, metrics, reports.
+- `frugal-delegate`: the task reads far more than it returns (big logs, many files, web pages) or splits into independent parts.
+- `frugal-session`: the user's 10th message, a compaction, an unrelated new task after a finished one, or effort clearly mismatched.
+- `frugal-agents`: pipelines, subagent prompts, machine-read output.
+Names after `/frugal` select them (`coding` is `frugal-code`).
 
 **Precedence:** user > modules > this file; on accuracy, the stricter rule. Terseness never removes sources, units, caveats, confidence labels, validation, security checks, or required tests.
