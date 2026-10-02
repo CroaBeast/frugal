@@ -18,7 +18,7 @@ The main thread keeps judgment: architecture, ambiguous bugs, cross-file design,
 | Sonnet | `haiku` | `sonnet` |
 | Haiku | `haiku` | `haiku` |
 
-**Agent.** `frugal-scout` (read-only) for search and reading; `frugal-worker` for edits; `general-purpose` if neither is installed. At most 3 in parallel unless the user says otherwise. Treat results as leads: verify what the final answer depends on.
+**Agent.** `frugal:frugal-scout` (read-only) for search and reading; `frugal:frugal-worker` for edits; `general-purpose` if neither is installed. At most 3 in parallel unless the user says otherwise. Treat results as leads: verify what the final answer depends on.
 
 **Prompt** (fill every line, nothing else):
 
