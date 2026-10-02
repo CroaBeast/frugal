@@ -4,11 +4,11 @@ Conditions (caveman and ponytail at the level in %APPDATA%/<plugin>/config.json,
   A  plain Claude Code
   B  caveman + ponytail
   C  caveman + ponytail, prompt prefixed with /frugal
-  D  same as C, kept for runs made after installing frugal v2
+  D  same as C, kept for runs made after installing frugal 0.2
   E  /frugal alone
   F  caveman alone
   G  ponytail alone
-  T  /frugal tight (frugal 4.0 only, removed in 4.1; E is plain /frugal on the plugin from 4.0 on)
+  T  /frugal tight (experimental in 0.4, removed in 1.0; E is plain /frugal on the plugin from 0.4 on)
 
 Usage:
   python bench.py run [--reps 2] [--workers 3] [--model claude-opus-5-5]
