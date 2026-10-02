@@ -1,6 +1,6 @@
 """A/B/C token benchmark for frugal.
 
-Conditions (caveman and ponytail at their default level, full; humanizer off everywhere):
+Conditions (caveman and ponytail at the level in %APPDATA%\<plugin>\config.json, ultra here; humanizer off everywhere):
   A  plain Claude Code
   B  caveman + ponytail
   C  caveman + ponytail, prompt prefixed with /frugal
