@@ -6,21 +6,21 @@ frugal is built around one fact about agent sessions: most of the bill is input,
 
 ## What it does
 
-`/frugal` loads a 3KB entry skill. It keeps replies short, keeps exact values exact, and picks modules per task: a module is read when a task needs it and kept until the task changes.
+`/frugal` loads a 2.9KB entry skill. It keeps replies short, keeps exact values exact, and picks modules per task: a module is read when a task needs it and kept until the task changes.
 
-| Skill | Loaded | What it does |
+| Part | Loaded | What it does |
 |---|---|---|
 | `frugal` | on `/frugal` | Terse replies that report results, not process; exact terms, numbers, and negations; batched tool calls; no re-reading unchanged files; verify instead of guessing APIs and versions; asks only when missing information changes the result |
-| `frugal-code` | writing, reviewing, or debugging code | Minimal code: reuse before writing, stdlib before dependencies, root-cause fixes, one runnable check for non-trivial logic. Never cuts validation, security, or error handling that prevents data loss |
-| `frugal-analysis` | data, research, metrics, reports | Finding first; every number with a source or derivation and units; missing data, low confidence, and inferences labeled |
-| `frugal-delegate` | the task reads far more than it returns, or splits into independent parts | Hands reading to `haiku` and bounded edits to `sonnet`, never above the session model |
-| `frugal-session` | the 10th message, a compaction, or a new unrelated task | Effort suggestions and a handoff block for a fresh chat |
-| `frugal-agents` | pipelines, subagent prompts, machine-read output | Structured, parseable output; no narration; never invents paths, endpoints, or field names |
+| `modules/code.md` | writing, reviewing, or debugging code | Minimal code: reuse before writing, stdlib before dependencies, root-cause fixes, one runnable check for non-trivial logic. Never cuts validation, security, or error handling that prevents data loss |
+| `modules/analysis.md` | data, research, metrics, reports | Finding first; every number with a source or derivation and units; missing data, low confidence, and inferences labeled |
+| `modules/delegate.md` | the task reads far more than it returns, or splits into independent parts | Hands reading to `haiku` and bounded edits to `sonnet`, never above the session model |
+| `modules/session.md` | the 10th message, a compaction, or a new unrelated task | Effort suggestions and a handoff block for a fresh chat |
+| `modules/agents.md` | pipelines, subagent prompts, machine-read output | Structured, parseable output; no narration; never invents paths, endpoints, or field names |
 | `humanizer` | only if you say yes | Rewrites AI-sounding text. Based on [blader/humanizer](https://github.com/blader/humanizer), MIT |
 
-Modules are marked `disable-model-invocation`, so their descriptions do not sit in every session's context. You can pick them yourself: `/frugal analysis coding`.
+Modules are plain files under `skills/frugal/modules/`, read by path only when a task needs them, so they add nothing to sessions that do not use them. You can pick them yourself: `/frugal analysis coding`.
 
-**Cheaper models without settings.** The plugin ships two subagents, `frugal-scout` (read-only search and extraction) and `frugal-worker` (bounded edits). `frugal-delegate` passes the model on every call, so nothing in your settings changes:
+**Cheaper models without settings.** The plugin ships two subagents, `frugal-scout` (read-only search and extraction) and `frugal-worker` (bounded edits). The `delegate` module passes the model on every call, so nothing in your settings changes:
 
 | Session model | Search, read, extract | Bounded edits |
 |---|---|---|
@@ -50,7 +50,7 @@ Install the frugal plugin from https://github.com/<github-user>/frugal for me.
 Change nothing else. If the caveman or ponytail plugins are enabled, tell me, but do not disable them yourself.
 ```
 
-Outside Claude Code, the subagents (`frugal-scout`, `frugal-worker`) and the model routing in `frugal-delegate` do not apply, and step 3 installs only the core rules.
+Outside Claude Code, the subagents (`frugal-scout`, `frugal-worker`) and the model routing in `modules/delegate.md` do not apply, and step 3 installs only the core rules.
 
 ### By hand, in Claude Code
 
@@ -158,7 +158,7 @@ python bench.py report
 
 ## Versions
 
-- **1.0.0**: per-task modules, `frugal-delegate` with haiku and sonnet subagents shipped in the plugin, `frugal-session`, questions only when needed, opt-in humanizer with a shorter core. Benchmarked equal in cost to plain Claude Code on Opus 5.5 and Sonnet 5.5, with 15 to 18% less output.
+- **1.0.0**: per-task modules read by path, delegation to haiku and sonnet subagents shipped in the plugin, session handoff, questions only when needed, opt-in humanizer with a shorter core. Benchmarked equal in cost to plain Claude Code on Opus 5.5 and Sonnet 5.5, with 15 to 18% less output.
 - **0.4**: first plugin build of the above, plus the experimental `tight` profile (discarded).
 - **0.3**: modular skills loaded on demand, standalone (no caveman or ponytail needed).
 - **0.1, 0.2**: single skill on top of caveman and ponytail at `ultra`; the most expensive setup in the benchmarks.
