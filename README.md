@@ -6,12 +6,11 @@ frugal is built around one fact about agent sessions: most of the bill is input,
 
 ## What it does
 
-`/frugal` loads a 3.1KB entry skill. It keeps replies short, keeps exact values exact, and picks modules per task: a module is read when a task needs it and kept until the task changes.
+`/frugal` loads a 3KB entry skill. It keeps replies short, keeps exact values exact, and picks modules per task: a module is read when a task needs it and kept until the task changes.
 
 | Skill | Loaded | What it does |
 |---|---|---|
 | `frugal` | on `/frugal` | Terse replies that report results, not process; exact terms, numbers, and negations; batched tool calls; no re-reading unchanged files; verify instead of guessing APIs and versions; asks only when missing information changes the result |
-| `frugal-tight` | `/frugal tight` or "tight mode" | The fewest output tokens and calls that stay correct: `Done.` confirmations, bare answers, short reasoning, smallest diffs. Never cuts exact values, warnings, requested deliverables, or required tests |
 | `frugal-code` | writing, reviewing, or debugging code | Minimal code: reuse before writing, stdlib before dependencies, root-cause fixes, one runnable check for non-trivial logic. Never cuts validation, security, or error handling that prevents data loss |
 | `frugal-analysis` | data, research, metrics, reports | Finding first; every number with a source or derivation and units; missing data, low confidence, and inferences labeled |
 | `frugal-delegate` | the task reads far more than it returns, or splits into independent parts | Hands reading to `haiku` and bounded edits to `sonnet`, never above the session model |
@@ -50,10 +49,23 @@ Open a new session and type `/frugal`. If you also have a separate copy of `huma
 /frugal                   # modules picked per task
 /frugal analysis          # force a module
 /frugal coding agents     # several modules
-/frugal tight             # shortest replies
 ```
 
 Say `normal mode` to turn it off.
+
+## Should you use it?
+
+On these benchmarks, plain Claude Code costs about the same as frugal and less than caveman or ponytail. Use frugal when one of these matters to you:
+
+- **Long sessions and heavy tasks.** That is where frugal came out cheaper (3 to 13%). Every call re-reads the whole history, so shorter replies and fewer re-reads compound as a session grows, and the handoff block moves you to a fresh chat before the history gets expensive.
+- **Shorter replies to read.** 15 to 18% less output overall, and about half the chat text on simple tasks, with every check still passing.
+- **Behavior, not just tokens.** Verify APIs and versions instead of guessing, ask only when the answer changes the result, minimal code that keeps validation and tests, opt-in humanizer for text people read.
+
+Skip it for short one-off tasks: there it costs about 0.01 to 0.02 USD more per task, the price of loading its rules.
+
+caveman and ponytail make sense in the setups they were measured in: caveman with a model that writes long answers and has no system prompt telling it to be brief, ponytail on feature work where the model over-builds. In Claude Code with Opus or Sonnet on fixes, analysis, and writing, their rules cost more than they save.
+
+**Questions cost tokens too.** Each question is one extra call: the model writes the question, your answer comes back, and the whole context is read again (mostly from cache, which is cheaper). That is why frugal asks only when missing information would change the result: one question is much cheaper than redoing work built on a wrong guess.
 
 ## Benchmarks
 
@@ -69,7 +81,7 @@ Every run below passed every check, so the differences are cost. Cells are the m
 |---|---|---|---|---|---|---|---|---|
 | Claude Code, no plugins | 0.133 | 0.129 | 0.144 | 0.669 | 0.323 | 1.398 | | 16.9k |
 | caveman ultra + ponytail ultra | 0.187 | 0.182 | 0.196 | 0.733 | 0.384 | 1.681 | +20% | 15.4k |
-| frugal 4, `tight` | 0.158 | 0.157 | 0.163 | 0.644 | 0.302 | 1.425 | +2% | 13.7k |
+| frugal 4.0 `tight` (removed in 4.1) | 0.158 | 0.157 | 0.163 | 0.644 | 0.302 | 1.425 | +2% | 13.7k |
 | **frugal 4** | 0.153 | 0.153 | 0.152 | 0.649 | 0.280 | **1.387** | **-1%** | **13.9k (-18%)** |
 
 ### frugal 4, Sonnet 5.5 (batch 3, 2026-10-01)
@@ -96,7 +108,7 @@ t1 uses only the second run of each arm here: the first run of a batch pays for 
 - Each task reads about 120k input tokens and writes 600 to 1,000. Opus and Sonnet in Claude Code already answer briefly, so cutting output alone saves little.
 - caveman and ponytail add 3k to 7k tokens to every call: 13 to 23% more than no plugins, with no quality gain on these checks. Stacking them adds the overheads while the output savings overlap.
 - frugal 4 adds about 1.5k tokens, writes 15 to 18% less, and makes no extra calls. It costs the same as plain Claude Code overall: about 0.01 to 0.02 USD more on one-message tasks, and 3 to 13% less on the long session and the heavy task.
-- `tight` did not cut output further than the default profile, so the default already sits near the floor for these tasks. What is left is deliverables (code, emails, explanations), which frugal never shortens.
+- A `tight` profile with harder reply rules did not cut output further than the default, and the model loaded it in only 4 of 10 runs, so 4.1 removed it. What output is left is mostly deliverables (code, emails, explanations), which frugal never shortens, and reasoning, which a skill cannot limit. `/effort low` is the setting that limits reasoning; it is not benchmarked here.
 - No run delegated to a subagent. On the 420KB log in t5 the model used grep, which is cheaper than starting a subagent. Delegation is not measured yet.
 
 ### How this relates to the published numbers
@@ -106,7 +118,7 @@ caveman and ponytail publish their own benchmarks, measured in other setups:
 - **caveman** reports 65% fewer output tokens on single API calls against a model with no system prompt, whose average reply was 1,214 tokens. Its README notes that the rules cost 1 to 1.5k input tokens per turn and that already-terse workloads can lose money.
 - **ponytail** reports 54% fewer lines of code and 20% lower cost in headless Claude Code sessions on 12 feature tasks in a FastAPI + React template, with Haiku 4.5 and n=4. The savings are largest where the baseline over-builds (a date picker went from 404 to 23 lines) and near zero where the code is already minimal.
 
-Both results can hold at the same time as ours. These tasks are mostly fixes, analysis, and writing with Opus 5.5, where replies are already short and input dominates the cost. A run of frugal on ponytail's own harness is planned.
+Both results can hold at the same time as ours. These tasks are mostly fixes, analysis, and writing with Opus 5.5 and Sonnet 5.5, where replies are already short and input dominates the cost. A run of frugal on ponytail's own harness is planned.
 
 ### Reproduce
 
