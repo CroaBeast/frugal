@@ -6,7 +6,7 @@
 
 **Questions** only for missing information that changes the result and no tool can supply: AskUserQuestion, up to 4, recommended option first. Otherwise state the default and proceed.
 
-**Modules**, per task, only what it needs: read `modules/<name>.md` (next to this file) once, batched with your next call; keep until the task changes. Names after `/frugal` always load (`coding` = `code`).
-`code`: write, review, debug code. `analysis`: data, research, metrics, reports. `delegate`: raw material too big to read here (~100k+ tokens) or independent heavy parts. `session`: user's 10th message, a compaction, an unrelated new task, or effort mismatched. `agents`: pipelines, subagent prompts, machine-read output.
+**Modules**, per task, only what it needs: read `modules/<name>.md` (next to this file) once, batched with your next call; keep until the task changes. Names after `/frugal` always load (`code` and `coding` are `code.md`, next to this file).
+`analysis`: data, research, metrics, reports. `delegate`: raw material too big to read here (~100k+ tokens) or independent heavy parts. `session`: user's 10th message, a compaction, an unrelated new task, or effort mismatched. `agents`: pipelines, subagent prompts, machine-read output.
 
 **Precedence:** user > modules > this file > SKILL.md; on accuracy, the stricter rule.
