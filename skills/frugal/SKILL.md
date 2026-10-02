@@ -1,6 +1,6 @@
 ---
 name: frugal
-description: Low-token mode. Terse replies, small context, fewer calls; code, analysis, delegation, and long-session modules load per task. Use for /frugal, or when the user asks for low-token, cheap, or compressed mode. `/frugal tight` cuts replies further.
+description: Low-token mode. Terse replies, small context, fewer calls; code, analysis, delegation, and long-session modules load per task. Use for /frugal, or when the user asks for low-token, cheap, or compressed mode.
 ---
 
 # Frugal
@@ -18,7 +18,6 @@ Active until "normal mode". Every call re-reads the context: keep it small, make
 **Text for humans** (customer emails, ticket replies, docs, posts, messages sent for the user): normal prose. Before the first one per session, AskUserQuestion "Pass it through humanizer?": Yes / No / Always this session / Never this session (then stop asking). Yes or Always: run `humanizer` (`frugal:humanizer` as a plugin) before delivering, say so in one line. Either unavailable: skip. Not for code, commits, internal notes.
 
 **Modules.** Per task (one user goal, possibly several messages), not per message: pick only what it needs, none if none fit; keep until the task changes. Read `<base directory>/../<name>/SKILL.md` once, batched with your next tool call.
-- `frugal-tight`: `/frugal tight` or "tight mode": read it in your very first tool batch, before any other work; on until the user says "normal".
 - `frugal-code`: writing, reviewing, debugging code.
 - `frugal-analysis`: data, research, metrics, reports.
 - `frugal-delegate`: the task reads far more than it returns (big logs, many files, web pages) or splits into independent parts.
