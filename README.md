@@ -129,6 +129,12 @@ t1 uses only the second run of each arm here: the first run of a batch pays for 
 - A `tight` profile with harder reply rules did not cut output further than the default, and the model loaded it in only 4 of 10 runs, so 4.1 removed it. What output is left is mostly deliverables (code, emails, explanations), which frugal never shortens, and reasoning, which a skill cannot limit. `/effort low` is the setting that limits reasoning; it is not benchmarked here.
 - No run delegated to a subagent. On the 420KB log in t5 the model used grep, which is cheaper than starting a subagent. Delegation is not measured yet.
 
+### Experiment: a `tight` profile (discarded)
+
+0.4 shipped an opt-in `tight` profile to test whether cutting output harder than the default would lower total cost. It replaced the reply rules with `Done.` confirmations, bare answers, no headings or tables, short reasoning, and the fewest calls, while keeping exact values, warnings, deliverables, and tests.
+
+It did not work. On Opus 5.5 in batch 2 it cost 1.425 USD (+2% vs no plugins) against 1.387 for the default profile, and wrote about the same output (13.7k vs 13.9k tokens per rep). The model loaded the profile in only 4 of 10 runs even after the rule was made mandatory, and one t4 run made 29 tool calls instead of 17. The default profile already sits near the floor: what output is left is deliverables (code, emails, explanations), which frugal never shortens, and reasoning, which a skill cannot limit (`/effort low` does that, and is not benchmarked here). 1.0 removed `tight`.
+
 ### How this relates to the published numbers
 
 caveman and ponytail publish their own benchmarks, measured in other setups:
