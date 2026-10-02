@@ -36,8 +36,26 @@ frugal covers what caveman and ponytail do, so you do not need them. If they are
 
 ## Install
 
+### Let your agent install it
+
+Paste this into Claude Code (CLI, desktop, or IDE), Claude Cowork, Codex, Cursor, or any agent that can run shell commands:
+
+```text
+Install the frugal plugin from https://github.com/<github-user>/frugal for me.
+
+1. If you are Claude Code: run `claude plugin marketplace add <github-user>/frugal`, then `claude plugin install frugal@frugal`. Tell me to start a new session and type /frugal.
+2. Otherwise, if you support Agent Skills (folders containing a SKILL.md): clone the repo to a temporary folder and copy every folder under skills/ into your user skills directory. Tell me how to invoke the frugal skill.
+3. Otherwise: add the text of skills/frugal/SKILL.md, without its front matter, to your persistent instructions file (for example AGENTS.md) and tell me which file you changed.
+
+Change nothing else. If the caveman or ponytail plugins are enabled, tell me, but do not disable them yourself.
 ```
-/plugin marketplace add <path-or-repo>
+
+Outside Claude Code, the subagents (`frugal-scout`, `frugal-worker`) and the model routing in `frugal-delegate` do not apply, and step 3 installs only the core rules.
+
+### By hand, in Claude Code
+
+```
+/plugin marketplace add <github-user>/frugal
 /plugin install frugal@frugal
 ```
 
