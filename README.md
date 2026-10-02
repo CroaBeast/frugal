@@ -18,7 +18,7 @@ frugal is built around one fact about agent sessions: most of the bill is input,
 | `modules/agents.md` | pipelines, subagent prompts, machine-read output | Structured, parseable output; no narration; never invents paths, endpoints, or field names |
 | `humanizer` | only if you say yes | Rewrites AI-sounding text. Based on [blader/humanizer](https://github.com/blader/humanizer), MIT |
 
-Modules are plain files under `skills/frugal/modules/`, read by path only when a task needs more than 3 tool calls, so they add nothing to short tasks or sessions that do not use them. You can pick them yourself: `/frugal analysis coding`.
+Short tasks load only a small core (`SKILL.md`, ~1.2KB). A task that needs more than 3 tool calls also reads `core.md` (tool, question, and module rules) and the modules it needs, all plain files read by path, so nothing extra is loaded for a quick fix or a one-line answer. You can pick them yourself: `/frugal analysis coding`.
 
 **Cheaper models without settings.** The plugin ships two subagents, `frugal-scout` (read-only search and extraction) and `frugal-worker` (bounded edits). The `delegate` module passes the model on every call, so nothing in your settings changes:
 
@@ -45,7 +45,7 @@ Install the frugal plugin from https://github.com/<github-user>/frugal for me.
 
 1. If you are Claude Code: run `claude plugin marketplace add <github-user>/frugal`, then `claude plugin install frugal@frugal`. Tell me to start a new session and type /frugal.
 2. Otherwise, if you support Agent Skills (folders containing a SKILL.md): clone the repo to a temporary folder and copy every folder under skills/ into your user skills directory. Tell me how to invoke the frugal skill.
-3. Otherwise: add the text of skills/frugal/SKILL.md, without its front matter, to your persistent instructions file (for example AGENTS.md) and tell me which file you changed.
+3. Otherwise: add the text of skills/frugal/SKILL.md, without its front matter, followed by skills/frugal/core.md, to your persistent instructions file (for example AGENTS.md) and tell me which file you changed.
 
 Change nothing else. If the caveman or ponytail plugins are enabled, tell me, but do not disable them yourself.
 ```
@@ -129,7 +129,7 @@ t1 uses only the second run of each arm here: the first run of a batch pays for 
 - caveman and ponytail add 3k to 7k tokens to every call: 13 to 23% more than no plugins, with no quality gain on these checks. Stacking them adds the overheads while the output savings overlap.
 - frugal 1.0 adds about 1.5k tokens, writes 15 to 18% less, and makes no extra calls. It costs the same as plain Claude Code overall: about 0.01 to 0.02 USD more on one-message tasks, and 3 to 13% less on the long session and the heavy task.
 - Delegation (0.6, forced with `/frugal delegate` on t5, t6, t8): when it delegated to three haiku scouts it cost 1.6 to 2.3 times plain Claude Code at the same quality. The haiku agents were cheap (0.14 to 0.22 USD); the main thread re-read the material to verify and woke up for each background agent. 0.6.1 delegates only above ~100k tokens of raw material, never re-reads what it delegated, and runs agents in the foreground: it delegated in 2 of 8 runs instead of 4, at 0.45 to 0.55 USD instead of 0.51 to 0.84.
-- Frugal pays off in long sessions and heavy tasks. On a short one-off task it costs about 0.01 USD more, because its rules cost ~1.3k input tokens and Opus already answers short tasks briefly.
+- Short tasks (0.6.2, same batch, n=4): 0.6.1 cost 4 to 11% more than plain Claude Code on one-message tasks, almost all of it from its ~1k tokens of rules (the plugin being enabled adds ~0.3k). 0.6.2 loads a ~1.2KB core and reads the rest only for tasks over 3 tool calls: +0 to 3% on short tasks (within noise), -11% on the 16-message session, -8% on the heavy task, -5% overall, same pass rate. It read `core.md` in 4 of 4 heavy runs and 1 of 12 short ones.
 
 ### Experiment: a `tight` profile (discarded)
 
