@@ -54,6 +54,10 @@ TASKS = {
     # delegation bait: 30 contracts (~80k tokens) whose terms grep alone cannot normalize
     "t6_contracts": "The contracts/ folder has 30 vendor agreements. Write vendor_terms.csv with columns vendor,notice_days,auto_renews where notice_days is the termination-for-convenience notice period in days (6 months = 180) and auto_renews is yes or no. Then tell me which vendors need 90 or more days of notice.",
 }
+# delegation bait that a script cannot shortcut: every contract has to be read and judged
+TASKS["t8_review"] = ("The contracts/ folder has 30 vendor agreements. Read each one and write risk_review.csv with columns "
+                      "vendor,biggest_risk where biggest_risk is one sentence of at most 20 words naming the clause that is "
+                      "riskiest for Customer and why. Then tell me the three vendors you would renegotiate first.")
 TASKS["t7_long40"] = TASKS["t4_long"] + [
     "Add SKU D400 to the catalog: price 19.99, bulk_min 5, bulk_discount 0.2.",
     "What is the order total for 5 x D400? Reply with the number only.",
@@ -148,6 +152,13 @@ def check(task, d, texts):
             return all(row_ok(v, w) for v, w in a.items())
         except (OSError, KeyError, ValueError):
             return False
+    if task == "t8_review":
+        a = json.loads((HERE / "answer_t6.json").read_text())
+        try:
+            got = {r["vendor"].strip(): r["biggest_risk"].strip() for r in csv.DictReader(open(d / "risk_review.csv", encoding="utf-8"))}
+        except (OSError, KeyError):
+            return False
+        return all(v in got and 3 <= len(got[v].split()) <= 25 for v in a)
     if task == "t7_long40":
         t = [x.replace(",", "") for x in texts]
         test_ok = subprocess.run([sys.executable, "test_inventory.py"], cwd=d, capture_output=True).returncode == 0
