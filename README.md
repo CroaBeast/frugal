@@ -13,12 +13,12 @@ frugal is built around one fact about agent sessions: most of the bill is input,
 | `frugal` | on `/frugal` | Terse replies that report results, not process; exact terms, numbers, and negations; batched tool calls; no re-reading unchanged files; verify instead of guessing APIs and versions; asks only when missing information changes the result |
 | `modules/code.md` | writing, reviewing, or debugging code | Minimal code: reuse before writing, stdlib before dependencies, root-cause fixes, one runnable check for non-trivial logic. Never cuts validation, security, or error handling that prevents data loss |
 | `modules/analysis.md` | data, research, metrics, reports | Finding first; every number with a source or derivation and units; missing data, low confidence, and inferences labeled |
-| `modules/delegate.md` | the task reads far more than it returns, or splits into independent parts | Hands reading to `haiku` and bounded edits to `sonnet`, never above the session model |
+| `modules/delegate.md` | the raw material is too big to read directly (roughly 100k+ tokens), or splits into independent heavy parts | Hands reading to `haiku` and bounded edits to `sonnet`, never above the session model |
 | `modules/session.md` | the 10th message, a compaction, or a new unrelated task | Effort suggestions and a handoff block for a fresh chat |
 | `modules/agents.md` | pipelines, subagent prompts, machine-read output | Structured, parseable output; no narration; never invents paths, endpoints, or field names |
 | `humanizer` | only if you say yes | Rewrites AI-sounding text. Based on [blader/humanizer](https://github.com/blader/humanizer), MIT |
 
-Modules are plain files under `skills/frugal/modules/`, read by path only when a task needs them, so they add nothing to sessions that do not use them. You can pick them yourself: `/frugal analysis coding`.
+Modules are plain files under `skills/frugal/modules/`, read by path only when a task needs more than 3 tool calls, so they add nothing to short tasks or sessions that do not use them. You can pick them yourself: `/frugal analysis coding`.
 
 **Cheaper models without settings.** The plugin ships two subagents, `frugal-scout` (read-only search and extraction) and `frugal-worker` (bounded edits). The `delegate` module passes the model on every call, so nothing in your settings changes:
 
@@ -28,7 +28,7 @@ Modules are plain files under `skills/frugal/modules/`, read by path only when a
 | Sonnet | haiku | sonnet |
 | Haiku | haiku | haiku |
 
-It delegates only when the raw material would add more than about 20k tokens to the main context, because each subagent starts with an empty cache.
+It delegates only when the raw material is too big to read directly (roughly 100k+ tokens), or more than ~30k tokens in a session that continues for many turns. Each subagent starts with an empty cache, and in the bench reading 30 contracts (~32k tokens) directly cost less than splitting them across three subagents. Once it delegates, the main thread does not re-read the material: it spot-checks at most two results.
 
 **Humanizer is opt-in.** The first time frugal is about to write text for people (a customer email, a ticket reply, docs, a post), it asks once: Yes, No, Always this session, or Never this session. It never runs for code, commits, or internal notes.
 
@@ -128,7 +128,8 @@ t1 uses only the second run of each arm here: the first run of a batch pays for 
 - Each task reads about 120k input tokens and writes 600 to 1,000. Opus and Sonnet in Claude Code already answer briefly, so cutting output alone saves little.
 - caveman and ponytail add 3k to 7k tokens to every call: 13 to 23% more than no plugins, with no quality gain on these checks. Stacking them adds the overheads while the output savings overlap.
 - frugal 1.0 adds about 1.5k tokens, writes 15 to 18% less, and makes no extra calls. It costs the same as plain Claude Code overall: about 0.01 to 0.02 USD more on one-message tasks, and 3 to 13% less on the long session and the heavy task.
-- No run delegated to a subagent. On the 420KB log in t5 the model used grep, which is cheaper than starting a subagent. Delegation is not measured yet.
+- Delegation (0.6, forced with `/frugal delegate` on t5, t6, t8): when it delegated to three haiku scouts it cost 1.6 to 2.3 times plain Claude Code at the same quality. The haiku agents were cheap (0.14 to 0.22 USD); the main thread re-read the material to verify and woke up for each background agent. 0.6.1 delegates only above ~100k tokens of raw material, never re-reads what it delegated, and runs agents in the foreground: it delegated in 2 of 8 runs instead of 4, at 0.45 to 0.55 USD instead of 0.51 to 0.84.
+- Frugal pays off in long sessions and heavy tasks. On a short one-off task it costs about 0.01 USD more, because its rules cost ~1.3k input tokens and Opus already answers short tasks briefly.
 
 ### Experiment: a `tight` profile (discarded)
 
