@@ -1,11 +1,13 @@
 """A/B/C token benchmark for frugal.
 
-Conditions:
-  A  plain Claude Code: caveman and ponytail disabled, no /frugal
-  B  caveman and ponytail enabled (user settings), no /frugal
-  C  caveman and ponytail enabled, prompt prefixed with /frugal
-  D  same as C, run after installing frugal v2 (adaptive)
-  E  caveman and ponytail disabled, /frugal v3 (plugin essentials embedded)
+Conditions (caveman and ponytail at their default level, full; humanizer off everywhere):
+  A  plain Claude Code
+  B  caveman + ponytail
+  C  caveman + ponytail, prompt prefixed with /frugal
+  D  same as C, kept for runs made after installing frugal v2
+  E  /frugal alone
+  F  caveman alone
+  G  ponytail alone
 
 Usage:
   python bench.py run [--reps 2] [--workers 3] [--model claude-opus-5-5]
@@ -57,8 +59,13 @@ assert r.allow(1) and not r.allow(1)
 assert [r.allow(10) for _ in range(4)] == [True, True, True, False]
 """
 # humanizer is opt-in and interactive, so it stays out of the bench; AskUserQuestion has no user in -p
-NO_PLUGINS = json.dumps({"enabledPlugins": {"caveman@caveman": False, "ponytail@ponytail": False},
-                         "skillOverrides": {"humanizer": "off", "frugal:humanizer": "off"}})
+PLUGINS = {"A": (0, 0), "B": (1, 1), "C": (1, 1), "D": (1, 1), "E": (0, 0), "F": (1, 0), "G": (0, 1)}  # (caveman, ponytail)
+
+
+def cond_settings(cond):
+    cav, pony = PLUGINS[cond]
+    return json.dumps({"enabledPlugins": {"caveman@caveman": bool(cav), "ponytail@ponytail": bool(pony)},
+                       "skillOverrides": {"humanizer": "off", "frugal:humanizer": "off"}})
 
 
 def run_one(job, model):
@@ -78,8 +85,7 @@ def run_one(job, model):
             cmd += ["--no-session-persistence"]
         else:
             cmd += ["--session-id", sid] if i == 0 else ["--resume", sid]
-        if cond in "AE":
-            cmd += ["--settings", NO_PLUGINS, "--disallowedTools", "AskUserQuestion"]
+        cmd += ["--settings", cond_settings(cond), "--disallowedTools", "AskUserQuestion"]
         p = subprocess.run(cmd, cwd=work, capture_output=True, text=True, encoding="utf-8", timeout=900)
         stream += p.stdout
         rcs.append(p.returncode)
@@ -164,18 +170,18 @@ def report():
         print(f"| {r['cond']} | {r['task']} | {r['rep']} | {r['ok']} | {r['out']} | {r['inp']} | {r['turns']} | {r['tools']} | {r['cost']:.3f} | {r['sec']:.0f} | {r['skills']} |")
     print("\n| cond | runs | passed | median output tok | median input tok | median cost USD | total cost USD |")
     print("|---|---|---|---|---|---|---|")
-    for c in "ABCDE":
+    for c in "ABCDEFG":
         g = [r for r in rows if r["cond"] == c and r["task"] != "t4_long"]
         if g:
             print(f"| {c} | {len(g)} | {sum(r['ok'] for r in g)} | {st.median(r['out'] for r in g):.0f} | {st.median(r['inp'] for r in g):.0f} | "
                   f"{st.median(r['cost'] for r in g):.3f} | {sum(r['cost'] for r in g):.3f} |")
     long = [r for r in rows if r["task"] == "t4_long"]
     if long:
-        print("\n| t4_long msg | " + " | ".join(f"{c} median cost USD | {c} median input tok" for c in "ABCDE") + " |")
-        print("|---|" + "---|---|" * 5)
+        print("\n| t4_long msg | " + " | ".join(f"{c} median cost USD | {c} median input tok" for c in "ABCDEFG") + " |")
+        print("|---|" + "---|---|" * 7)
         for i in range(len(TASKS["t4_long"])):
             cells = []
-            for c in "ABCDE":
+            for c in "ABCDEFG":
                 g = [r["per_msg"][i] for r in long if r["cond"] == c]
                 cells += [f"{st.median(m['cost'] for m in g):.3f}", f"{st.median(m['inp'] for m in g):.0f}"] if g else ["-", "-"]
             print(f"| {i + 1} | " + " | ".join(cells) + " |")
