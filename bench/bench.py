@@ -51,6 +51,8 @@ TASKS = {
         "Implement a token bucket rate limiter in ratelimit.py: class RateLimiter(rate, capacity) with allow(now) -> bool, where now is a timestamp in seconds passed by the caller. The bucket starts full with capacity tokens, refills at rate tokens per second up to capacity, and each allowed call consumes one token. Add tests in test_ratelimit.py and run them.",
         "Explain in detail, for a new developer, how the inventory package computes an order total.",
     ],
+    # delegation bait: 30 contracts (~80k tokens) whose terms grep alone cannot normalize
+    "t6_contracts": "The contracts/ folder has 30 vendor agreements. Write vendor_terms.csv with columns vendor,notice_days,auto_renews where notice_days is the termination-for-convenience notice period in days (6 months = 180) and auto_renews is yes or no. Then tell me which vendors need 90 or more days of notice.",
 }
 T5_HIDDEN = """
 from ratelimit import RateLimiter
@@ -105,6 +107,29 @@ def check(task, d, texts):
         hidden = subprocess.run([sys.executable, "-c", T5_HIDDEN], cwd=d, capture_output=True).returncode == 0
         return all(["req-103712" in texts[0], "EUR" in texts[0], hidden,
                     "bulk" in texts[2].lower(), "tax" in texts[2].lower()])
+    if task == "t6_contracts":
+        a = json.loads((HERE / "answer_t6.json").read_text())
+        try:
+            got = {r["vendor"].strip(): r for r in csv.DictReader(open(d / "vendor_terms.csv", encoding="utf-8"))}
+
+            def row_ok(vendor, want):
+                r = got.get(vendor)
+                if not r:
+                    return False
+                n = int(float(r["notice_days"]))
+                days_ok = 180 <= n <= 184 if want["notice_days"] == 180 else n == want["notice_days"]
+                return days_ok and r["auto_renews"].strip().lower() == want["auto_renews"]
+            return all(row_ok(v, w) for v, w in a.items())
+        except (OSError, KeyError, ValueError):
+            return False
+    if task == "t7_long40":
+        t = [x.replace(",", "") for x in texts]
+        test_ok = subprocess.run([sys.executable, "test_inventory.py"], cwd=d, capture_output=True).returncode == 0
+        src = "".join(p.read_text() for p in (d / "inventory").glob("*.py"))
+        files = all((d / f).exists() for f in ("totals.csv", "announce.txt", "monthly_totals.csv", "note.txt", "README.md", "d400_reply.txt"))
+        return all([test_ok, files, "TAX_RATE" in src, "18.5" in src, "86.56" in t[17], "9756" in t[20],
+                    "Delta" in t[21] and "1037" in t[21], "209060" in t[23], "269.54" in t[29], "D400" in t[31],
+                    "C300" in t[33], "2025-08" in t[37] or "August" in t[37], "54380" in t[37]])
     if task == "t4_long":
         a = json.loads((HERE / "answer_t4.json").read_text())
         t = [x.replace(",", "") for x in texts]
