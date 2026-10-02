@@ -8,7 +8,7 @@ Conditions (caveman and ponytail at the level in %APPDATA%/<plugin>/config.json,
   E  /frugal alone
   F  caveman alone
   G  ponytail alone
-  T  /frugal tight (frugal 4 plugin; E is plain /frugal on the plugin from 4.0 on)
+  T  /frugal tight (frugal 4.0 only, removed in 4.1; E is plain /frugal on the plugin from 4.0 on)
 
 Usage:
   python bench.py run [--reps 2] [--workers 3] [--model claude-opus-5-5]
