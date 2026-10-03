@@ -9,7 +9,7 @@
 | Ambiguous bugs, architecture, cross-file design, long agentic runs | `opus` | `high` |
 | The hardest long-horizon reasoning, or Opus already failed it | `fable` | `high` |
 
-- Session matches the row, or effort is one level off: say nothing.
+- Session is the row's tier or one tier off, or effort is one level off: say nothing; act only two tiers off.
 - Small task: do it here; on a different row, one line naming the fit for next time. A new chat re-pays ~50k tokens of system prompt and tools, more than a small task costs here.
 - Cheaper row, bounded task (clear spec, a check to run, more than a few tool calls): do not do it here and do not ask. Read `delegate.md` and hand it to one subagent on that table's model; run its check, report in one line.
 - Cheaper row, open-ended work the user will keep iterating on for many turns: do not start. One line naming the model and effort, then a prompt block for a new chat.
