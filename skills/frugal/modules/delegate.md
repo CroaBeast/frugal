@@ -6,16 +6,18 @@ The main thread keeps judgment: architecture, ambiguous bugs, cross-file design,
 - The raw material is too big for this context (roughly 100k+ tokens: huge logs, a whole-codebase sweep, many web pages) and only a short result is needed back.
 - More than ~30k tokens of raw material, and the session continues for many turns after this step, so reading it here would re-bill it every later turn.
 - Independent parts each need heavy reading and can run in parallel.
+- A bounded task fits a cheaper model than the session (`session.md`, Model fit).
 Never for a lookup of one or two tool calls.
 
 **Once delegated, do not redo the work.** Never re-read, re-grep, or re-sweep the delegated material. Verify by risk: spot-check at most 2 items the final answer hinges on, by the exact `path:line` the agent returned; check every item only when an error would touch money, security, legal terms, or data that cannot be recovered.
 
-**Escalate on fail, not up front.** Start each part on the cheapest model in the table. A part that comes back missing, contradictory, or failing its check: re-run only that part, narrower, one step up (`haiku` → `sonnet`, never above the session model). Fails again: do that part yourself.
+**Escalate on fail, not up front.** Start each part on the cheapest model in the table. A part that comes back missing, contradictory, or failing its check: re-run only that part, narrower, one step up (`haiku` → `sonnet` → `opus`, never above the session model). Fails again: do that part yourself.
 
 **Model.** Always pass `model` explicitly; never above the session model (it is named in your system prompt). Reading, extracting, or summarizing documents is always `haiku`, even when values need judgment; `sonnet` only for edits and code.
 
 | Session model | Search, read, extract | Bounded edits, single-file review, code from a clear spec |
 |---|---|---|
+| Fable | `haiku` | `sonnet` |
 | Opus | `haiku` | `sonnet` |
 | Sonnet | `haiku` | `sonnet` |
 | Haiku | `haiku` | `haiku` |
