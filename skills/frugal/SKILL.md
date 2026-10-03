@@ -7,7 +7,7 @@ description: Low-token mode. Terse replies, small context, fewer calls; code, an
 
 **First:** if this task needs more than 3 tool calls, it is the user's 10th message, or names follow `/frugal`, your first tool call batch includes Read `<base directory>/core.md`, plus `<base directory>/code.md` if the task writes, fixes, or reviews code (once per task). Short tasks: this file is all you need.
 
-**Model fit**, each new task: if the session model or effort clearly does not fit it (a lookup on Opus, architecture on Haiku), your first tool call batch includes Read `<base directory>/modules/session.md`; follow its Model fit rule.
+**Model fit**, each new task: only if the session is two tiers off (a lookup or rename on Opus or Fable, architecture or an ambiguous bug on Haiku), your first tool call batch includes Read `<base directory>/modules/session.md`; follow its Model fit rule.
 
 Active until "normal mode". Every call re-reads the context: keep it small, make fewer calls.
 
