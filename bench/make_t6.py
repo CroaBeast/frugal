@@ -43,14 +43,15 @@ FILLER = [
     "Supplier shall not subcontract any part of the Services without Customer's prior written consent.",
     "Intellectual property in deliverables created specifically for Customer vests in Customer upon payment.",
 ]
-answers = {}
-for i, v in enumerate(VENDORS, 1):
-    days = random.choice(list(WORDS)); renews = random.random() < 0.5
-    answers[v] = {"notice_days": days, "auto_renews": "yes" if renews else "no"}
-    clauses = random.sample(FILLER, 10)
-    clauses.insert(random.randint(3, 6), random.choice(RENEW_YES if renews else RENEW_NO))
-    clauses.insert(random.randint(7, 10), random.choice(NOTICE).format(w=WORDS[days]))
-    head = f"MASTER SERVICES AGREEMENT\n\nBetween {v} (\"Supplier\") and Acme Reports LLC (\"Customer\").\nAgreement no. MSA-{2024000 + i}\n\n"
-    body = "\n\n".join(f"{n}. {c} " + " ".join(random.sample(FILLER, 2)) for n, c in enumerate(clauses, 1))
-    (OUT / f"msa_{i:02d}.txt").write_text(head + body + "\n", encoding="utf-8")
-(HERE / "answer_t6.json").write_text(json.dumps(answers, indent=1))
+if __name__ == "__main__":
+    answers = {}
+    for i, v in enumerate(VENDORS, 1):
+        days = random.choice(list(WORDS)); renews = random.random() < 0.5
+        answers[v] = {"notice_days": days, "auto_renews": "yes" if renews else "no"}
+        clauses = random.sample(FILLER, 10)
+        clauses.insert(random.randint(3, 6), random.choice(RENEW_YES if renews else RENEW_NO))
+        clauses.insert(random.randint(7, 10), random.choice(NOTICE).format(w=WORDS[days]))
+        head = f"MASTER SERVICES AGREEMENT\n\nBetween {v} (\"Supplier\") and Acme Reports LLC (\"Customer\").\nAgreement no. MSA-{2024000 + i}\n\n"
+        body = "\n\n".join(f"{n}. {c} " + " ".join(random.sample(FILLER, 2)) for n, c in enumerate(clauses, 1))
+        (OUT / f"msa_{i:02d}.txt").write_text(head + body + "\n", encoding="utf-8")
+    (HERE / "answer_t6.json").write_text(json.dumps(answers, indent=1))
