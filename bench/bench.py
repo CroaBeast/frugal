@@ -15,7 +15,7 @@ Usage:
   python bench.py run [--reps 2] [--workers 3] [--model claude-opus-5-5]
   python bench.py report
 """
-import argparse, csv, json, re, shutil, statistics as st, subprocess, sys, tempfile, uuid
+import argparse, csv, json, os, re, shutil, statistics as st, subprocess, sys, tempfile, uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -99,8 +99,8 @@ assert [r.allow(10) for _ in range(4)] == [True, True, True, False]
 """
 # humanizer is opt-in and interactive, so it stays out of the bench; AskUserQuestion has no user in -p
 PLUGINS = {"A": (0, 0, 0), "B": (1, 1, 0), "C": (1, 1, 0), "D": (1, 1, 0), "E": (0, 0, 1), "F": (1, 0, 0), "G": (0, 1, 0),
-           "T": (0, 0, 1), "R": (0, 0, 1), "P": (0, 0, 1)}  # (caveman, ponytail, frugal plugin); P: plugin on, not invoked
-PREFIX = {"C": "/frugal ", "D": "/frugal ", "E": "/frugal:frugal ", "T": "/frugal:frugal tight ", "R": "/frugal:frugal delegate "}  # C, D: loose-skill era
+           "T": (0, 0, 1), "R": (0, 0, 1), "P": (0, 0, 1), "V": (0, 0, 0)}  # (caveman, ponytail, frugal plugin); P: plugin on, not invoked
+PREFIX = {"C": "/frugal ", "D": "/frugal ", "E": "/frugal:frugal ", "T": "/frugal:frugal tight ", "R": "/frugal:frugal delegate ", "V": "/frugal:frugal "}  # V: a frugal variant from FRUGAL_VARIANT_DIR via --plugin-dir  # C, D: loose-skill era
 
 
 def cond_settings(cond):
@@ -128,6 +128,8 @@ def run_one(job, model):
         else:
             cmd += ["--session-id", sid] if i == 0 else ["--resume", sid]
         cmd += ["--settings", cond_settings(cond), "--disallowedTools", "AskUserQuestion"]
+        if cond == "V":
+            cmd += ["--plugin-dir", os.environ["FRUGAL_VARIANT_DIR"]]
         p = subprocess.run(cmd, cwd=work, capture_output=True, text=True, encoding="utf-8", timeout=900)
         stream += p.stdout
         rcs.append(p.returncode)
