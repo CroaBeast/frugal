@@ -15,7 +15,7 @@ files only (tests excluded -- a test is not over-engineering). Cost is ~$0.003/c
 
 ponytail: stdlib urllib for the API call, no requests dependency.
 """
-import argparse, json, os, re, sys, time, urllib.request
+import argparse, json, os, re, shutil, subprocess, sys, time, urllib.request
 from collections import defaultdict
 from pathlib import Path
 
@@ -53,6 +53,15 @@ def _is_test(name):
 
 def source_text(workdir: Path):
     """Concatenate the agent's source files (tests + artifacts excluded), with name headers."""
+    if workdir.name.startswith("tmpl-"):   # frugal: a template repo is too big to send whole; judge the agent's diff
+        git = lambda *a: subprocess.run(["git", "-C", str(workdir), *a], capture_output=True, text=True,
+                                        encoding="utf-8", errors="ignore").stdout
+        skip = lambda f: _is_test(Path(f).name) or "/tests/" in f or Path(f).name.startswith("_claude")
+        changed = [f for f in git("diff", "HEAD", "--name-only").splitlines() if not skip(f)]
+        new = [f for f in git("ls-files", "--others", "--exclude-standard").splitlines() if not skip(f)]
+        out = [git("diff", "HEAD", "--", *changed)] if changed else []
+        out += [f"# === {f} (new) ===\n{(workdir / f).read_text(encoding='utf-8', errors='ignore')}" for f in new]
+        return "\n\n".join(out)
     out = []
     for p in sorted(workdir.rglob("*")):
         if not p.is_file() or "__pycache__" in p.parts or p.suffix == ".pyc": continue
@@ -63,6 +72,17 @@ def source_text(workdir: Path):
 
 def judge_call(task_prompt, files, key, retries=3, system=RUBRIC):
     user = f"TASK GIVEN TO THE AUTHOR:\n{task_prompt}\n\nFILES THEY WROTE:\n{files}"
+    if not key:   # frugal: no API key, judge through the Claude Code subscription (no temperature control)
+        for attempt in range(retries):
+            # rubric on stdin: Windows argv quoting mangles its embedded JSON
+            r = subprocess.run([shutil.which("claude") or "claude", "-p", "--model", "sonnet", "--system-prompt",
+                                "You are a code reviewer. Follow the rubric in the message exactly.",
+                                "--tools", "", "--setting-sources", "local"],
+                               input=f"{system}\n\n{user}\n\nRespond with ONLY the JSON object.", capture_output=True, text=True,
+                               encoding="utf-8", timeout=180, cwd=os.environ.get("TEMP", "/tmp"))
+            if r.returncode == 0 and r.stdout.strip(): return r.stdout
+            time.sleep(2 * (attempt + 1))
+        return f'{{"error": "claude -p failed: {r.stderr.strip()[:120]}"}}'
     body = json.dumps({"model": JUDGE_MODEL, "max_tokens": 300, "temperature": 0,
                        "system": system, "messages": [{"role": "user", "content": user}]}).encode()
     for attempt in range(retries):
@@ -158,7 +178,7 @@ def run(run_dir, key):
         if isinstance(r["over_engineering"], int): by_arm[r["arm"]].append(r["over_engineering"])
     print(f"\n=== over-engineering by arm (judge: {JUDGE_MODEL}, 0=minimal .. 3=over-built) ===")
     print(f"  {'arm':16} {'n':>4} {'mean':>6} {'max':>4}")
-    for arm in ["baseline", "caveman", "ponytail", "yagni", "yagni-oneliner"]:
+    for arm in ["baseline", "caveman", "ponytail", "frugal", "yagni", "yagni-oneliner"]:
         v = by_arm.get(arm, [])
         if v: print(f"  {arm:16} {len(v):>4} {sum(v)/len(v):>6.2f} {max(v):>4}")
     worst = sorted([r for r in scored if isinstance(r["over_engineering"], int) and r["over_engineering"] >= 2],
@@ -174,7 +194,7 @@ def main():
     ap.add_argument("--run", help="run dir to judge")
     args = ap.parse_args()
     key = load_key()
-    if not key: sys.exit("no ANTHROPIC_API_KEY (.env or env)")
+    if not key: print("no ANTHROPIC_API_KEY: judging with claude -p --model sonnet")
     if args.selftest: sys.exit(selftest(key))
     if args.run:
         if selftest(key): sys.exit("judge not trustworthy; refusing to judge the matrix")
