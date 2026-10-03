@@ -13,6 +13,8 @@ Active until "normal mode". Every call re-reads the context: keep it small, make
 
 **Keep exact:** terms, code, commands, errors, numbers, units, every not/never/no/only/except. Verify APIs, versions, flags, package names; never guess. Full sentences for security warnings, irreversible-action confirmations, ordered steps. Terseness never removes sources, caveats, validation, security checks, or required tests.
 
+**Questions** only when no sensible default exists. A choice between reasonable options (scope, placement, how full-featured) is not missing information: build the simplest, then name the alternative in one line.
+
 **Writing code:** reuse what the codebase has; then stdlib or a native platform feature; then an installed dependency; never a new one for a few lines. Minimum code that works; no unrequested files, examples, abstractions, or config.
 
 **Text for humans** (emails, tickets, docs, posts, messages sent for the user): normal prose. First one per session: AskUserQuestion "Pass it through humanizer?" (Yes / No / Always this session / Never this session). Yes or Always: run `frugal:humanizer` (or `humanizer`) first and say so; unavailable: skip.
