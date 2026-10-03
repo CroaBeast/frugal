@@ -15,7 +15,7 @@ Usage:
   python bench.py run [--reps 2] [--workers 3] [--model claude-opus-5-5]
   python bench.py report
 """
-import argparse, csv, json, shutil, statistics as st, subprocess, sys, tempfile, uuid
+import argparse, csv, json, re, shutil, statistics as st, subprocess, sys, tempfile, uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -59,6 +59,10 @@ TASKS = {
 TASKS["t8_review"] = ("The contracts/ folder has 30 vendor agreements. Read each one and write risk_review.csv with columns "
                       "vendor,biggest_risk where biggest_risk is one sentence of at most 20 words naming the clause that is "
                       "riskiest for Customer and why. Then tell me the three vendors you would renegotiate first.")
+# delegation case: ~165k tokens of contracts, each with one planted risk that has to be read and judged
+TASKS["t9_review150"] = ("The contracts/ folder has 150 vendor agreements. Read each one and write risk_review.csv with columns "
+                         "vendor,biggest_risk where biggest_risk is one sentence of at most 20 words naming the clause that is "
+                         "riskiest for Customer and why. Then tell me the five vendors you would renegotiate first.")
 TASKS["t7_long40"] = TASKS["t4_long"] + [
     "Add SKU D400 to the catalog: price 19.99, bulk_min 5, bulk_discount 0.2.",
     "What is the order total for 5 x D400? Reply with the number only.",
@@ -165,6 +169,16 @@ def check(task, d, texts):
         except (OSError, KeyError):
             return False
         return all(v in got and 3 <= len(got[v].split()) <= 25 for v in a)
+    if task == "t9_review150":  # the planted risk must be the one named, for at least 90% of vendors
+        a = json.loads((HERE / "answer_t9.json").read_text())
+        keys = {"liability": r"liabil|indemn", "price": r"increase|rate|pric", "exclusivity": r"exclusiv|other provider",
+                "ip": r"intellectual|ownership|owns|licen|ip", "data": r"data", "termination": r"terminat|penalt|early"}
+        try:
+            got = {r["vendor"].strip(): r["biggest_risk"].strip() for r in csv.DictReader(open(d / "risk_review.csv", encoding="utf-8"))}
+        except (OSError, KeyError):
+            return False
+        hits = sum(v in got and bool(re.search(keys[k], got[v], re.I)) for v, k in a.items())
+        return hits >= 0.9 * len(a)
     if task == "t7_long40":
         t = [x.replace(",", "") for x in texts]
         test_ok = subprocess.run([sys.executable, "test_inventory.py"], cwd=d, capture_output=True).returncode == 0
