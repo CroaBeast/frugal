@@ -6,6 +6,8 @@ input=$(cat)
 field() { printf '%s' "$input" | sed -n "s/.*\"$1\" *: *\"\([^\"]*\)\".*/\1/p"; }
 sid=$(field session_id)
 [ -n "$sid" ] || exit 0
+# Background-task notifications arrive as prompts too; only count what the user typed.
+printf '%s' "$input" | grep -q '<task-notification>' && exit 0
 dir="${CLAUDE_PLUGIN_DATA:-${TMPDIR:-/tmp}}"
 mkdir -p "$dir" 2>/dev/null
 n=$(( $(cat "$dir/count-$sid" 2>/dev/null || echo 0) + 1 ))
