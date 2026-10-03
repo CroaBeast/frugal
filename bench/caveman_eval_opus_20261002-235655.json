@@ -1,0 +1,606 @@
+{
+ "model": "opus",
+ "caveman": "3b74643f4d91",
+ "rows": [
+  {
+   "arm": "caveman",
+   "prompt": 0,
+   "rep": 0,
+   "output_tokens": 370,
+   "cost": 0.031824,
+   "chars": 936,
+   "score": 3,
+   "answer": "React default: parent render re-renders all children, even if props unchanged.\n\nFix:\n1. Wrap child in `React.memo`. Skips render when props shallow-equal.\n   ```jsx\n   const Child = React.memo(function Child(props) { ... });\n   ```\n2. Keep props stable, or memo breaks:\n   - Inline objects/arrays (`style={{...}}`, `items={[...]}`) make new ref each render. Use `useMemo`.\n   - Inline functions (`onClick={() => ...}`) make new ref each render. Use `useCallback`.\n3. Context: child using `useContext` re-renders when context value changes. Memoize provider value, or split contexts.\n4. Move state down. If state only matters to one subtree, put it there so parent not re-render.\n5. Pass children as prop (`<Parent><Child/></Parent>`). Child element created by grandparent, so parent state change not re-render it.\n\nCheck with React DevTools Profiler (\"Why did this render?\"). Plain re-render often cheap. Optimize only if measured slow."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 0,
+   "rep": 0,
+   "output_tokens": 516,
+   "cost": 0.021696,
+   "chars": 1010,
+   "score": 3,
+   "answer": "React re-renders all children by default when a parent renders, even if their props haven't changed.\n\nTo skip it:\n\n1. **Wrap the child in `React.memo`** so it re-renders only when props change (shallow compare):\n   ```jsx\n   const Child = React.memo(function Child(props) { ... });\n   ```\n2. **Keep props referentially stable**, or `memo` won't help. New objects, arrays, or functions created on each render count as changed props:\n   ```jsx\n   const onClick = useCallback(() => doThing(id), [id]);\n   const style = useMemo(() => ({ color }), [color]);\n   ```\n3. **Check context:** any `useContext` consumer re-renders when the context value changes, regardless of `memo`. Memoize the provider value or split the context.\n4. **Restructure:** move the state down into the component that uses it, or pass the child as `children` from higher up so it isn't recreated.\n\nIf you use the React Compiler (React 19+), it memoizes automatically. Use React DevTools Profiler (\"Why did this render?\") to confirm the cause."
+  },
+  {
+   "arm": "terse",
+   "prompt": 0,
+   "rep": 0,
+   "output_tokens": 677,
+   "cost": 0.018644,
+   "chars": 1859,
+   "score": 3,
+   "answer": "That's React's default behavior: **when a parent re-renders, all its children re-render**, whether or not their props changed. React doesn't compare props unless you ask it to.\n\n**Fixes:**\n\n1. **Wrap the child in `React.memo`** so it skips re-rendering when props are shallowly equal:\n   ```jsx\n   const Child = React.memo(function Child({ value }) {\n     return <div>{value}</div>;\n   });\n   ```\n\n2. **Keep props referentially stable.** `memo` won't help if you pass new objects, arrays, or functions on every render:\n   ```jsx\n   // \u274c new reference each render, so memo is defeated\n   <Child style={{ color: 'red' }} onClick={() => doThing()} />\n\n   // \u2705 stable references\n   const style = useMemo(() => ({ color: 'red' }), []);\n   const onClick = useCallback(() => doThing(), []);\n   <Child style={style} onClick={onClick} />\n   ```\n\n3. **Move state down.** If the parent's state is only used by part of the tree, put that state in a smaller component so the parent doesn't re-render at all.\n\n4. **Pass children as props.** Elements created by a grandparent and passed via `children` don't re-render when the intermediate component's state changes:\n   ```jsx\n   <StatefulWrapper><ExpensiveChild /></StatefulWrapper>\n   ```\n\n5. **Check context.** Any component that consumes a context re-renders when the context value changes, even with `memo`. Memoize the provider's `value` or split contexts.\n\n**Notes:**\n- If you're on **React 19 with the React Compiler**, much of this memoization happens automatically.\n- Re-renders are usually cheap. Only optimize if you've measured a real problem. Use the **React DevTools Profiler** (\"Highlight updates\" / \"Why did this render?\") to confirm the cause.\n- In development, **StrictMode** intentionally double-renders components, which is expected.\n\nIf you share the component code, I can point out the specific cause."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 1,
+   "rep": 0,
+   "output_tokens": 503,
+   "cost": 0.0152868,
+   "chars": 1297,
+   "score": 3,
+   "answer": "Pool keep set of open DB connections, reuse them across requests instead of open/close each time.\n\nWhy: new connection costly. TCP handshake, TLS, auth, server-side process/memory setup. Often 10-100ms vs sub-ms query.\n\nHow:\n1. App start: pool open N connections (min idle).\n2. Request need DB: borrow idle connection from pool.\n3. Done: return to pool, not close.\n4. All busy: wait (with timeout) or open new up to max size.\n5. Idle too long or broken: pool close/replace (health check, max lifetime).\n\nKey settings:\n- `min`/`max` pool size: max cap protect DB from overload.\n- connection timeout: how long wait for free connection.\n- idle timeout: close unused extras.\n- max lifetime: recycle old connections (avoid stale/firewall drops).\n- validation query: e.g. `SELECT 1` before handing out.\n\nPitfalls:\n- Leak: borrow without return, pool exhaust, app hang. Always release in `finally`/`using`/context manager.\n- Pool too big: DB thrash. Total across all app instances must fit DB `max_connections`.\n- Session state leak: temp tables, `SET` vars, open transactions carry to next borrower. Reset on return.\n\nExamples: HikariCP (Java), `pg.Pool` (Node), SQLAlchemy pool (Python), ADO.NET built-in pooling. External: PgBouncer, ProxySQL, pool at proxy level for many app instances or serverless."
+  },
+  {
+   "arm": "terse",
+   "prompt": 1,
+   "rep": 0,
+   "output_tokens": 921,
+   "cost": 0.023452000000000004,
+   "chars": 2606,
+   "score": 3,
+   "answer": "**Database connection pooling** is a technique where an application keeps a cache of open database connections and reuses them, instead of opening a new connection for every request.\n\n**Why it matters**\n\nOpening a database connection is expensive:\n- TCP handshake (plus TLS negotiation, if used)\n- Authentication\n- Server-side session setup (memory, a process or thread per connection in databases like PostgreSQL)\n\nThis can take anywhere from milliseconds to over 100ms. Doing it per query adds latency and can overwhelm the database under load.\n\n**How it works**\n\n1. At startup, the pool opens a set of connections (e.g., 5 to 20).\n2. When the app needs a connection, it *borrows* one from the pool.\n3. After the query, the connection is *returned* to the pool, not closed.\n4. If all connections are busy, the request waits (up to a timeout) or the pool grows, up to a configured maximum.\n\n**Key settings**\n- **min/max pool size**: the bounds on how many connections the pool keeps open\n- **connection timeout**: how long a request waits for a free connection\n- **idle timeout**: when unused connections get closed\n- **max lifetime**: recycles connections to avoid stale or broken ones\n- **validation/health check**: tests a connection before handing it out\n\n**Benefits**\n- Lower latency, since there's no setup per request\n- Caps the load on the database, protecting it from connection storms\n- Better throughput under concurrency\n\n**Pitfalls**\n- **Leaks**: forgetting to return a connection gradually drains the pool. Use `try/finally`, `using`, or context managers to guarantee it's returned.\n- **Oversizing**: more connections isn't always faster. Databases have finite CPU and I/O. A common starting point is roughly `(cores \u00d7 2) + effective disks`.\n- **Leftover session state**: temp tables, transactions, or session variables can carry over to the next user of that connection.\n- **Multiple app instances**: each one has its own pool, so 50 pods \u00d7 20 connections = 1,000 connections hitting the database.\n\n**Where pooling lives**\n- **App-side libraries**: HikariCP (Java), SQLAlchemy pool (Python), `pg-pool` (Node), ADO.NET built-in pooling (.NET)\n- **External proxies**: PgBouncer, ProxySQL, RDS Proxy. These are useful when you have many app instances or serverless functions, because they multiplex many clients onto fewer database connections.\n\n**Example (Python, SQLAlchemy):**\n```python\nengine = create_engine(url, pool_size=10, max_overflow=5, pool_pre_ping=True)\nwith engine.connect() as conn:   # borrowed from pool\n    conn.execute(text(\"SELECT 1\"))\n# returned to pool automatically\n```"
+  },
+  {
+   "arm": "frugal",
+   "prompt": 1,
+   "rep": 0,
+   "output_tokens": 755,
+   "cost": 0.020016199999999998,
+   "chars": 1834,
+   "score": 3,
+   "answer": "**Connection pooling** keeps a set of open database connections and reuses them across requests instead of opening a new one each time.\n\n**Why:** opening a connection is expensive (TCP handshake, TLS, auth, server-side process/thread setup). It often costs more than the query itself. The database also caps concurrent connections.\n\n**How it works:**\n1. At startup the pool opens N connections (min size).\n2. The app *borrows* a connection, runs queries, then *returns* it. The connection is not closed.\n3. If none are free, the pool opens more up to max size. Beyond that, callers wait (with a timeout) or fail.\n4. Idle connections past a timeout get closed. Broken ones are validated (test query or check on borrow) and replaced.\n\n**Key settings:**\n- `min`/`max` pool size: max is often around `cores * 2 + disk spindles` (HikariCP guidance). Bigger is not better; it causes DB contention.\n- Acquire/connection timeout: how long a caller waits for a free connection.\n- Idle timeout and max lifetime: recycle connections before the DB or a firewall kills them.\n- Validation/health check.\n\n**Where it lives:**\n- **In-app:** HikariCP (Java), SQLAlchemy pool (Python), `pg.Pool` (Node), ADO.NET built-in pooling.\n- **External proxy:** PgBouncer, ProxySQL, RDS Proxy. Used when many app instances or serverless functions would exceed the DB's connection limit.\n\n**Pitfalls:**\n- **Leaks:** forgetting to return a connection (use `try/finally`, `using`, `with`) exhausts the pool.\n- **Session state bleed:** temp tables, `SET` variables, or open transactions carry over to the next borrower. Reset on return.\n- **Total across instances:** 20 instances \u00d7 max 50 = 1000 connections, which may exceed the DB limit.\n- **Transaction-mode proxies** (PgBouncer) break session features like prepared statements or advisory locks unless configured."
+  },
+  {
+   "arm": "terse",
+   "prompt": 2,
+   "rep": 0,
+   "output_tokens": 523,
+   "cost": 0.015532,
+   "chars": 1313,
+   "score": 3,
+   "answer": "**TCP (Transmission Control Protocol)**\n- **Connection-oriented:** a 3-way handshake sets up the connection before any data is sent.\n- **Reliable:** guarantees delivery. Lost packets are retransmitted, and every packet is acknowledged.\n- **Ordered:** data arrives in the order it was sent.\n- **Flow and congestion control:** adjusts the sending rate to fit the receiver and the network.\n- **Byte stream:** no message boundaries are preserved.\n- **Higher overhead:** header is 20+ bytes, and latency is higher.\n- **Used for:** HTTP/HTTPS, SSH, email (SMTP/IMAP), file transfer.\n\n**UDP (User Datagram Protocol)**\n- **Connectionless:** no handshake, so packets are just sent.\n- **Unreliable:** no delivery guarantee, no retransmission, no acknowledgments.\n- **Unordered:** packets may arrive out of order or more than once.\n- **No flow or congestion control.**\n- **Message-oriented:** each datagram's boundaries are preserved.\n- **Low overhead:** header is 8 bytes, and latency is lower.\n- **Used for:** DNS, video and voice streaming, online games, VoIP, DHCP, and QUIC (HTTP/3 runs on UDP).\n\n**Rule of thumb:** Use TCP when correctness and completeness matter. Use UDP when speed and low latency matter more than an occasional lost packet, or when you want to build your own reliability layer on top, as QUIC does."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 2,
+   "rep": 0,
+   "output_tokens": 296,
+   "cost": 0.0111628,
+   "chars": 706,
+   "score": 3,
+   "answer": "**TCP**: connection-oriented. Three-way handshake before data. Guarantee delivery, order, no duplicates via ACKs, retransmit, sequence numbers. Flow + congestion control. Byte stream, no message boundaries. Higher latency, more overhead (20+ byte header).\n\n**UDP**: connectionless. Fire datagrams, no handshake. No delivery/order guarantee, no retransmit. No congestion control. Preserve message boundaries. Low latency, 8-byte header.\n\nUse TCP: web (HTTP/1.1, HTTP/2), email, file transfer, SSH, DB connections. Anywhere correctness beat speed.\n\nUse UDP: DNS, VoIP, video streaming, gaming, DHCP. Anywhere late data worthless or app handle reliability itself (QUIC/HTTP/3 build reliability on top of UDP)."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 2,
+   "rep": 0,
+   "output_tokens": 321,
+   "cost": 0.011336200000000001,
+   "chars": 404,
+   "score": 3,
+   "answer": "**TCP** is connection-oriented and reliable: it does a handshake, guarantees ordered delivery, retransmits lost packets, and applies flow/congestion control. **UDP** is connectionless and best-effort: no handshake, no delivery or ordering guarantees, lower overhead and latency.\n\nUse TCP for web, email, and file transfer; use UDP for gaming, VoIP, streaming, and DNS, where speed beats perfect delivery."
+  },
+  {
+   "arm": "terse",
+   "prompt": 3,
+   "rep": 0,
+   "output_tokens": 807,
+   "cost": 0.021268000000000002,
+   "chars": 1998,
+   "score": 3,
+   "answer": "**1. Confirm it's a leak**\n- Track `process.memoryUsage()` over time, or run with `--trace-gc`.\n- A heap that grows steadily and never drops back after GC means a leak. A sawtooth pattern is normal.\n\n**2. Capture heap snapshots**\n- Start with `node --inspect app.js` and open `chrome://inspect`. Then go to Memory, then Heap snapshot.\n- Or take snapshots in code: `require('v8').writeHeapSnapshot()`. You can also start with `--heapsnapshot-signal=SIGUSR2`, which doesn't work on Windows, so call it from code or an endpoint there.\n- Take 3 snapshots spaced out under load. Use the **Comparison** view to find object types whose count keeps growing.\n- Check the **Retainers** panel to see what is keeping those objects alive.\n\n**3. Common culprits**\n- **Unbounded caches or Maps**: replace with an LRU cache (`lru-cache`), add a TTL, or use `WeakMap`/`WeakRef`.\n- **Event listeners never removed**: watch for `MaxListenersExceededWarning`. Call `removeListener`/`off`, or use `once`.\n- **Timers**: a `setInterval` that is never cleared and holds closures. Use `clearInterval` and `clearTimeout`.\n- **Closures capturing large objects**, such as a request or buffer kept in a long-lived callback.\n- **Global arrays and logs** that keep accumulating.\n- **Promises that never settle**, or queues that grow faster than they drain.\n- **Native or Buffer leaks**: a high `external`/`arrayBuffers` value in `memoryUsage()` while the heap stays flat.\n\n**4. Tools**\n- `clinic heapprofiler` / `clinic doctor`\n- `memlab` (Meta) for automated leak detection\n- Allocation timeline / sampling profiler in DevTools\n\n**5. Mitigate while you investigate**\n- `--max-old-space-size=<MB>` to set the heap limit.\n- Restart on a memory threshold with PM2 `max_memory_restart` or container limits. This is a stopgap, not a fix.\n\n**6. Verify the fix**\n- Load test with a tool like `autocannon` and confirm the heap levels off after GC.\n\nIf you share heap snapshot output or the suspicious code, I can help pinpoint the leak."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 3,
+   "rep": 0,
+   "output_tokens": 677,
+   "cost": 0.018846799999999997,
+   "chars": 1535,
+   "score": 3,
+   "answer": "**1. Confirm leak.** Watch heap over time, not RSS alone:\n```js\nsetInterval(() => console.log(process.memoryUsage().heapUsed / 1e6, 'MB'), 60000);\n```\nSteady climb after GC equals leak. Sawtooth that returns to baseline is fine.\n\n**2. Capture heap snapshots.**\n```bash\nnode --inspect app.js\n```\nOpen `chrome://inspect`, then Memory tab. Take snapshot, run load, take second, run load, take third. Compare in \"Comparison\" view. Objects growing between snapshots are suspects. Check \"Retainers\" pane to see who holds them.\n\nWithout DevTools:\n```js\nrequire('v8').writeHeapSnapshot(); // writes .heapsnapshot file\n```\nOr start with `node --heapsnapshot-signal=SIGUSR2 app.js` (signal option not on Windows; use `writeHeapSnapshot` there).\n\n**3. Common culprits:**\n- Unbounded caches or `Map`/object used as cache. Fix: LRU (`lru-cache`) or `WeakMap`.\n- Event listeners added per request, never removed. Watch for `MaxListenersExceededWarning`. Fix: `removeListener`/`off`, or `once`.\n- `setInterval`/timers never cleared.\n- Closures capturing big objects (request/response) stored in long-lived scope.\n- Global arrays collecting logs/metrics.\n- Unconsumed streams or unresolved promises piling up.\n- DB connections or sockets not released to pool.\n\n**4. Fix, then verify.** Rerun same load, confirm heap plateaus.\n\n**Useful tools:** `clinic heapprofiler` (Clinic.js), `memlab` (Meta), `--trace-gc` flag for GC behavior.\n\n**Stopgap only:** `--max-old-space-size` plus process manager restart (PM2 `max_memory_restart`). Hides leak, not fix."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 3,
+   "rep": 0,
+   "output_tokens": 674,
+   "cost": 0.0184602,
+   "chars": 1488,
+   "score": 3,
+   "answer": "1. **Confirm it's a leak.** Watch `process.memoryUsage().heapUsed` over time. If it keeps rising after GC, it's a leak. If only `rss` grows, suspect native or Buffer memory.\n2. **Capture heap snapshots.** Run with `node --inspect app.js`, open `chrome://inspect`, then use Memory and Heap snapshot. You can also call `v8.writeHeapSnapshot()` in code or send a signal using `--heapsnapshot-signal=SIGUSR2`. That signal is not available on Windows, so use the inspector or `writeHeapSnapshot()` there.\n3. **Compare snapshots.** Take 3 snapshots spaced over load. Use the Comparison view and sort by `# Delta` or retained size. Follow the **Retainers** chain to find what holds the objects.\n4. **Fix common culprits:**\n   - Unbounded caches or Maps: add an LRU or TTL, or use `WeakMap`/`WeakRef`.\n   - Event listeners added repeatedly: pair `on` with `off`/`removeListener`. Watch for the `MaxListenersExceededWarning`.\n   - `setInterval` or timers never cleared: call `clearInterval`.\n   - Closures capturing large objects such as requests or buffers.\n   - Global arrays or logs that keep accumulating.\n   - Unresolved promises or pending requests piling up: add timeouts.\n   - Streams not destroyed or consumed.\n5. **Verify.** Load-test with `autocannon` and observe the heap with `clinic heapprofiler` or `--trace-gc`. Heap usage should plateau.\n\nStopgap only: `--max-old-space-size` plus a process manager restart (e.g. PM2 `max_memory_restart`). This hides the leak and does not fix it."
+  },
+  {
+   "arm": "terse",
+   "prompt": 4,
+   "rep": 0,
+   "output_tokens": 566,
+   "cost": 0.016456,
+   "chars": 1326,
+   "score": 3,
+   "answer": "`EXPLAIN` shows the **execution plan** the database's query planner chose for a statement, without (by default) running it. It tells you:\n\n- **Access method per table**: full table scan (`Seq Scan` / `ALL`) vs. index scan, index-only scan, or range lookup\n- **Which index** is used, if any (and which ones were considered, in MySQL's `possible_keys`)\n- **Join strategy and order**: nested loop, hash join, merge join, and which table drives the join\n- **Estimated rows** processed at each step (and in PostgreSQL, estimated **cost**)\n- **Extra operations**: sorts, temporary tables, filesort, aggregation, filters applied after reading rows\n\n**Variants:**\n- `EXPLAIN ANALYZE` (PostgreSQL, MySQL 8.0.18+) actually **executes** the query and reports real timings and row counts alongside the estimates. Be careful with `INSERT`/`UPDATE`/`DELETE`. Wrap them in a transaction and roll back.\n- PostgreSQL: `EXPLAIN (ANALYZE, BUFFERS)` adds cache/disk I/O info\n- SQLite: `EXPLAIN QUERY PLAN`\n\n**What to look for:**\n- Full scans on large tables \u2192 missing or unused index\n- Big gaps between estimated and actual rows \u2192 stale statistics (run `ANALYZE`)\n- Expensive sorts or temp tables \u2192 consider an index that matches `ORDER BY`/`GROUP BY`\n\nExample (PostgreSQL):\n```sql\nEXPLAIN ANALYZE SELECT * FROM orders WHERE customer_id = 42;\n```"
+  },
+  {
+   "arm": "caveman",
+   "prompt": 4,
+   "rep": 0,
+   "output_tokens": 549,
+   "cost": 0.0162708,
+   "chars": 1169,
+   "score": 3,
+   "answer": "`EXPLAIN` shows query plan: how DB will execute query, without running it (most engines).\n\nTells you:\n- **Access method**: full table scan vs index scan/seek. Seq scan on big table often means missing index.\n- **Index used**: which one, or none.\n- **Join strategy and order**: nested loop, hash join, merge join; which table drives.\n- **Estimated rows**: planner guess per step. Big gap vs reality means stale stats.\n- **Estimated cost**: relative units (Postgres: startup..total). Compare plans, not absolute time.\n- **Extra ops**: sorts, temp tables, filesort, aggregates, subquery handling.\n\nVariants:\n- Postgres `EXPLAIN ANALYZE`: runs query, adds actual time, actual rows, loops. Add `BUFFERS` for I/O. Careful on `INSERT`/`UPDATE`/`DELETE`: real changes happen. Wrap in transaction plus `ROLLBACK`.\n- MySQL `EXPLAIN`: tabular; watch `type` (`ALL` = full scan), `key`, `rows`, `Extra` (`Using filesort`, `Using temporary`). MySQL 8.0.18+ has `EXPLAIN ANALYZE`.\n- SQLite `EXPLAIN QUERY PLAN`: readable summary.\n- SQL Server: `SET SHOWPLAN_ALL ON` or graphical execution plan.\n\nUse: find slow step, add index or rewrite query, re-run `EXPLAIN`, confirm plan changed."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 4,
+   "rep": 0,
+   "output_tokens": 581,
+   "cost": 0.016592199999999998,
+   "chars": 962,
+   "score": 3,
+   "answer": "`EXPLAIN` shows the query plan: how the database intends to execute your query, without running it (in most engines).\n\nIt typically reveals:\n- **Access method** per table: full/sequential scan vs index scan/seek, and which index.\n- **Join strategy and order**: nested loop, hash join, merge join.\n- **Estimated rows** at each step, and in some engines estimated cost.\n- **Extra operations**: sorts, temp tables, filesort, aggregation, filters applied after reading.\n\nVariants:\n- PostgreSQL: `EXPLAIN ANALYZE` actually runs the query and adds real timings and row counts. Use it to compare estimates vs reality.\n- MySQL: `EXPLAIN ANALYZE` (8.0.18+) or `EXPLAIN FORMAT=JSON` for more detail.\n- SQLite: `EXPLAIN QUERY PLAN`.\n\nUse it to spot missing indexes, unexpected full scans, and bad row estimates (stale statistics).\n\nCaution: `EXPLAIN ANALYZE` executes the statement, so on `INSERT`/`UPDATE`/`DELETE` it modifies data. Wrap it in a transaction and roll back."
+  },
+  {
+   "arm": "terse",
+   "prompt": 5,
+   "rep": 0,
+   "output_tokens": 535,
+   "cost": 0.015756,
+   "chars": 1379,
+   "score": 3,
+   "answer": "A **collision** happens when two keys hash to the same bucket. There are two main ways to handle it.\n\n**1. Separate chaining**\n- Each bucket holds a list (or tree) of entries.\n- Colliding keys are appended to that bucket's list.\n- A lookup hashes to the bucket, then scans the list for the matching key.\n- It's simple and degrades gracefully. Java's `HashMap` converts long chains to balanced trees.\n\n**2. Open addressing**\nAll entries live in the array itself. On a collision, the table probes for another slot:\n- **Linear probing:** try `i+1, i+2, \u2026`. It's cache-friendly but suffers from clustering.\n- **Quadratic probing:** try `i+1\u00b2, i+2\u00b2, \u2026`. This reduces clustering.\n- **Double hashing:** step by a second hash, `i + k\u00b7h2(key)`.\n- **Robin Hood hashing:** entries far from their home slot can displace closer ones, which evens out probe lengths.\n\nDeletions need *tombstones* (or backward-shift deletion) so that later probe chains aren't broken.\n\n**Keeping collisions rare**\n- **Load factor:** the table resizes (typically doubling and rehashing everything) when `entries / buckets` passes a threshold, e.g. 0.75.\n- **Good hash function:** distributes keys uniformly. Randomized seeds also defend against hash-flooding attacks.\n\n**Performance:** average O(1) for insert, lookup, and delete. The worst case is O(n) if everything collides, or O(log n) with tree-based chains."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 5,
+   "rep": 0,
+   "output_tokens": 495,
+   "cost": 0.014856199999999998,
+   "chars": 825,
+   "score": 3,
+   "answer": "Two main strategies:\n\n- **Separate chaining:** each bucket holds a list (or tree) of entries. Colliding keys are appended to the same bucket; lookup scans that bucket. Java's `HashMap` converts long chains to balanced trees.\n- **Open addressing:** all entries live in the array itself. On collision, probe for another slot:\n  - *Linear probing:* try i+1, i+2, \u2026 (cache-friendly, but clusters form).\n  - *Quadratic probing:* try i+1\u00b2, i+2\u00b2, \u2026\n  - *Double hashing:* step size comes from a second hash function.\n  - Deletions need tombstones so later lookups don't stop early. *Robin Hood hashing* reduces probe-length variance.\n\nBoth rely on **resizing**: when the load factor (entries/buckets) passes a threshold (e.g. 0.75), the table grows and rehashes everything. This keeps average lookups at O(1); the worst case is O(n)."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 5,
+   "rep": 0,
+   "output_tokens": 566,
+   "cost": 0.0165948,
+   "chars": 1356,
+   "score": 3,
+   "answer": "Two main families.\n\n**Separate chaining**\n- Each bucket holds list (or tree) of entries.\n- Collision: append to bucket's list.\n- Lookup: hash to bucket, scan list.\n- Load factor can exceed 1. Performance degrades gradually.\n- Java `HashMap` converts long chains (\u22658) to red-black trees: worst case O(log n), not O(n).\n\n**Open addressing**\nAll entries live in array itself. Collision: probe other slots until empty found.\n- **Linear probing**: try `h, h+1, h+2...`. Cache-friendly, but suffers primary clustering.\n- **Quadratic probing**: try `h+1\u00b2, h+2\u00b2...`. Less clustering.\n- **Double hashing**: step = second hash, `h + i\u00b7h2(k)`. Best spread.\n- Deletion need tombstones. Emptying slot breaks probe chains for later keys.\n- Must keep load factor low (~0.7 or under).\n\n**Variants**\n- **Robin Hood hashing**: on insert, entry far from home slot displaces entry closer to its home. Evens out probe lengths.\n- **Cuckoo hashing**: two hash functions, two slots per key. Insert kicks out occupant to its alternate slot. Lookup worst case O(1).\n- **Swiss table** (Abseil, Rust `HashMap`): open addressing with SIMD-scanned metadata bytes.\n\n**Shared mechanism: resize**\nLoad factor past threshold: allocate bigger array (usually 2x), rehash all entries. Amortized O(1) insert.\n\nGood hash function matters most. Bad hash makes every strategy collapse toward O(n)."
+  },
+  {
+   "arm": "terse",
+   "prompt": 6,
+   "rep": 0,
+   "output_tokens": 693,
+   "cost": 0.018948,
+   "chars": 1855,
+   "score": 3,
+   "answer": "CORS errors happen when your frontend, on one **origin** (scheme + domain + port), requests a resource on a different origin, and that server's response doesn't include headers allowing it. The browser blocks the response. Your code and the server may both be working fine; this is enforced by the browser.\n\n**Common causes:**\n\n1. **Missing `Access-Control-Allow-Origin` header.** The server must return your frontend's origin (e.g., `http://localhost:3000`) or `*`.\n2. **Preflight (OPTIONS) failing.** Requests with custom headers (`Authorization`, `Content-Type: application/json`) or methods like PUT/DELETE trigger an OPTIONS request first. The server must handle it and return:\n   - `Access-Control-Allow-Methods`\n   - `Access-Control-Allow-Headers`\n3. **Credentials with a wildcard.** If you send cookies (`credentials: 'include'` / `withCredentials`), the server can't use `*`. It must echo the exact origin and send `Access-Control-Allow-Credentials: true`.\n4. **The server is actually erroring.** A 500 or 404 response often lacks CORS headers, so the browser reports it as a CORS error. Check the Network tab for the real status.\n5. **Different ports count as different origins.** `localhost:3000` \u2192 `localhost:8080` is cross-origin.\n\n**Fixes:**\n\n- **If you control the backend**, enable CORS there. For example, in Express: `app.use(require('cors')({ origin: 'http://localhost:3000', credentials: true }))`.\n- **In development**, proxy API calls through your dev server (Vite `server.proxy`, CRA `\"proxy\"` in package.json) so they're same-origin.\n- **For a third-party API without CORS support**, call it from your own backend instead of the browser.\n\nSetting `mode: 'no-cors'` won't help. It just gives you an unreadable, opaque response.\n\nIf you paste the exact console error and tell me your frontend/backend setup, I can pinpoint the cause."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 6,
+   "rep": 0,
+   "output_tokens": 611,
+   "cost": 0.017494799999999998,
+   "chars": 1482,
+   "score": 3,
+   "answer": "Browser block cross-origin request because server response missing right CORS headers. Origin = scheme + host + port, so `localhost:3000` calling `localhost:8080` count as cross-origin.\n\n**Common causes:**\n- Server not send `Access-Control-Allow-Origin` matching your origin.\n- Preflight (`OPTIONS`) fail. Triggered by non-simple requests: custom headers (`Authorization`, `Content-Type: application/json`), methods like `PUT`/`DELETE`. Server must answer `OPTIONS` with 2xx plus `Access-Control-Allow-Methods` / `Access-Control-Allow-Headers`.\n- Credentials (`credentials: 'include'` / `withCredentials`) with `Access-Control-Allow-Origin: *`. Not allowed. Must echo exact origin plus `Access-Control-Allow-Credentials: true`.\n- Server error (500, 404, auth redirect) return response without CORS headers. Browser report CORS, real bug elsewhere.\n- Duplicate headers (proxy and app both add `Access-Control-Allow-Origin`). Browser reject multiple values.\n\n**Fix server side**, not client. Example Express:\n```js\nconst cors = require('cors');\napp.use(cors({ origin: 'http://localhost:3000', credentials: true }));\n```\n\n**Dev workaround:** proxy API through dev server (Vite `server.proxy`, CRA `proxy` field) so requests same-origin.\n\n**Not fix:** `mode: 'no-cors'`. Give opaque response, unreadable.\n\nDebug: open DevTools Network tab, check failing request (often `OPTIONS`), inspect response status and headers. Paste exact console error plus backend stack for specific diagnosis."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 6,
+   "rep": 0,
+   "output_tokens": 610,
+   "cost": 0.017188199999999997,
+   "chars": 1463,
+   "score": 3,
+   "answer": "Your page's origin (scheme + host + port) differs from the API's, and the server's response doesn't grant permission via CORS headers. The browser blocks it; the server usually did receive and process the request.\n\n**Common causes:**\n- **No `Access-Control-Allow-Origin` header** on the response, or it doesn't match your origin. `localhost:3000` \u2260 `localhost:5000`.\n- **Preflight (`OPTIONS`) fails**: triggered by non-simple methods (PUT, DELETE, PATCH), `Content-Type: application/json`, or custom headers like `Authorization`. The server must answer `OPTIONS` with 2xx plus `Access-Control-Allow-Methods` / `Access-Control-Allow-Headers`.\n- **Credentials**: with `credentials: 'include'` / `withCredentials`, the origin can't be `*`; it needs the exact origin plus `Access-Control-Allow-Credentials: true`.\n- **Error responses lack headers**: a 401/500 returned without CORS headers looks like a CORS error and hides the real failure.\n- **Redirects** (e.g. http\u2192https, missing trailing slash) during preflight.\n\n**Fixes:**\n- Fix it on the server you control (e.g. `cors` middleware in Express, `CORSMiddleware` in FastAPI, `[EnableCors]` in ASP.NET).\n- In dev, use a proxy (Vite `server.proxy`, CRA `proxy`) so requests are same-origin.\n- Third-party API you don't control: call it from your own backend.\n\n`mode: 'no-cors'` doesn't fix it; it returns an unreadable opaque response.\n\nPaste the exact console error and your request code for a specific diagnosis."
+  },
+  {
+   "arm": "terse",
+   "prompt": 7,
+   "rep": 0,
+   "output_tokens": 460,
+   "cost": 0.014296,
+   "chars": 1202,
+   "score": 3,
+   "answer": "A debouncer delays running the search until the user **stops typing** for a short interval (e.g., 300 ms). Without it, every keystroke triggers a search.\n\n**Why it matters:**\n\n- **Fewer requests:** Typing \"laptop\" would otherwise fire 6 API calls (`l`, `la`, `lap`, \u2026). Debounced, it fires one.\n- **Lower server/DB load and cost:** Especially important for rate-limited or paid APIs.\n- **Smoother UI:** Avoids flickering results and re-rendering on every keypress.\n- **Fewer race conditions:** Stale responses (e.g., for \"lap\") are less likely to arrive after newer ones and overwrite the correct results.\n- **Better performance for expensive local work:** Filtering large lists or heavy computations runs once instead of continuously.\n\n**Example (JS):**\n```js\nfunction debounce(fn, delay) {\n  let t;\n  return (...args) => {\n    clearTimeout(t);\n    t = setTimeout(() => fn(...args), delay);\n  };\n}\n\ninput.addEventListener('input', debounce(e => search(e.target.value), 300));\n```\n\n**Trade-off:** It adds a slight delay before results appear. Tune the interval (roughly 200\u2013500 ms) to balance responsiveness against load. If you want periodic updates *while* the user types, use **throttling** instead."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 7,
+   "rep": 0,
+   "output_tokens": 414,
+   "cost": 0.013554799999999999,
+   "chars": 1030,
+   "score": 3,
+   "answer": "Debounce delays search until user pause typing (e.g. 300ms idle). Without it, every keystroke fire search.\n\nBenefits:\n- **Fewer requests.** Typing \"react hooks\" = 11 keystrokes. Debounced = ~1 request, not 11. Less server load, lower API cost, less rate-limit risk.\n- **No race conditions.** Many in-flight requests can return out of order, so stale results overwrite fresh ones. Fewer requests means less chance.\n- **Smoother UI.** No flicker from results re-rendering each keystroke. Less wasted work on expensive filtering or rendering.\n- **Useful queries only.** Partial input like \"r\", \"re\" rarely worth searching.\n\nTradeoff: small delay before results. Tune wait time; 200\u2013400ms typical.\n\n```js\nfunction debounce(fn, ms) {\n  let t;\n  return (...args) => {\n    clearTimeout(t);\n    t = setTimeout(() => fn(...args), ms);\n  };\n}\n\ninput.addEventListener('input', debounce(e => search(e.target.value), 300));\n```\n\nStill pair with `AbortController` or request IDs to cancel stale responses. Debounce reduces races, not eliminate."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 7,
+   "rep": 0,
+   "output_tokens": 217,
+   "cost": 0.0093122,
+   "chars": 246,
+   "score": 3,
+   "answer": "It waits until the user stops typing for a short delay (e.g. 300 ms) before running the search, instead of firing on every keystroke. That cuts redundant API calls, server load, and re-renders, and avoids out-of-order results from stale requests."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 8,
+   "rep": 0,
+   "output_tokens": 313,
+   "cost": 0.0114948,
+   "chars": 880,
+   "score": 3,
+   "answer": "**Merge:** combine branches with new merge commit. History kept as-is, shows parallel branches. Non-destructive.\n\n```\ngit checkout feature\ngit merge main\n```\n\n**Rebase:** replay feature commits on top of target branch tip. Rewrites commits (new SHAs). Linear history, no merge commit.\n\n```\ngit checkout feature\ngit rebase main\n```\n\nKey differences:\n- History: merge keep true branching graph; rebase make straight line.\n- Commits: merge add one commit; rebase rewrite every replayed commit.\n- Conflicts: merge resolve once; rebase may need resolve per commit.\n- Safety: merge safe on shared branches. Rebase rewrites history, so never rebase commits others already pulled. Force-push needed after, breaks collaborators.\n\nRule of thumb: rebase local/private branches for clean history; merge shared/public branches. `git pull --rebase` keep local commits linear on top of upstream."
+  },
+  {
+   "arm": "terse",
+   "prompt": 8,
+   "rep": 0,
+   "output_tokens": 423,
+   "cost": 0.013499999999999998,
+   "chars": 1275,
+   "score": 3,
+   "answer": "Both integrate changes from one branch into another, but they handle history differently:\n\n**`git merge`**\n- Creates a new **merge commit** that ties the two branch histories together.\n- Preserves the exact history: every commit keeps its original hash and parents.\n- Non-destructive, so it's safe on shared/public branches.\n- History can become cluttered with merge commits and a non-linear graph.\n\n**`git rebase`**\n- **Replays** your commits on top of the target branch, creating new commits with new hashes.\n- Produces a clean, **linear history** with no merge commit.\n- Rewrites history, so never rebase commits others have already pulled. It forces them to reconcile diverged history.\n- Conflicts may need resolving once per replayed commit instead of once overall.\n- `git rebase -i` lets you squash, reorder, edit, or drop commits.\n\n**Example** (feature branched from main, both have new commits):\n\n```\nMerge:                     Rebase:\nA---B---C---M  main        A---B---C  main\n     \\     /                         \\\n      D---E  feature                  D'---E'  feature\n```\n\n**Rule of thumb:** rebase local or private branches to tidy them before sharing. Merge when integrating shared branches or when you want an accurate record of when the integration happened."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 8,
+   "rep": 0,
+   "output_tokens": 442,
+   "cost": 0.0137722,
+   "chars": 819,
+   "score": 3,
+   "answer": "**Merge** joins two branches with a new merge commit. History stays exactly as it happened, non-linear, and existing commits are not changed.\n\n**Rebase** replays your commits on top of the target branch as new commits with new hashes. History becomes linear with no merge commit, but it is rewritten.\n\nUse merge for shared or public branches and when you want a record of integration. Use rebase to tidy local or feature-branch history before integrating (`git rebase -i` also lets you squash, reorder, or edit commits).\n\n**Warning:** Never rebase commits others have already pulled. It rewrites history and forces them to reconcile diverged branches. After rebasing a pushed branch you must `git push --force-with-lease`.\n\nConflicts: merge resolves them once. Rebase may make you resolve them once per replayed commit."
+  },
+  {
+   "arm": "terse",
+   "prompt": 9,
+   "rep": 0,
+   "output_tokens": 577,
+   "cost": 0.01666,
+   "chars": 1662,
+   "score": 3,
+   "answer": "**Queue (point-to-point):** each message goes to exactly **one** consumer.\n- Use it for **work distribution**: jobs and tasks that should be processed once. Examples are sending an email, resizing an image, or processing an order.\n- Add consumers to scale out. They compete for messages, which spreads the load.\n- It suits command-style messages (\"do this\").\n- Examples: RabbitMQ queues, AWS SQS, Azure Service Bus queues.\n\n**Topic (pub/sub):** each message goes to **every** subscriber.\n- Use it for **event broadcasting**, where several independent systems need to react to the same event. For example, an `OrderPlaced` event might feed billing, inventory, analytics and notifications.\n- It decouples producers from consumers, so you can add new subscribers without touching the publisher.\n- It suits event-style messages (\"this happened\").\n- Examples: AWS SNS, Kafka topics, Azure Service Bus topics, Google Pub/Sub.\n\n**Rule of thumb:**\n- If one handler should do the work, use a **queue**.\n- If many parties care that something happened, use a **topic**.\n\n**Common hybrid:** publish to a topic and give each subscribing service its own queue. Examples are SNS\u2192SQS fan-out and Kafka consumer groups. This gives you broadcast across services plus load-balanced, durable processing within each service.\n\n**Other factors:**\n- **Replay/retention:** Kafka-style log topics let consumers re-read history. Classic queues delete messages once they are consumed.\n- **Ordering:** both models usually guarantee order only per partition or session, not globally.\n- **Backpressure and retries:** queues make dead-letter queues (DLQs) and per-message retry straightforward."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 9,
+   "rep": 0,
+   "output_tokens": 526,
+   "cost": 0.015842799999999997,
+   "chars": 1392,
+   "score": 3,
+   "answer": "**Queue** (point-to-point): each message consumed by exactly one consumer.\nUse when:\n- Distributing work: job processing, task workers, order handling.\n- Want load balancing: add consumers, throughput scales.\n- Each task must be done once (pair with idempotency, since most brokers give at-least-once).\n- Examples: SQS, RabbitMQ queue, Azure Service Bus queue.\n\n**Topic** (pub/sub): each message delivered to every subscriber.\nUse when:\n- Broadcasting events: \"OrderPlaced\" needed by billing, shipping, analytics.\n- Want decoupling: producer not know who listens; add new subscribers without changing producer.\n- Examples: SNS, Kafka topic, Google Pub/Sub, Service Bus topic.\n\n**Rule of thumb:** command (\"do this\") use queue. Event (\"this happened\") use topic.\n\n**Hybrid, common in practice:**\n- Topic fan-out to per-service queues (SNS to SQS, Service Bus topic subscriptions). Each service gets own copy, scales own workers.\n- Kafka: topic + consumer groups. Within group, partitions split like queue. Across groups, every group gets all messages, like pub/sub. Also keeps log for replay.\n\n**Other factors:**\n- Replay/history needed: Kafka-style log, not classic queue (deleted on ack).\n- Ordering: queues/partitions order per key only; global ordering limits parallelism.\n- Late subscribers: classic topics drop messages if no subscriber attached; durable subscriptions or logs keep them."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 9,
+   "rep": 0,
+   "output_tokens": 482,
+   "cost": 0.014604199999999998,
+   "chars": 894,
+   "score": 3,
+   "answer": "**Queue (point-to-point):** each message goes to exactly one consumer.\n- Work distribution or load balancing: jobs, tasks, commands (\"process this order\").\n- Competing consumers scale throughput.\n- You need each item handled once (in practice at-least-once, so make handlers idempotent).\n\n**Topic (pub/sub):** each message goes to every subscriber.\n- Event broadcast: \"order placed\" consumed by billing, email, and analytics independently.\n- Decoupling: new consumers subscribe without changing the producer.\n- Notifications, cache invalidation, fan-out.\n\n**Rule of thumb:** a command addressed to one handler goes on a queue. A fact that many parties may care about goes on a topic.\n\n**Hybrid (common):** topic plus a queue per subscriber, such as SNS\u2192SQS, Azure Service Bus topic subscriptions, or Kafka consumer groups. You get fan-out across services and load balancing within each service."
+  },
+  {
+   "arm": "terse",
+   "prompt": 0,
+   "rep": 1,
+   "output_tokens": 528,
+   "cost": 0.015616,
+   "chars": 1427,
+   "score": 3,
+   "answer": "By default, **React re-renders all children whenever a parent re-renders**, even if the child's props didn't change. That's expected behavior, not a bug.\n\n**Common fixes:**\n\n1. **Wrap the child in `React.memo`** so it skips re-rendering when props are shallowly equal:\n   ```jsx\n   const Child = React.memo(function Child({ value }) { ... });\n   ```\n\n2. **Stabilize props.** `memo` won't help if you pass new references each render:\n   - Inline objects/arrays: `style={{...}}`, `items={[...]}` \u2192 use `useMemo`\n   - Inline functions: `onClick={() => ...}` \u2192 use `useCallback`\n   ```jsx\n   const handleClick = useCallback(() => doThing(id), [id]);\n   const config = useMemo(() => ({ size: 10 }), []);\n   ```\n\n3. **Check context.** Any component consuming a context re-renders when the context value changes. Passing a new object as `value` every render (`value={{ user, setUser }}`) triggers all consumers, so memoize it.\n\n4. **Restructure.** Move state down into the component that needs it, or pass the child as `children` from higher up so it isn't re-created when the parent's state changes.\n\n5. **React Compiler.** If your project uses it (React 19+), much of this memoization happens automatically.\n\n**To diagnose:** use React DevTools Profiler with \"Record why each component rendered\" enabled. It shows which prop or hook changed.\n\nAlso, re-renders are often cheap. Only optimize if you see an actual performance problem."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 0,
+   "rep": 1,
+   "output_tokens": 418,
+   "cost": 0.0136428,
+   "chars": 1095,
+   "score": 3,
+   "answer": "React default: parent render re-renders all children, even if props unchanged.\n\n**Fix:**\n1. Wrap child in `React.memo` to skip render when props shallow-equal.\n2. Keep props referentially stable, or memo useless:\n   - Objects/arrays: `useMemo`\n   - Callbacks: `useCallback`\n   - No inline `{}`/`[]`/`() => {}` in JSX props\n\n```jsx\nconst Child = React.memo(function Child({ config, onClick }) { ... });\n\nfunction Parent() {\n  const config = useMemo(() => ({ theme: 'dark' }), []);\n  const onClick = useCallback(() => doThing(), []);\n  return <Child config={config} onClick={onClick} />;\n}\n```\n\n**Other causes:**\n- Context consumer re-render on any change to context value. Memoize provider value or split contexts.\n- `children` prop is new element each parent render, so it breaks `memo`.\n- State lifted too high. Move state down closer to where used.\n\n**Alternative:** Pass child as `children` from higher component. Parent state change then not re-render it.\n\nCheck with React DevTools Profiler, \"Highlight updates when components render\". Re-render often cheap. Optimize only if measured slow."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 0,
+   "rep": 1,
+   "output_tokens": 459,
+   "cost": 0.0141442,
+   "chars": 893,
+   "score": 3,
+   "answer": "That's React's default: when a parent re-renders, all its children re-render, whether or not their props changed.\n\n**Fix:** wrap the child in `React.memo` so it skips re-rendering when its props are shallowly equal:\n\n```jsx\nconst Child = React.memo(function Child({ onClick, items }) { ... });\n```\n\n**Memo can still fail** if the parent creates new references on each render:\n- Inline functions (`onClick={() => ...}`): wrap in `useCallback`.\n- Inline objects or arrays (`style={{...}}`, `items={[...]}`): wrap in `useMemo` or move outside the component.\n- `children` JSX passed as a prop is a new object each render.\n\n**Other causes memo won't stop:** the child reads a context whose value changes, or has its own state or hook updates.\n\nRe-renders are usually cheap. Optimize only if React DevTools Profiler shows a real cost. React Compiler, if enabled, does this memoization automatically."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 1,
+   "rep": 1,
+   "output_tokens": 437,
+   "cost": 0.013966799999999998,
+   "chars": 1167,
+   "score": 3,
+   "answer": "Pool keep set of open DB connections, reuse across requests. No new connection per request.\n\nWhy: opening connection costly. TCP handshake, TLS, auth, session setup. Often more time than query itself.\n\nHow work:\n1. App start, pool open N connections (min size).\n2. Request need DB, borrow idle connection from pool.\n3. Query run.\n4. Connection return to pool, not closed.\n5. All busy, request wait (up to timeout) or pool grow to max size.\n\nKey settings:\n- **min/max size**: bound connection count. Max protect DB from overload.\n- **acquire timeout**: how long wait for free connection before error.\n- **idle timeout**: close connections unused too long.\n- **max lifetime**: recycle old connections (avoid stale/firewall-dropped).\n- **validation**: test connection (e.g. `SELECT 1`) before handing out.\n\nGotchas:\n- Max too big, DB hit its own connection limit. Total = pool max \u00d7 app instances.\n- Leaked connection (never returned) drain pool, requests hang.\n- Session state (temp tables, `SET` vars, open transactions) can leak to next borrower. Reset on return.\n\nExamples: HikariCP (Java), pgbouncer (external, Postgres), SQLAlchemy pool (Python), `pg.Pool` (Node)."
+  },
+  {
+   "arm": "terse",
+   "prompt": 1,
+   "rep": 1,
+   "output_tokens": 762,
+   "cost": 0.020256,
+   "chars": 2190,
+   "score": 3,
+   "answer": "**Database connection pooling** keeps a set of open database connections ready for reuse. Without a pool, each request would open and close its own connection.\n\n**Why it matters**\nOpening a connection is expensive. It involves a TCP handshake, TLS negotiation, authentication, and session setup on the server, which can take tens of milliseconds. Doing that for every query wastes time and server resources.\n\n**How it works**\n1. At startup, the pool opens a number of connections (the minimum/idle size).\n2. When the app needs the database, it *borrows* a connection from the pool.\n3. When it's done, it *returns* the connection instead of closing it.\n4. If every connection is in use, the pool either opens a new one (up to a max size) or makes the request wait until one frees up or a timeout hits.\n\n**Key settings**\n- **Min idle / max pool size**: bounds on the number of connections.\n- **Connection timeout**: how long a request waits for a free connection.\n- **Idle timeout**: when unused connections get closed.\n- **Max lifetime**: retires connections periodically so stale ones don't linger.\n- **Validation/health check**: tests a connection (e.g., `SELECT 1`) before handing it out.\n\n**Benefits**\n- Lower latency per query.\n- Fewer connections on the database server, which protects it from overload. Each Postgres connection is a separate process, for example.\n- Predictable resource usage under load.\n\n**Pitfalls**\n- **Leaks**: if code forgets to return connections, the pool runs dry. Use `try/finally` or `using`/`with` blocks.\n- **Oversizing**: a huge pool can overwhelm the database. A common starting point is `cores \u00d7 2 + effective spindles`, then tune from there.\n- **Leftover session state**: temp tables, `SET` variables, or open transactions can carry over to the next borrower.\n- **Multiple app instances**: 10 instances \u00d7 50 connections means 500 connections hitting the database.\n\n**Examples**\n- **In-app pools**: HikariCP (Java), SQLAlchemy's pool (Python), `pg-pool` (Node), ADO.NET built-in pooling.\n- **External poolers**: PgBouncer, ProxySQL, RDS Proxy. They sit between many app instances and the database, which is useful for serverless setups or large fleets."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 1,
+   "rep": 1,
+   "output_tokens": 961,
+   "cost": 0.024152200000000002,
+   "chars": 2100,
+   "score": 3,
+   "answer": "**Database connection pooling** keeps a set of open database connections and reuses them across requests, so the app doesn't open a new connection for every request.\n\n**Why:** Opening a connection is expensive. It takes a TCP handshake, often TLS, authentication, and server-side session setup, which can cost milliseconds or more each time. Databases also cap concurrent connections (e.g., Postgres `max_connections`), and each connection uses server memory.\n\n**How it works:**\n1. At startup, the pool opens some connections (min/idle size).\n2. The app requests a connection and the pool hands over an idle one.\n3. When the app \"closes\" it, the connection goes back to the pool and stays open.\n4. If all are busy, the pool opens more up to the max size. Beyond that, requests wait until a timeout, then error.\n5. The pool validates, recycles, and expires connections (idle timeout, max lifetime) to avoid stale or broken ones.\n\n**Key settings:**\n- `max pool size`: the main knob. Too high overloads the DB; too low causes request queuing.\n- `min idle`: how many connections stay warm.\n- `connection timeout`: how long a request waits for a free connection.\n- `idle timeout` / `max lifetime`: when to retire connections.\n- Validation query or health check before handing a connection out.\n\n**Where pooling lives:**\n- **In-app:** HikariCP (Java), SQLAlchemy pool (Python), `pg.Pool` (Node), ADO.NET built-in pooling.\n- **External proxy:** PgBouncer, pgpool-II, RDS Proxy. Useful when many app instances or serverless functions would otherwise exceed DB connection limits.\n\n**Pitfalls:**\n- **Leaks:** forgetting to release a connection eventually exhausts the pool. Use `try/finally`, `using`, or `with`.\n- **Session state bleed:** temp tables, `SET` variables, or open transactions carry over to the next user unless the connection is reset.\n- **Oversizing:** more connections than the DB has cores and disk to serve hurts throughput. A common starting point is `(cores \u00d7 2) + spindles`, then tune with measurements.\n- **Total = pool size \u00d7 instances:** 20 pods \u00d7 50 connections = 1000 DB connections."
+  },
+  {
+   "arm": "terse",
+   "prompt": 2,
+   "rep": 1,
+   "output_tokens": 433,
+   "cost": 0.0137,
+   "chars": 1116,
+   "score": 3,
+   "answer": "**TCP (Transmission Control Protocol)**\n- **Connection-oriented:** a three-way handshake sets up the connection before any data is sent.\n- **Reliable:** guarantees delivery, retransmits lost packets, and delivers data in order.\n- **Flow and congestion control:** adjusts its send rate to the network and the receiver.\n- **Byte stream:** data has no message boundaries.\n- **Higher overhead:** 20+ byte header plus handshake latency.\n- **Used for:** web (HTTP/HTTPS), email, SSH, file transfers.\n\n**UDP (User Datagram Protocol)**\n- **Connectionless:** sends packets without any setup.\n- **Unreliable:** no delivery guarantee, ordering, or retransmission.\n- **No flow or congestion control:** sends as fast as the application wants.\n- **Message-oriented:** each datagram is a discrete unit.\n- **Low overhead:** 8-byte header and minimal latency.\n- **Used for:** DNS, video/voice calls, online gaming, streaming, and QUIC/HTTP/3, which builds its own reliability on top of UDP.\n\n**Rule of thumb:** use TCP when correctness matters more than speed. Use UDP when low latency matters more and occasional loss is acceptable."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 2,
+   "rep": 1,
+   "output_tokens": 316,
+   "cost": 0.011610800000000001,
+   "chars": 726,
+   "score": 3,
+   "answer": "**TCP**: connection-oriented. Three-way handshake before data. Guarantees delivery, order, no duplicates via ACKs and retransmits. Flow and congestion control. Byte stream, no message boundaries. Higher overhead and latency.\n\n**UDP**: connectionless. No handshake. No delivery, order, or duplicate guarantees. No congestion control. Message-based datagrams keep boundaries. 8-byte header vs TCP 20+. Low latency, low overhead.\n\n**Use TCP**: web (HTTP/1.1, HTTP/2), email, file transfer, SSH, DB connections. Anywhere data must arrive complete and in order.\n\n**Use UDP**: DNS, VoIP, video streaming, games, DHCP. Anywhere speed beats reliability or app handles loss itself. QUIC (HTTP/3) builds reliability on UDP in userspace."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 2,
+   "rep": 1,
+   "output_tokens": 471,
+   "cost": 0.014376199999999999,
+   "chars": 711,
+   "score": 3,
+   "answer": "TCP is connection-oriented and reliable. UDP is connectionless and best-effort.\n\n| | TCP | UDP |\n|---|---|---|\n| Connection | Handshake first (SYN, SYN-ACK, ACK) | None, just send |\n| Delivery | Guaranteed, with retransmits | Not guaranteed |\n| Order | Preserved | Not preserved |\n| Flow/congestion control | Yes | No |\n| Header | 20-60 bytes | 8 bytes |\n| Speed/latency | Slower, more overhead | Faster, lower latency |\n| Data model | Byte stream | Discrete datagrams |\n| Typical use | Web (HTTP/1.1, HTTP/2), email, SSH, file transfer | DNS, VoIP, gaming, streaming, QUIC/HTTP/3 |\n\nUse TCP when correctness matters more than delay. Use UDP when speed matters and the app can tolerate loss or handle it itself."
+  },
+  {
+   "arm": "terse",
+   "prompt": 3,
+   "rep": 1,
+   "output_tokens": 762,
+   "cost": 0.020368,
+   "chars": 1840,
+   "score": 3,
+   "answer": "**1. Confirm it's a leak**\n- Track `process.memoryUsage()` (especially `heapUsed`) over time. A leak shows steady growth that never drops back after GC.\n- Run with `--trace-gc` to see whether GC is reclaiming memory.\n\n**2. Capture heap snapshots**\n- Start with `node --inspect app.js`, open `chrome://inspect`, then go to the Memory tab.\n- Or take snapshots in code: `require('v8').writeHeapSnapshot()`. You can also use `node --heapsnapshot-signal=SIGUSR2` on Linux (not available on Windows).\n- Take 3 snapshots spaced apart under load. In DevTools, use the **Comparison** view to find objects whose count keeps growing. Follow the **Retainers** path to see what's holding them.\n\n**3. Common culprits**\n- **Unbounded caches or Maps.** Use an LRU (`lru-cache`) or a `WeakMap`, or add TTL eviction.\n- **Event listeners never removed.** Watch for `MaxListenersExceededWarning`. Call `off()` or `removeListener()`, or use `once()`.\n- **Timers.** Clear `setInterval` and `setTimeout` handles you no longer need.\n- **Closures** that capture large objects such as requests or buffers in long-lived callbacks.\n- **Global arrays or objects** that only ever grow, such as logs or request history.\n- **Unresolved promises** or pending requests that pile up.\n- **Native or Buffer memory.** If `rss` grows but `heapUsed` doesn't, suspect Buffers, streams that are never consumed or destroyed, or native addons.\n\n**4. Useful tools**\n- `clinic doctor` / `clinic heapprofiler` (from `clinic.js`)\n- `memlab` (Meta) for automated leak detection\n- `--max-old-space-size` raises the limit but only delays a crash. It isn't a fix.\n\n**5. Verify the fix**\n- Run a load test (`autocannon`, `k6`) and confirm the heap levels off.\n\n**Stopgap:** while you investigate, have a process manager (PM2 `max_memory_restart`, Kubernetes memory limits) restart the process."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 3,
+   "rep": 1,
+   "output_tokens": 664,
+   "cost": 0.0186028,
+   "chars": 1463,
+   "score": 3,
+   "answer": "**1. Confirm leak**\n- Track `process.memoryUsage()` (`heapUsed`, `rss`) over time. Heap climbing after GC with steady load means leak.\n- Run with `--trace-gc` to see if GC reclaims memory.\n\n**2. Capture heap snapshots**\n- Start with `node --inspect app.js`, open `chrome://inspect`, Memory tab.\n- Or in code: `require('v8').writeHeapSnapshot()`.\n- Or signal: `node --heapsnapshot-signal=SIGUSR2 app.js` (not on Windows; use inspector or `writeHeapSnapshot` there).\n- Take 3 snapshots: baseline, after load, after more load.\n\n**3. Compare snapshots**\n- DevTools \"Comparison\" view. Sort by `# Delta` / `Size Delta`.\n- Check \"Retainers\" pane for what holds growing objects alive.\n\n**4. Common culprits**\n- Unbounded caches/Maps/arrays. Use LRU (`lru-cache`) or `WeakMap`.\n- Event listeners never removed (`emitter.on` in request path). Watch for `MaxListenersExceededWarning`.\n- `setInterval`/`setTimeout` never cleared.\n- Closures capturing big objects.\n- Global vars, module-level collections.\n- Unresolved promises piling up.\n- Streams not consumed or destroyed.\n- DB/HTTP clients created per request instead of reused.\n\n**5. Tools**\n- `clinic heapprofiler` / `clinic doctor` (Clinic.js).\n- `memlab` (Meta) for automated leak detection.\n- `--max-old-space-size` only delays crash. Not a fix.\n\n**6. Verify fix**\n- Rerun load test. Heap should plateau.\n\n**Stopgap:** restart worker at memory threshold (PM2 `max_memory_restart`). Buys time while hunting real cause."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 3,
+   "rep": 1,
+   "output_tokens": 671,
+   "cost": 0.0184322,
+   "chars": 1427,
+   "score": 3,
+   "answer": "1. **Confirm it's a leak.** Watch `process.memoryUsage().heapUsed` over time. A steady climb across GC cycles is a leak. A sawtooth pattern is normal.\n\n2. **Capture heap snapshots.**\n   - Run `node --inspect app.js`, open `chrome://inspect`, then use Memory > Heap snapshot.\n   - Or in code: `require('v8').writeHeapSnapshot()`.\n   - Or on a signal: `node --heapsnapshot-signal=SIGUSR2 app.js`. On Windows, use the in-code call instead.\n\n3. **Diff the snapshots.** Take one at baseline, apply load, take a second, apply load again, take a third. In the Comparison view, sort by \"# Delta\" or \"Size Delta\". The Retainers panel shows what is holding the growing objects.\n\n4. **Check the common culprits:**\n   - Unbounded caches or Maps. Add an LRU or TTL, or use `WeakMap`/`WeakRef`.\n   - Event listeners added repeatedly and never removed. A `MaxListenersExceededWarning` is a hint.\n   - `setInterval` or timers that are never cleared.\n   - Closures capturing large objects such as requests or buffers.\n   - Global arrays that collect logs, requests, or promises.\n   - Promises that never settle, and unclosed streams or sockets.\n   - Native or Buffer memory. `rss` grows while `heapUsed` stays flat.\n\n5. **Fix the retainer and verify.** Re-run the load test and confirm the heap plateaus.\n\n**Tools:** Clinic.js (`npx clinic heapprofiler -- node app.js`), `--trace-gc`, and `--max-old-space-size` to make the leak show up sooner."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 4,
+   "rep": 1,
+   "output_tokens": 528,
+   "cost": 0.015898799999999998,
+   "chars": 1102,
+   "score": 3,
+   "answer": "`EXPLAIN` show query plan: how DB engine will execute query, without running it (unless `ANALYZE`).\n\n**Shows:**\n- **Access method**: full table scan vs index scan/seek. Seq scan on big table often signal missing index.\n- **Index used**: which index, if any.\n- **Join strategy**: nested loop, hash join, merge join, plus join order.\n- **Estimated rows**: planner guess per step. Big mismatch vs reality mean stale statistics.\n- **Cost**: relative estimate (startup..total) for comparing plans, not milliseconds.\n- **Extra ops**: sort, aggregate, filter, temp tables, filesort (MySQL `Extra` column).\n\n**Variants:**\n- PostgreSQL `EXPLAIN ANALYZE`: run query, add actual time + actual rows. Careful on `INSERT/UPDATE/DELETE`, change data. Wrap in transaction + `ROLLBACK`.\n- `EXPLAIN (ANALYZE, BUFFERS)`: add cache hit/read info.\n- MySQL `EXPLAIN FORMAT=JSON` / `EXPLAIN ANALYZE` (8.0.18+).\n- SQLite `EXPLAIN QUERY PLAN`.\n\n```sql\nEXPLAIN ANALYZE\nSELECT * FROM orders WHERE customer_id = 42;\n```\n\n**Use for:** finding slow-query cause, checking index pickup, spotting bad row estimates, comparing rewrites."
+  },
+  {
+   "arm": "terse",
+   "prompt": 4,
+   "rep": 1,
+   "output_tokens": 693,
+   "cost": 0.018948,
+   "chars": 1661,
+   "score": 3,
+   "answer": "`EXPLAIN` shows the **query execution plan**: how the database intends to run your query, without running it. It tells you:\n\n- **Access method per table:** full table scan (`Seq Scan` / `ALL`) vs. index scan/seek, and which index is used.\n- **Join strategy and order:** nested loop, hash join, or merge join, and which table is read first.\n- **Estimated row counts:** how many rows the planner expects at each step.\n- **Estimated cost:** a relative cost number (Postgres shows startup and total cost).\n- **Extra operations:** sorts, temporary tables, filesorts, aggregations, subquery handling (e.g., MySQL's `Extra: Using temporary; Using filesort`).\n\n**Variants:**\n- `EXPLAIN ANALYZE` (Postgres, MySQL 8.0.18+) actually executes the query and shows **real** timings and row counts next to the estimates. Be careful with it on `INSERT`, `UPDATE`, or `DELETE`, since those really run. Wrap them in a transaction you roll back.\n- Postgres also accepts `EXPLAIN (ANALYZE, BUFFERS)` for I/O details and `FORMAT JSON` for machine-readable output.\n- SQL Server uses `SET SHOWPLAN_ALL ON` or graphical plans. SQLite uses `EXPLAIN QUERY PLAN`.\n\n**What to look for:**\n- Full scans on large tables where you expected an index to be used.\n- Estimated rows far off from actual rows, which usually means stale statistics (run `ANALYZE`).\n- Expensive sorts or hash operations spilling to disk.\n- The step where most of the cost or time is concentrated.\n\nExample (Postgres):\n```sql\nEXPLAIN ANALYZE SELECT * FROM orders WHERE customer_id = 42;\n-- Index Scan using idx_orders_customer on orders (cost=0.43..8.45 rows=1 width=64)\n--   (actual time=0.02..0.03 rows=3 loops=1)\n```"
+  },
+  {
+   "arm": "frugal",
+   "prompt": 4,
+   "rep": 1,
+   "output_tokens": 552,
+   "cost": 0.0160202,
+   "chars": 909,
+   "score": 3,
+   "answer": "**EXPLAIN** shows the query planner's **execution plan** for a statement, meaning how the database intends to run it. By default it does not run the query.\n\nIt typically reveals:\n- **Access method** per table: full/sequential scan vs. index scan (and which index).\n- **Join strategy and order**: nested loop, hash join, merge join.\n- **Estimated rows** and **cost** at each step.\n- **Extra operations**: sorts, temp tables, filesorts, aggregations.\n\n**EXPLAIN ANALYZE** (PostgreSQL, MySQL 8.0.18+) actually executes the query and adds real timings and row counts, so you can compare estimates to reality. Be careful with it on `INSERT`/`UPDATE`/`DELETE`, because those changes really happen. Wrap them in a transaction you roll back.\n\nUse it to find missing indexes, bad join orders, or stale statistics. Output format varies by DB (PostgreSQL, MySQL, SQLite `EXPLAIN QUERY PLAN`, SQL Server uses `SHOWPLAN`)."
+  },
+  {
+   "arm": "terse",
+   "prompt": 5,
+   "rep": 1,
+   "output_tokens": 536,
+   "cost": 0.015768,
+   "chars": 1346,
+   "score": 3,
+   "answer": "A **collision** happens when two keys hash to the same bucket. The two main strategies:\n\n**1. Separate chaining**\n- Each bucket holds a list (or tree) of entries.\n- Colliding keys are appended to that bucket's list.\n- Lookup: hash to the bucket, then scan the list comparing keys.\n- Simple and degrades gracefully. Java's `HashMap` converts long chains into balanced trees.\n\n**2. Open addressing**\nAll entries live in the array itself. On a collision, probe for another empty slot:\n- **Linear probing:** try `h, h+1, h+2, \u2026`. Cache-friendly, but suffers from *primary clustering*.\n- **Quadratic probing:** try `h+1\u00b2, h+2\u00b2, \u2026`. Reduces clustering.\n- **Double hashing:** step size comes from a second hash, `h + i\u00b7h\u2082(k)`. Gives the best spread.\n- **Robin Hood hashing:** a variant that evens out probe lengths by displacing \"richer\" entries.\n- Deletions need **tombstones** (or backward-shift deletion) so that probe chains don't break.\n\n**Keeping collisions rare**\n- Track the **load factor** (entries \u00f7 buckets).\n- Past a threshold, **resize** (typically double) and rehash everything. Common thresholds are about 0.75 for chaining and about 0.5\u20130.7 for open addressing.\n- Use a good hash function that distributes keys uniformly.\n\nWith these measures, average-case operations stay **O(1)**. The worst case is O(n), or O(log n) with tree buckets."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 5,
+   "rep": 1,
+   "output_tokens": 611,
+   "cost": 0.017494799999999998,
+   "chars": 1515,
+   "score": 3,
+   "answer": "Two keys hash to same bucket. Main strategies:\n\n**Separate chaining**\n- Each bucket hold list (or tree) of entries.\n- Collision: append to bucket's list. Lookup: hash, then scan list.\n- Simple, degrade gracefully at high load. Extra pointer/memory overhead, poor cache locality.\n- Java `HashMap` convert long chains to red-black tree (8+ entries), worst case O(log n) not O(n).\n\n**Open addressing**\nAll entries live in array itself. On collision, probe other slots:\n- **Linear probing**: try `h, h+1, h+2...`. Cache-friendly, suffer primary clustering.\n- **Quadratic probing**: try `h+1\u00b2, h+2\u00b2...`. Less clustering.\n- **Double hashing**: step size from second hash, `h + i\u00b7h2(k)`. Best spread.\n- Deletion need tombstones (or backward-shift in linear probing), else lookups stop early at empty slot.\n- Must keep load factor low (~0.7 or less), performance collapse near full.\n\n**Variants**\n- **Robin Hood hashing**: on insert, entry far from home slot steal spot from entry closer to its home. Even out probe lengths. Used by Rust's old `HashMap`.\n- **Cuckoo hashing**: two hash functions, two possible slots. Insert kick out occupant to its alternate slot. Worst-case O(1) lookup.\n- **Swiss table** (Abseil, Rust `hashbrown`): open addressing plus metadata bytes, SIMD scan 16 slots at once.\n\n**Resizing**\nWhen load factor pass threshold, allocate bigger array (often 2x), rehash all entries. Keep chains/probes short, amortized O(1) insert.\n\nGood hash function matter most. Fewer collisions beat clever resolution."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 5,
+   "rep": 1,
+   "output_tokens": 373,
+   "cost": 0.0123922,
+   "chars": 547,
+   "score": 3,
+   "answer": "Two main strategies:\n\n- **Separate chaining:** each bucket holds a list (or tree) of entries; colliding keys are appended there. Java's `HashMap` converts long chains to red-black trees.\n- **Open addressing:** on collision, probe for another empty slot: linear probing (i+1, i+2\u2026), quadratic probing (i+1\u00b2, i+2\u00b2\u2026), or double hashing (second hash sets the step). Deletes need tombstones so lookups don't stop early.\n\nBoth resize (typically double and rehash) when the load factor passes a threshold (e.g. 0.75), which keeps average operations O(1)."
+  },
+  {
+   "arm": "terse",
+   "prompt": 6,
+   "rep": 1,
+   "output_tokens": 795,
+   "cost": 0.021004000000000002,
+   "chars": 1977,
+   "score": 3,
+   "answer": "CORS errors happen when a page on one **origin** (scheme + host + port) requests a resource on a different origin, and the server's response doesn't include headers that allow it. The browser enforces this; the server usually received the request and responded fine.\n\n**Common causes**\n\n1. **Missing `Access-Control-Allow-Origin`.** The server must return your page's origin (e.g. `http://localhost:3000`) or `*`.\n2. **Preflight failure.** Non-simple requests (custom headers like `Authorization`, `Content-Type: application/json`, or methods like PUT/DELETE) trigger an `OPTIONS` request first. The server must answer it with a 2xx status plus:\n   - `Access-Control-Allow-Methods`\n   - `Access-Control-Allow-Headers`\n3. **Credentials with a wildcard.** If you use `credentials: 'include'` or `withCredentials`, the server can't use `*`. It must echo the exact origin and send `Access-Control-Allow-Credentials: true`.\n4. **Port or scheme mismatch.** `localhost:3000` \u2192 `localhost:8080` counts as cross-origin, and so does `http` vs `https`.\n5. **Errors hiding the real problem.** A 404/500 or a redirect from the server often lacks CORS headers, so it shows up as a CORS error.\n6. **Third-party APIs** that don't support browser calls at all.\n\n**Fixes**\n\n- **Server you control:** add CORS middleware, e.g. Express `cors()`, FastAPI `CORSMiddleware`, ASP.NET `AddCors`/`UseCors`, or Spring `@CrossOrigin`.\n- **Local dev:** proxy API calls through your dev server (Vite `server.proxy`, CRA `\"proxy\"`, Angular `proxy.conf.json`) so the browser sees the same origin.\n- **Third-party API:** call it from your backend instead of the browser.\n- **Avoid:** `mode: 'no-cors'`. It gives you an opaque response you can't read.\n\n**To diagnose,** open DevTools \u2192 Network, select the failed request (and its `OPTIONS` preflight), and check the status code and response headers.\n\nIf you paste the exact console error and tell me your frontend/backend setup, I can point to the specific fix."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 6,
+   "rep": 1,
+   "output_tokens": 584,
+   "cost": 0.016986799999999996,
+   "chars": 1453,
+   "score": 3,
+   "answer": "Browser block cross-origin request because server response lack permission headers. Page origin (scheme + host + port) differ from API origin, so browser enforce CORS. Server must opt in. Fix on server, not client.\n\n**Common causes:**\n- Missing `Access-Control-Allow-Origin` header in response.\n- Preflight (`OPTIONS`) fail. Triggered by non-simple methods (PUT/DELETE), `Content-Type: application/json`, or custom headers like `Authorization`. Server must answer `OPTIONS` with 2xx plus `Access-Control-Allow-Methods` / `Access-Control-Allow-Headers`.\n- Credentials (`credentials: 'include'` or `withCredentials`) combined with `Access-Control-Allow-Origin: *`. Not allowed. Server must echo exact origin and send `Access-Control-Allow-Credentials: true`.\n- Origin mismatch: `http` vs `https`, `localhost` vs `127.0.0.1`, or different port.\n- Server error (500/404) or redirect. Error responses often skip CORS headers, so real error look like CORS error.\n\n**Fix examples:**\n\nExpress:\n```js\nconst cors = require('cors');\napp.use(cors({ origin: 'http://localhost:3000', credentials: true }));\n```\n\nDev-only workaround: proxy API through dev server (Vite `server.proxy`, CRA `\"proxy\"` in package.json). Same origin, so no CORS.\n\n**Debug:** DevTools Network tab. Check failed request plus any `OPTIONS` preflight. Look at response headers and status. Exact console message names missing header.\n\nPaste exact console error and server stack for precise fix."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 6,
+   "rep": 1,
+   "output_tokens": 705,
+   "cost": 0.0190882,
+   "chars": 1421,
+   "score": 3,
+   "answer": "Your page's origin (scheme + host + port) differs from the API's, and the server's response lacks headers allowing your origin. The browser blocks your JS from reading the response. The request itself often still reaches the server.\n\n**Common causes:**\n- Server sends no `Access-Control-Allow-Origin`, or a value that doesn't match your origin.\n- The preflight (`OPTIONS`) request fails: the server returns 404/401/405, or lacks `Access-Control-Allow-Methods` / `Access-Control-Allow-Headers` for your method or custom headers (e.g. `Authorization`, `Content-Type: application/json`).\n- Using `credentials: 'include'` with `Access-Control-Allow-Origin: *`. Credentials require the exact origin plus `Access-Control-Allow-Credentials: true`.\n- A server error (500) or redirect whose response omits the CORS headers, which the browser reports as a CORS error.\n- `http` vs `https`, or `localhost` vs `127.0.0.1`, mismatch.\n\n**Fixes:**\n- Server you control: add CORS headers or middleware (e.g. Express `cors()`, Flask-CORS) and handle `OPTIONS`.\n- Dev only: use a dev-server proxy (Vite `server.proxy`, CRA `proxy`) so requests are same-origin.\n- Third-party API without CORS: call it from your own backend instead.\n\nYou cannot fix CORS from client code. `mode: 'no-cors'` only gives you an unreadable response.\n\nPaste the exact console error and the request's response headers (DevTools \u2192 Network) for a specific diagnosis."
+  },
+  {
+   "arm": "terse",
+   "prompt": 7,
+   "rep": 1,
+   "output_tokens": 401,
+   "cost": 0.013116,
+   "chars": 1057,
+   "score": 2,
+   "answer": "A debouncer delays running the search until the user **stops typing** for a short interval (e.g., 300 ms). Each new keystroke resets the timer.\n\n**Why it matters:**\n\n- **Fewer requests:** Typing \"laptop\" fires 1 search instead of 6 (`l`, `la`, `lap`\u2026). That reduces server load, API costs, and rate-limit hits.\n- **No stale results:** Without it, responses can arrive out of order, and results for \"lap\" might overwrite results for \"laptop.\"\n- **Better performance:** It avoids re-rendering or re-filtering large lists on every keystroke, which keeps the UI responsive.\n- **Less flicker:** Results update once the user pauses, not constantly while they type.\n\n**Example:**\n```js\nfunction debounce(fn, delay = 300) {\n  let t;\n  return (...args) => {\n    clearTimeout(t);\n    t = setTimeout(() => fn(...args), delay);\n  };\n}\n\ninput.addEventListener('input', debounce(e => search(e.target.value)));\n```\n\n**Related:** *Throttling* runs at most once per interval even while typing continues. Use it when you want periodic updates rather than waiting for a pause."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 7,
+   "rep": 1,
+   "output_tokens": 387,
+   "cost": 0.013030799999999999,
+   "chars": 966,
+   "score": 3,
+   "answer": "Debounce wait until user stop typing (e.g. 300ms idle) before firing search. Without it, every keystroke fire request.\n\nGains:\n- **Fewer requests.** Typing \"react hooks\" = 1 call, not 11. Less server/API load, fewer rate-limit hits, lower cost.\n- **No wasted work.** Intermediate queries (\"r\", \"re\", \"rea\") useless; skip them.\n- **Fewer race conditions.** Many in-flight requests can resolve out of order, so stale results overwrite fresh ones. Fewer requests, smaller window (still guard with `AbortController` or ignore stale responses).\n- **Smoother UI.** No result list flicker or re-render churn per keystroke.\n\nTradeoff: adds delay before results appear. Tune delay (~200\u2013400ms typical). For cheap local filtering, debounce often unneeded.\n\n```js\nfunction debounce(fn, ms) {\n  let t;\n  return (...args) => {\n    clearTimeout(t);\n    t = setTimeout(() => fn(...args), ms);\n  };\n}\n\ninput.addEventListener('input', debounce(e => search(e.target.value), 300));\n```"
+  },
+  {
+   "arm": "frugal",
+   "prompt": 7,
+   "rep": 1,
+   "output_tokens": 366,
+   "cost": 0.0122682,
+   "chars": 368,
+   "score": 2,
+   "answer": "It waits until the user pauses typing (e.g. 300 ms) before running the search, instead of firing on every keystroke. Typing \"react\" then triggers 1 request instead of 5. This:\n\n- Reduces server/API load and rate-limit hits.\n- Avoids out-of-order responses overwriting newer results.\n- Cuts wasted re-renders and expensive client-side filtering, so the UI stays smooth."
+  },
+  {
+   "arm": "terse",
+   "prompt": 8,
+   "rep": 1,
+   "output_tokens": 458,
+   "cost": 0.014223999999999999,
+   "chars": 1295,
+   "score": 3,
+   "answer": "Both integrate changes from one branch into another, but they shape history differently:\n\n**`git merge`**\n- Creates a new **merge commit** that joins the two branch histories.\n- Preserves the full history exactly as it happened, including when branches diverged.\n- Non-destructive: existing commits are untouched.\n- Can produce a cluttered, non-linear history with many merge commits.\n\n**`git rebase`**\n- **Replays** your branch's commits on top of the target branch, creating new commits with new hashes.\n- Produces a clean, **linear** history, as if you'd started your work from the latest target commit.\n- Rewrites history. Never rebase commits others have already pulled, or you'll cause conflicts for them.\n- You may resolve conflicts commit by commit rather than all at once.\n- `git rebase -i` (interactive) lets you squash, reorder, edit, or drop commits.\n\n**Example** (feature branch off `main`, and `main` has moved on):\n```\nmerge:   A---B---C---F---M   (main)\n              \\         /\n               D-------E      (feature)\n\nrebase:  A---B---C---F---D'---E'   (feature, linear)\n```\n\n**Rule of thumb:**\n- Rebase your *local/private* branches to keep them up to date and tidy before sharing.\n- Merge to integrate *shared/public* branches, or when you want to preserve the true history."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 8,
+   "rep": 1,
+   "output_tokens": 342,
+   "cost": 0.012106800000000001,
+   "chars": 903,
+   "score": 3,
+   "answer": "**Merge**: combine branches via new merge commit. History kept as-is, non-linear. Original commits untouched.\n\n```\nA---B---C  main\n     \\   \\\n      D---E---M  feature\n```\n\n**Rebase**: replay your commits onto new base. Rewrite commits (new SHAs). Linear history, no merge commit.\n\n```\nA---B---C  main\n         \\\n          D'---E'  feature\n```\n\nKey differences:\n- **History**: merge preserve true branch topology; rebase flatten it.\n- **Commit SHAs**: merge keep them; rebase create new ones.\n- **Conflicts**: merge resolve once; rebase may resolve per replayed commit.\n- **Safety**: merge safe on shared branches. Rebase rewrite history, so pushed branch need `git push --force-with-lease`, which break others' copies.\n\nRule of thumb: rebase local/private branches to tidy up (`git rebase -i` for squash/reorder). Merge for integrating shared/public branches. Never rebase commits others already pulled."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 8,
+   "rep": 1,
+   "output_tokens": 407,
+   "cost": 0.0130802,
+   "chars": 752,
+   "score": 3,
+   "answer": "**Merge** combines branches with a new merge commit. History stays as it happened: non-linear, original commits untouched. Safe on shared branches.\n\n**Rebase** replays your commits on top of the target branch, creating new commits with new SHAs. History becomes linear, with no merge commit.\n\n**Trade-offs:**\n- Rebase gives a cleaner log, but it rewrites history. Never rebase commits others have already pulled, or they will need to reconcile diverged history.\n- Merge preserves context and is non-destructive, but adds merge commits that clutter the log.\n- Conflicts: merge resolves them once; rebase may need resolution per replayed commit.\n\n**Common practice:** rebase local feature branches onto `main` (`git rebase main`), then merge into `main`."
+  },
+  {
+   "arm": "terse",
+   "prompt": 9,
+   "rep": 1,
+   "output_tokens": 554,
+   "cost": 0.016208,
+   "chars": 1562,
+   "score": 3,
+   "answer": "**Queue (point-to-point):** each message goes to exactly **one** consumer.\n- Use it to distribute work: background jobs, order processing, sending emails.\n- Gives load balancing. Adding consumers increases throughput because they compete for messages.\n- Use it when a task should be handled once, by whoever is free.\n- Examples: SQS, RabbitMQ queues, Azure Service Bus queues.\n\n**Topic (publish/subscribe):** each message goes to **every** subscriber.\n- Use it to broadcast events to multiple independent systems. For example, an \"OrderPlaced\" event might be picked up by billing, inventory, analytics, and notifications.\n- It decouples producers from consumers. You can add new subscribers without changing the publisher.\n- Use it when several different services each care about the same event.\n- Examples: SNS, Kafka topics, Azure Service Bus topics, Google Pub/Sub.\n\n**Rule of thumb:**\n- Choose a **queue** for \"do this task once.\"\n- Choose a **topic** for \"this happened, and anyone interested should know.\"\n\n**Common hybrid:** a topic fans out to one queue per subscribing service, and each service has multiple workers competing on its own queue. You get both broadcast and load balancing. Examples:\n- SNS \u2192 SQS\n- Kafka consumer groups\n- Service Bus subscriptions\n\n**Other factors:**\n- **Ordering:** queues and partitions give per-key ordering.\n- **Replay:** log-based topics like Kafka keep history so it can be replayed. Classic queues delete messages once they're consumed.\n- **Durability:** pub/sub subscribers may miss messages if they aren't durable."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 9,
+   "rep": 1,
+   "output_tokens": 550,
+   "cost": 0.0162988,
+   "chars": 1509,
+   "score": 3,
+   "answer": "**Queue** (point-to-point): each message consumed by exactly one consumer.\nUse when:\n- Distributing work/tasks (job processing, order fulfillment, email sending)\n- Load balancing across competing workers. Add consumers to scale throughput\n- Each task must run once (not once per service)\n- Need backpressure/buffering between producer and slow consumer\n\n**Topic** (pub/sub): each message delivered to every subscriber.\nUse when:\n- Broadcasting events (`OrderPlaced`, `UserSignedUp`) to multiple independent services\n- Producer should not know who consumes\n- Adding new consumers later without changing producer\n- Fan-out: notifications, cache invalidation, analytics, audit\n\n**Rule of thumb:** command (\"do this\") goes to queue. Event (\"this happened\") goes to topic.\n\n**Hybrid, common in practice:**\n- Topic + queue per subscriber (SNS\u2192SQS, RabbitMQ fanout exchange\u2192queues, Azure Service Bus topic subscriptions). Each service gets its own queue copy, and workers inside the service compete on it.\n- Kafka: topic + consumer groups. Within a group, partitions split across consumers (queue semantics). Across groups, every group gets all messages (pub/sub semantics). Kafka also retains messages, so consumers can replay.\n\n**Other factors:**\n- Ordering: queues typically FIFO-ish. Kafka orders only per partition.\n- Durability: non-durable topic subscribers miss messages sent while offline. Use durable subscriptions or log-based systems.\n- Delivery: both usually at-least-once, so make consumers idempotent."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 9,
+   "rep": 1,
+   "output_tokens": 416,
+   "cost": 0.013292199999999997,
+   "chars": 698,
+   "score": 3,
+   "answer": "**Queue (point-to-point):** each message goes to exactly one consumer.\n- Work distribution, task processing, load balancing across workers.\n- Commands (\"resize this image\", \"charge this card\").\n- Each job must be done once by one worker.\n\n**Topic (pub/sub):** each message goes to every subscriber.\n- Events many services react to (\"OrderPlaced\" \u2192 billing, email, analytics).\n- Fan-out, notifications, cache invalidation.\n- Publisher shouldn't know who listens.\n\n**Rule of thumb:** \"do this\" \u2192 queue. \"this happened\" \u2192 topic.\n\n**Hybrid:** topic fanning out to one queue per subscriber service, e.g. SNS\u2192SQS, or Kafka consumer groups. Each service gets every event, and its instances share the load."
+  }
+ ]
+}
