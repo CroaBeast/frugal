@@ -28,7 +28,7 @@ Done when: <check>
 
 **Handoff.** Every message re-sends the whole history. Between the user's 10th and 20th message (count from the summary after a compaction), if work remains, end the reply at the first natural breakpoint (subtask done, phase change) with a handoff block to paste into a new chat; offer again 10 messages later if the user stays. Also offer one when a task finishes and the user moves to an unrelated one. No work left: no handoff.
 
-Before any handoff block, including one the user asks for, call `get_usage` (`mcp__ccd_session_mgmt__get_usage`, load via ToolSearch if deferred) for the `Usage` line; unavailable: `Usage: unavailable`. Do not call it on other turns unless asked.
+Before any handoff block, including one the user asks for, call `get_usage` (`mcp__ccd_session_mgmt__get_usage`, load via ToolSearch if deferred) for the `Usage` line; unavailable (CLI): run `sh <base directory>/scripts/usage.sh` (context and token totals; no plan limits). Do not call either on other turns unless the user asks about usage.
 
 ````
 ```
