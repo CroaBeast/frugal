@@ -82,8 +82,9 @@ Say `normal mode` to turn it off.
 On the nine-task batch (0.11) frugal cost 6% less than plain Claude Code, wrote 17% less, and passed every check plain Claude Code passed. 0.12's six-task rerun on Opus came out even on cost with 11% less output:
 
 - **Long sessions and heavy tasks:** 10 to 12% cheaper on the 40-message session, the heavy coding task, and the contract risk review. Every call re-reads the whole history, so shorter replies and fewer re-reads compound as a session grows. The 16-message session came out -2%: at the 10th message frugal writes a handoff block for a fresh chat, which only pays back when you actually move to one.
-- **Short one-off tasks:** -4 to +7% across batches. Only the small core loads; this is where frugal has the least to save.
+- **Short one-off tasks:** +1 to +8% on Opus. Turning frugal on costs ~1,140 input tokens once per session (about 0.009 USD on Opus), and a 3-call task has too little output to win that back.
 - **Writing features:** on ponytail's own harness (Haiku 4.5), 0.12 wrote less code than ponytail on the frontend tasks, cost less, and scored 0.00 for over-engineering against ponytail's 1.25 in the same batch (see below; n=2).
+- **Plain questions:** on caveman's own eval, 0.12.1 answered with 28 to 45% fewer output tokens than caveman at the same judged quality.
 - **Behavior, not just tokens:** verify APIs and versions instead of guessing, build the sensible default instead of stopping to ask, minimal code that keeps validation and tests, opt-in humanizer for text people read.
 
 **Questions cost tokens too.** Each question is one extra call: the model writes the question, your answer comes back, and the whole context is read again (mostly from cache, which is cheaper). That is why frugal asks only when missing information would change the result: one question is much cheaper than redoing work built on a wrong guess.
@@ -154,6 +155,15 @@ ponytail's color picker ranged from 68 to 226 lines between the two batches: at 
 | frugal | 488 | 524 | 0.0158 | 2.95 |
 
 A tie on caveman's ground: lower median, higher mean, same cost, same quality (one answer at 2 in each of the control and frugal arms). Script: `bench/caveman_eval.py`.
+
+frugal's visible answers were already the shortest (922 to 1,024 characters against caveman's 1,184 to 1,230); its output tokens were not, because Opus counts its thinking as output and frugal's rules made it weigh more before answering (roughly 250 hidden tokens per answer against caveman's 155, estimated as output tokens minus characters / 3.6). Two variants in one batch, n=20 each: removing the rules that ask for a decision on every task cut output 20%; a first line that sends plain questions straight to an answer, with only the reply and exactness rules applying, cut it 33%. 0.12.1 ships that line. Rerun against caveman (2026-10-03, n=20 each):
+
+| Arm | Median output tokens | Mean output tokens | Mean characters | Judge score |
+|---|---|---|---|---|
+| caveman | 504 | 493 | 1,196 | 3.00 |
+| frugal 0.12.1 | 278 | 354 | 922 | 3.00 |
+
+**Fixed cost.** A one-word task (`t0_ok`, "Reply with only the word ok", Opus, n=8) measures what having frugal on costs before it saves anything: the plugin enabled adds ~330 input tokens (skill and agent descriptions), `/frugal` adds ~1,140 in all. Claude Code writes them to the prompt cache once per session, about 0.009 USD on Opus. On a 3-call task that is the whole difference: 0.12.1 vs no plugins, n=4, t1 bug fix +1%, t2 CSV question +8%, t3 support reply +4%, all passed. Tasks that short have too little output to pay the fixed cost back; longer ones do.
 
 ### frugal 0.11, Opus 5.5
 
@@ -250,6 +260,7 @@ FRUGAL_PLUGIN_DIR=<path to this repo> python run.py --task tmpl-fe-datepicker --
 
 ## Versions
 
+- **0.12.1**: plain questions go straight to an answer, which cut Opus's output on caveman's eval by a third; `t0_ok` measures the fixed cost.
 - **0.12.0**: suggests the model and effort that fit each task (a subagent for bounded work, a prompt for a new chat otherwise); Fable in the delegation table; `review` and `compress` modules; usage totals in the CLI; code rules for the worker subagent and for every code task on Haiku and Sonnet; native UI elements named; root-cause rule in the core; the session hook ignores background-task notifications.
 - **0.11.0**: a hook loads the session rules at the 10th message; frugal builds the default instead of stopping to ask. Benchmarked 6% cheaper than plain Claude Code on Opus 5.5 with 17% less output and the same pass rate.
 - **0.10.0**: code rules in `code.md`, read with `core.md` only for code tasks.
