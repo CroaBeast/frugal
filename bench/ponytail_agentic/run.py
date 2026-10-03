@@ -31,7 +31,7 @@ from tasks import TASKS
 # Copied from DietrichGebert/ponytail @ e3ba2aa benchmarks/agentic (MIT, see LICENSE.ponytail).
 # frugal changes: a "frugal" plugin arm, plugin modes pinned to upstream defaults, Windows temp cleanup.
 ROOT = Path(os.environ.get("PONYTAIL_REPO", Path.home() / ".claude" / "plugins" / "marketplaces" / "ponytail"))
-RUNS_DIR = Path(__file__).resolve().parent / "runs"
+RUNS_DIR = Path(os.environ.get("PONYTAIL_RUNS_DIR") or Path(__file__).resolve().parent / "runs")  # frugal: keep workspaces out of a parent with its own CLAUDE.md
 
 def _skill(rel): return (ROOT / rel).read_text(encoding="utf-8")
 ARMS = {
