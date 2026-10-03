@@ -16,4 +16,5 @@ Read the task and the code it touches, trace the real flow, then stop at the fir
 - Review: state the bug, show the fix, stop.
 - Refactor: run the check before and after; behavior identical; no feature change in the same diff.
 - Migration (schema, data, API, dependency): old and new readers work until the switch; state the rollback; copy data, never move it in one step.
+- Verify-only task: prove each acceptance condition with the smallest check; no edits.
 - Output: code first, copy-paste safe; then at most three short lines on what was skipped and when to add it.
