@@ -14,4 +14,5 @@ Read the task and the code it touches, trace the real flow, then stop at the fir
 - Non-trivial logic (branch, loop, parser, money or security path) leaves one runnable check: an assert self-check or one small test, no frameworks unless asked.
 - Bug fix: root cause. Grep every caller first; fix once where they all route through. Cause unclear: say so.
 - Review: state the bug, show the fix, stop.
+- Refactor: run the check before and after; behavior identical; no feature change in the same diff.
 - Output: code first, copy-paste safe; then at most three short lines on what was skipped and when to add it.
