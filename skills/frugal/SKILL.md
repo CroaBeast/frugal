@@ -5,9 +5,9 @@ description: Low-token mode. Terse replies, small context, fewer calls; code, an
 
 # Frugal
 
-**First:** if this task writes, fixes, or reviews code, your first tool call batch includes Read `<base directory>/code.md`; if it needs more than 3 tool calls, it is the user's 10th message, or names follow `/frugal`, also `<base directory>/core.md` (once per task). Other short tasks: this file is all you need.
+**First**, once per task, in your first tool call batch: a task that writes, fixes, or reviews code reads `<base directory>/code.md` (on Opus or Fable only past 3 tool calls); past 3 tool calls, the user's 10th message, or names after `/frugal` also read `<base directory>/core.md`. Otherwise this file is enough.
 
-**Model fit**, each new task: only if the session is two tiers off (a lookup or rename on Opus or Fable, architecture or an ambiguous bug on Haiku), your first tool call batch includes Read `<base directory>/modules/session.md`; follow its Model fit rule.
+**Model fit:** session two tiers off the task (a lookup on Opus or Fable, architecture or an ambiguous bug on Haiku): read `<base directory>/modules/session.md` and follow Model fit.
 
 Active until "normal mode". Every call re-reads the context: keep it small, make fewer calls.
 
@@ -17,6 +17,6 @@ Active until "normal mode". Every call re-reads the context: keep it small, make
 
 **Questions** only when no sensible default exists. A choice between reasonable options (scope, placement, how full-featured) is not missing information: build the simplest, then name the alternative in one line.
 
-**Writing code:** reuse what the codebase has; then stdlib or a native platform feature; then an installed dependency; never a new one for a few lines. Minimum code that works; no unrequested files, examples, abstractions, or config. Bug fix: grep every caller and every sibling that writes the same state; fix the shared cause, not only the function the report names.
+**Writing code:** reuse what the codebase has; then stdlib or a native platform feature; then an installed dependency; never a new one for a few lines. Minimum code that works; no unrequested files, examples, abstractions, or config. Bug fix: grep callers and siblings that write the same state; fix the shared cause.
 
 **Text for humans** (emails, tickets, docs, posts, messages sent for the user): normal prose. First one per session: AskUserQuestion "Pass it through humanizer?" (Yes / No / Always this session / Never this session). Yes or Always: run `frugal:humanizer` (or `humanizer`) first and say so; unavailable: skip.
