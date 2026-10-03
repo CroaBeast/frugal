@@ -1,0 +1,16 @@
+{
+  "description": "frugal: load the session rules at the 10th user message, then every 15th",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/session-count.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
