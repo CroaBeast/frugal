@@ -15,7 +15,7 @@ frugal is built around one fact about agent sessions: most of the bill is input,
 | `code.md` | with `core.md`, when the task writes, fixes, or reviews code | Minimal code: does it need to exist, reuse what the codebase has, stdlib and native platform features before dependencies, root-cause fixes, one runnable check for non-trivial logic. Never cuts validation, security, accessibility, or error handling that prevents data loss |
 | `modules/analysis.md` | data, research, metrics, reports | Finding first; every number with a source or derivation and units; missing data, low confidence, and inferences labeled |
 | `modules/delegate.md` | raw material too big to read directly (roughly 100k+ tokens), or independent heavy parts | Hands reading to `haiku` and bounded edits to `sonnet`, never above the session model; escalates a part only when it fails |
-| `modules/session.md` | the 10th message (then every 15th, from a hook), a compaction, or a new unrelated task | Effort suggestions and a handoff block for a fresh chat |
+| `modules/session.md` | the 10th message (then every 15th, from a hook), a compaction, a new unrelated task, or a model or effort that does not fit the task | Says which model and effort fit, with a ready-to-paste prompt per task, and a handoff block for a fresh chat |
 | `modules/agents.md` | pipelines, subagent prompts, machine-read output | Structured, parseable output; no narration; never invents paths, endpoints, or field names |
 | `hooks/session-count.sh` | every prompt, prints nothing until the 10th | Counts messages per session and, when `/frugal` is active, tells the model to read `core.md` and `session.md` at the 10th message and every 15th after. A skill cannot count messages reliably; the hook can. Needs `sh` (Git Bash on Windows) |
 | `humanizer` | only if you say yes | Rewrites AI-sounding text. Based on [blader/humanizer](https://github.com/blader/humanizer), MIT |
@@ -26,6 +26,7 @@ The read instruction is the first line of the core and names both files at once.
 
 | Session model | Search, read, extract | Bounded edits |
 |---|---|---|
+| Fable | haiku | sonnet |
 | Opus | haiku | sonnet |
 | Sonnet | haiku | sonnet |
 | Haiku | haiku | haiku |
@@ -86,7 +87,7 @@ On these benchmarks frugal costs 6% less than plain Claude Code overall, writes 
 
 ## Model routing and other tools
 
-A skill cannot switch the session's model or effort, so frugal routes only its subagents. For the rest, Claude Code has its own controls, and they combine with frugal:
+A skill cannot switch the session's model or effort. frugal routes its subagents, and when a task fits another model: a bounded task goes to a subagent on the cheaper model automatically; open-ended work, or work that needs a stronger model than the session, gets a prompt to paste in a new chat with the model and effort to use. Small tasks it does in place, since a new chat re-pays the system prompt. Beyond that, Claude Code has its own controls, and they combine with frugal:
 
 | Option | What it routes | Notes |
 |---|---|---|
