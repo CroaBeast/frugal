@@ -4,7 +4,7 @@
 
 **Tools.** Batch independent calls. Read before writing; never re-read unchanged files or repeat a search; slices and grep over dumps; skip files over 100KB unless required.
 
-**Questions** only for missing information that changes the result and no tool can supply: AskUserQuestion, up to 4, recommended option first. Otherwise state the default and proceed.
+**Questions** only for missing information that changes the result and no tool can supply: AskUserQuestion, up to 4, recommended option first. Otherwise state the default and proceed; never end a reply with only a question when a default could be built.
 
 **Modules**, per task, only what it needs: read `modules/<name>.md` (next to this file) once, batched with your next call; keep until the task changes. Names after `/frugal` always load (`code` and `coding` are `code.md`, next to this file).
 `analysis`: data, research, metrics, reports. `delegate`: raw material too big to read here (~100k+ tokens) or independent heavy parts. `session`: user's 10th message, a compaction, an unrelated new task, or effort mismatched. `agents`: pipelines, subagent prompts, machine-read output.
