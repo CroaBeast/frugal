@@ -63,6 +63,7 @@ TASKS["t8_review"] = ("The contracts/ folder has 30 vendor agreements. Read each
 TASKS["t9_review150"] = ("The contracts/ folder has 150 vendor agreements. Read each one and write risk_review.csv with columns "
                          "vendor,biggest_risk where biggest_risk is one sentence of at most 20 words naming the clause that is "
                          "riskiest for Customer and why. Then tell me the five vendors you would renegotiate first.")
+TASKS["t0_ok"] = "Reply with only the word ok."  # fixed cost of having a plugin active
 TASKS["t7_long40"] = TASKS["t4_long"] + [
     "Add SKU D400 to the catalog: price 19.99, bulk_min 5, bulk_discount 0.2.",
     "What is the order total for 5 x D400? Reply with the number only.",
@@ -143,6 +144,8 @@ def run_one(job, model):
 
 def check(task, d, texts):
     final_text = texts[-1]
+    if task == "t0_ok":
+        return "ok" in final_text.lower()
     if task == "t5_heavy":
         hidden = subprocess.run([sys.executable, "-c", T5_HIDDEN], cwd=d, capture_output=True).returncode == 0
         return all(["req-103712" in texts[0], "EUR" in texts[0], hidden,
