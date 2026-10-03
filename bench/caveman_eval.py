@@ -58,8 +58,14 @@ def main():
     ap.add_argument("--model", default="opus")
     ap.add_argument("--runs", type=int, default=2)
     ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--arms", default="terse,caveman,frugal")
+    ap.add_argument("--variant", action="append", default=[], help="name=path of a frugal SKILL.md variant; add name to --arms")
     a = ap.parse_args()
-    jobs = [(arm, i, r) for r in range(a.runs) for i in range(len(PROMPTS)) for arm in ARMS]
+    for v in a.variant:
+        name, path = v.split("=", 1)
+        ARMS[name] = TERSE + "\n\n" + Path(path).read_text(encoding="utf-8")
+    arms = a.arms.split(",")
+    jobs = [(arm, i, r) for r in range(a.runs) for i in range(len(PROMPTS)) for arm in arms]
     rows = []
     with concurrent.futures.ThreadPoolExecutor(a.workers) as ex:
         for f in concurrent.futures.as_completed([ex.submit(cell, *j, a.model) for j in jobs]):
@@ -68,11 +74,12 @@ def main():
             print(f"  [{len(rows)}/{len(jobs)}]", flush=True)
     out = FRUGAL / "bench" / f"caveman_eval_{a.model}_{time.strftime('%Y%m%d-%H%M%S')}.json"
     out.write_text(json.dumps({"model": a.model, "caveman": CAVEMAN.name, "rows": rows}, indent=1), encoding="utf-8")
-    print(f"\n{'arm':8} {'n':>3} {'median out tok':>15} {'mean score':>11} {'scores<3':>9}")
-    for arm in ARMS:
+    print(f"\n{'arm':8} {'n':>3} {'median out tok':>15} {'mean out tok':>13} {'mean chars':>11} {'mean score':>11} {'scores<3':>9}")
+    for arm in arms:
         r = [x for x in rows if x["arm"] == arm]
         s = [x["score"] for x in r if x["score"] is not None]
         print(f"{arm:8} {len(r):>3} {statistics.median(x['output_tokens'] for x in r):>15.0f} "
+              f"{statistics.mean(x['output_tokens'] for x in r):>13.0f} {statistics.mean(x['chars'] for x in r):>11.0f} "
               f"{sum(s) / max(len(s), 1):>11.2f} {sum(1 for v in s if v < 3):>9}")
     print("wrote", out)
 
