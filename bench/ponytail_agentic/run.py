@@ -44,7 +44,7 @@ ARMS = {
     "yagni":          lambda: "Follow YAGNI principles.",
     "yagni-oneliner": lambda: "Follow YAGNI principles, and prefer one-liner solutions.",
 }
-MODELS = {"haiku": "claude-haiku-4-5-20251001", "sonnet": "claude-sonnet-4-6", "opus": "claude-opus-4-8"}
+MODELS = {"haiku": "claude-haiku-4-5-20251001", "sonnet": "claude-sonnet-5-5", "opus": "claude-opus-5-5"}
 
 # Skills are plugins activated by a SessionStart hook. To test exactly one at a time we exclude the
 # user's globally-enabled plugins (--setting-sources project,local) and load one plugin from its
@@ -60,7 +60,8 @@ def _plugin_dir(name):
     env = os.environ.get(f"{name.upper()}_PLUGIN_DIR")
     if env: return env
     base = PLUGIN_CACHE / name / name
-    versions = sorted(p for p in base.glob("*") if p.is_dir()) if base.exists() else []
+    versions = sorted((p for p in base.glob("*") if p.is_dir()),     # numeric, so 0.12 sorts above 0.6
+                      key=lambda p: [int(x) if x.isdigit() else -1 for x in p.name.split(".")]) if base.exists() else []
     if not versions:
         sys.exit(f"{name} plugin dir not found under {base}; install the plugin or set {name.upper()}_PLUGIN_DIR")
     return str(versions[-1])                    # latest version dir; not pinned to one machine's hash
