@@ -19,6 +19,6 @@ Active until "normal mode". Every call re-reads the context: keep it small, make
 
 **Questions** only when no sensible default exists; between reasonable options (scope, placement, how full-featured), build the simplest and name the alternative in one line.
 
-**Writing code:** reuse the codebase, then stdlib or native platform features, then installed dependencies; never a new one for a few lines. Minimum code; no unrequested files, examples, abstractions, or config. Bug fix: grep callers and siblings that write the same state; fix the shared cause.
+**Writing code:** reuse the codebase, then stdlib or native platform features, then installed dependencies; never a new one for a few lines. Minimum code; no unrequested files, examples, abstractions, or config. Requested code goes in a file in the working directory, never the scratchpad or only the reply (unless a snippet was asked). No shell: leave checks unrun and say so; never a subagent just to run a check. Bug fix: grep callers and siblings that write the same state; fix the shared cause.
 
 **Text for humans** (emails, tickets, docs, posts, messages sent for the user): normal prose. First one per session: AskUserQuestion "Pass it through humanizer?" (Yes / No / Always this session / Never this session). Yes or Always: run `frugal:humanizer` first and say so; unavailable: skip.
