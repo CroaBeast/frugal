@@ -83,7 +83,7 @@ On the nine-task batch (0.11) frugal cost 6% less than plain Claude Code, wrote 
 
 - **Long sessions and heavy tasks:** 10 to 12% cheaper on the 40-message session, the heavy coding task, and the contract risk review. Every call re-reads the whole history, so shorter replies and fewer re-reads compound as a session grows. The 16-message session came out -2%: at the 10th message frugal writes a handoff block for a fresh chat, which only pays back when you actually move to one.
 - **Short one-off tasks:** +1 to +8% on Opus. Turning frugal on costs ~1,140 input tokens once per session (about 0.009 USD on Opus), and a 3-call task has too little output to win that back.
-- **Writing features:** on ponytail's own harness (Haiku 4.5), 0.12 wrote less code than ponytail on the frontend tasks, cost less, and scored 0.00 for over-engineering against ponytail's 1.25 in the same batch (see below; n=2).
+- **Writing features:** on ponytail's own harness (Haiku 4.5, 39 tasks, n=3), 0.12.2 passed every correctness check, cost 13% less than ponytail, and wrote slightly less code in the same batch (see below).
 - **Plain questions:** on caveman's own eval, 0.12.1 answered with 28 to 45% fewer output tokens than caveman at the same judged quality.
 - **Behavior, not just tokens:** verify APIs and versions instead of guessing, build the sensible default instead of stopping to ask, minimal code that keeps validation and tests, opt-in humanizer for text people read.
 
@@ -109,6 +109,32 @@ Knowledge-graph tools such as Graphify target a different cost (exploring very l
 `bench/bench.py` runs each task as a real headless Claude Code session (`claude -p`) in a temp copy of a fixture and checks the result automatically: tests pass, the right numbers appear, the file exists. Costs are the `total_cost_usd` Claude Code reports. Arms are only compared within the same batch, because the system prompt changes between batches.
 
 Tasks: t1 fix a bug without touching the test; t2 find the largest month-over-month drop in a CSV; t3 draft a support reply with placeholders for unknown facts; t4 a 16-message session; t5 log triage, a rate limiter from scratch, and a long explanation; t6 extract notice periods from 30 contracts into a CSV; t7 a 40-message session; t8 a risk review of the same 30 contracts; t9 a risk review of 150 contracts (~165k tokens), each with one planted risk that must be named, checked for at least 90% of vendors.
+
+### frugal 0.12.2
+
+**ponytail's harness, Haiku 4.5, all 39 tasks** (2026-10-06), n=3, 234 cells, one batch. Cost is the mean per run; "vs ponytail" is the geometric mean of the per-task cost ratio.
+
+| Arm | Correct | Safe | Lines (median) | USD per run | vs ponytail |
+|---|---|---|---|---|---|
+| frugal | 1.000 | 0.991 | 29 | 0.0512 | -13.2% (90% CI -19.6% to -6.8%) |
+| ponytail | 0.983 | 0.974 | 30 | 0.0614 | 0% |
+
+frugal passed every correctness check. Its one miss was a safety check on trace-transfer (1 of 3 runs patched `transfer` but not the shared debit that `withdraw` also uses); ponytail missed it in 3 of 3.
+
+Two days earlier, a five-arm batch on the same 39 tasks (n=3, 585 cells) ran before the last rule below. "vs no plugins" is the geometric mean of the per-task cost ratio:
+
+| Arm | Correct | Safe | Lines (median) | USD per run | vs no plugins |
+|---|---|---|---|---|---|
+| No plugins | 0.949 | 0.974 | 59 | 0.0810 | 0% |
+| frugal | 0.974 | 0.983 | 38 | 0.0646 | -18.4% |
+| ponytail | 0.991 | 0.966 | 38 | 0.0722 | -8.7% |
+| caveman | 0.949 | 0.957 | 40 | 0.0830 | +0.3% |
+| ponytail + caveman | 0.966 | 0.974 | 40 | 0.0793 | -1.3% |
+
+What changed in 0.12.2, each tested against the previous rules in its own batch on Haiku:
+
+- With no shell, frugal sometimes spawned a subagent only to run a test, and sometimes left requested code in the scratchpad or only in the reply. `SKILL.md` now says requested code goes in a file in the working directory and that a check is never run by a subagent, and the worker's description excludes it. Both rules together, on the 12 tasks where frugal had failed (n=3): correct 0.806 to 0.944, runs with a subagent 7 of 36 to 1 of 36, cost -14.7%.
+- A new script with no language named and no project files is Python with the stdlib. frugal had written JavaScript with npm packages for "build me a web scraper", which the harness scores as no file: 4 of 4 correct instead of 2 of 4, at 0.034 instead of 0.078 USD per run; the frontend control task was unchanged.
 
 ### frugal 0.12
 
