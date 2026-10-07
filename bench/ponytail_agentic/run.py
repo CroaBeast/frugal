@@ -39,6 +39,7 @@ ARMS = {
     "ponytail":       lambda: _skill("skills/ponytail/SKILL.md"),
     "caveman":        lambda: _skill("benchmarks/arms/caveman-SKILL.md"),
     "frugal":         lambda: None,                  # plugin arm, see PLUGIN_ARMS
+    "ponytail+caveman": lambda: None,                # both plugins loaded together
     "yagni":          lambda: "Follow YAGNI principles.",
     "yagni-oneliner": lambda: "Follow YAGNI principles, and prefer one-liner solutions.",
 }
@@ -62,6 +63,11 @@ def _plugin_dir(name):
     if not versions:
         sys.exit(f"{name} plugin dir not found under {base}; install the plugin or set {name.upper()}_PLUGIN_DIR")
     return str(versions[-1])                    # latest version dir; not pinned to one machine's hash
+
+def _plugins(arm):
+    """Plugin names an arm loads: "ponytail+caveman" -> both; [] for a prompt arm."""
+    names = arm.split("+")
+    return names if all(n in PLUGIN_ARMS for n in names) else []
 
 CELL_TIMEOUT = 300  # seconds per cell; a hung agent is force-killed (process tree) so the pool can't freeze
 
@@ -316,8 +322,9 @@ def run_cell(task_id, arm, model, workdir: Path):
            "--setting-sources", "project,local", "--strict-mcp-config",
            "--disallowedTools", "Bash"]
     append = NO_RUN                                     # all arms get NO_RUN, identically
-    if arm in PLUGIN_ARMS:
-        cmd += ["--plugin-dir", _plugin_dir(arm)]       # real activation of exactly one plugin
+    if _plugins(arm):
+        for name in _plugins(arm):                      # real activation of exactly this arm's plugins
+            cmd += ["--plugin-dir", _plugin_dir(name)]
     else:
         extra = ARMS[arm]()                             # baseline -> None; yagni-oneliner -> the prompt
         if extra: append = extra + "\n\n" + NO_RUN
