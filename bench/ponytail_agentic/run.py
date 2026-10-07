@@ -22,7 +22,7 @@ over-engineering score is a later pass.
 ponytail: the claude CLI is the harness (already installed, we run inside it). No SDK
 dependency. The CLI's JSON output already carries cost/tokens/duration/permission_denials.
 """
-import argparse, concurrent.futures, datetime, json, os, re, shutil, signal, statistics, subprocess, sys, tempfile
+import argparse, concurrent.futures, datetime, json, os, re, shutil, signal, statistics, subprocess, sys, tempfile, time
 from collections import defaultdict
 from pathlib import Path
 
@@ -39,6 +39,8 @@ ARMS = {
     "ponytail":       lambda: _skill("skills/ponytail/SKILL.md"),
     "caveman":        lambda: _skill("benchmarks/arms/caveman-SKILL.md"),
     "frugal":         lambda: None,                  # plugin arm, see PLUGIN_ARMS
+    "frugalv":        lambda: None,                  # frugal variant from FRUGALV_PLUGIN_DIR
+    "ponytail+caveman": lambda: None,                # both plugins loaded together
     "yagni":          lambda: "Follow YAGNI principles.",
     "yagni-oneliner": lambda: "Follow YAGNI principles, and prefer one-liner solutions.",
 }
@@ -47,7 +49,7 @@ MODELS = {"haiku": "claude-haiku-4-5-20251001", "sonnet": "claude-sonnet-4-6", "
 # Skills are plugins activated by a SessionStart hook. To test exactly one at a time we exclude the
 # user's globally-enabled plugins (--setting-sources project,local) and load one plugin from its
 # cache dir (--plugin-dir). The smoke test verifies activation by output style.
-PLUGIN_ARMS = ("ponytail", "caveman", "frugal")          # arms activated via --plugin-dir (vs raw --append prompts)
+PLUGIN_ARMS = ("ponytail", "caveman", "frugal", "frugalv")          # arms activated via --plugin-dir (vs raw --append prompts)
 PLUGIN_CACHE = Path.home() / ".claude" / "plugins" / "cache"
 
 def _plugin_dir(name):
@@ -62,6 +64,29 @@ def _plugin_dir(name):
     if not versions:
         sys.exit(f"{name} plugin dir not found under {base}; install the plugin or set {name.upper()}_PLUGIN_DIR")
     return str(versions[-1])                    # latest version dir; not pinned to one machine's hash
+
+def _plugins(arm):
+    """Plugin names an arm loads: "ponytail+caveman" -> both; [] for a prompt arm."""
+    names = arm.split("+")
+    return names if all(n in PLUGIN_ARMS for n in names) else []
+
+LIMIT_WAIT, LIMIT_TRIES = 600, 48   # session limit hit: retry the cell every 10 min, up to 8h
+
+def _limited(workdir):
+    """True when the CLI refused the cell for a usage limit (429), so it never ran."""
+    try: j = json.loads((workdir / "_claude.json").read_text(encoding="utf-8"))
+    except Exception: return False
+    return j.get("api_error_status") == 429 or (j.get("is_error") and "limit" in str(j.get("result", "")).lower())
+
+def _done(workdir):
+    """A kept cell that already ran: valid CLI JSON with a cost, not a limit refusal."""
+    try: j = json.loads((workdir / "_claude.json").read_text(encoding="utf-8"))
+    except Exception: return False
+    return bool(j.get("total_cost_usd")) and not _limited(workdir)
+
+def _rmtree(path):
+    def _w(fn, p, _): os.chmod(p, 0o700); fn(p)      # read-only files (.git objects) on Windows
+    shutil.rmtree(path, onerror=_w)
 
 CELL_TIMEOUT = 300  # seconds per cell; a hung agent is force-killed (process tree) so the pool can't freeze
 
@@ -310,14 +335,15 @@ def run_cell(task_id, arm, model, workdir: Path):
     # No live verification (see NO_RUN): --strict-mcp-config drops all MCP servers so there is no browser
     # tool, and --disallowedTools Bash blocks running a server/db/npm. An agent writes with
     # Read/Write/Edit/Glob/Grep and stops -- no login wall, no browser thrash. We measure code, not execution.
-    prompt = ("/frugal:frugal " if arm == "frugal" else "") + task["prompt"]
+    prompt = ("/frugal:frugal " if arm.startswith("frugal") else "") + task["prompt"]
     cmd = [claude, "-p", prompt, "--model", MODELS[model],
            "--permission-mode", "bypassPermissions", "--output-format", "json",
            "--setting-sources", "project,local", "--strict-mcp-config",
            "--disallowedTools", "Bash"]
     append = NO_RUN                                     # all arms get NO_RUN, identically
-    if arm in PLUGIN_ARMS:
-        cmd += ["--plugin-dir", _plugin_dir(arm)]       # real activation of exactly one plugin
+    if _plugins(arm):
+        for name in _plugins(arm):                      # real activation of exactly this arm's plugins
+            cmd += ["--plugin-dir", _plugin_dir(name)]
     else:
         extra = ARMS[arm]()                             # baseline -> None; yagni-oneliner -> the prompt
         if extra: append = extra + "\n\n" + NO_RUN
@@ -415,6 +441,7 @@ def main():
     ap.add_argument("--models", default="haiku", help="comma list: haiku,sonnet,opus")
     ap.add_argument("--runs", type=int, default=1)
     ap.add_argument("--workers", type=int, default=4, help="cells to run concurrently (default 4; cells are fully isolated)")
+    ap.add_argument("--resume", help="run dir to finish: rescore cells that ran, rerun the rest (same args)")
     args = ap.parse_args()
 
     if args.selftest:
@@ -429,8 +456,8 @@ def main():
     if not task_ids: sys.exit("give --task <id> (comma list ok), --all, or --rescore <dir>")
     arms = [a.strip() for a in args.arms.split(",")]
     models = [m.strip() for m in (args.model or args.models).split(",")]
-    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    out_dir = RUNS_DIR / stamp
+    out_dir = Path(args.resume) if args.resume else RUNS_DIR / datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    stamp = out_dir.name
     out_dir.mkdir(parents=True, exist_ok=True)
 
     cells = [(tid, arm, model, r)
@@ -441,8 +468,15 @@ def main():
     def _one(spec):
         tid, arm, model, r = spec
         ws = out_dir / f"{tid}__{arm}__{model}__{r}"
-        ws.mkdir(parents=True, exist_ok=True)
-        return run_cell(tid, arm, model, ws)
+        if _done(ws): return {**score_workspace(tid, arm, model, ws), "run": r}   # --resume: no API
+        for _ in range(LIMIT_TRIES):
+            if ws.exists(): _rmtree(ws)                 # fresh workspace: a refused cell may be half-seeded
+            ws.mkdir(parents=True)
+            res = run_cell(tid, arm, model, ws)
+            if not _limited(ws): return {**res, "run": r}
+            print(f"  usage limit on {ws.name}; waiting {LIMIT_WAIT // 60} min", flush=True)
+            time.sleep(LIMIT_WAIT)
+        return {**res, "run": r}
 
     print(f"running {total} cells, {args.workers} at a time", flush=True)
     # Cells are fully isolated (own copy + own claude context), so they parallelize safely.
