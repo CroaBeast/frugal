@@ -111,6 +111,24 @@ Two harnesses, both running real headless Claude Code sessions (`claude -p`) and
 - `bench/bench.py`: fixed tasks in a temp copy of a fixture. t1 fix a bug without touching the test; t2 find the largest month-over-month drop in a CSV; t3 draft a support reply with placeholders for unknown facts; t4 a 16-message session; t5 log triage, a rate limiter from scratch, and a long explanation; t6 extract notice periods from 30 contracts into a CSV; t7 a 40-message session; t8 a risk review of the same 30 contracts; t9 a risk review of 150 contracts (~165k tokens), each with one planted risk that must be named, checked for at least 90% of vendors.
 - `bench/ponytail_agentic`: ponytail's own agentic benchmark (MIT) with frugal and ponytail + caveman arms added: 39 security, reuse, root-cause, open-ended, vibe, frontend, and backend tasks, scored by its own checks. caveman and ponytail run at `full`, their default.
 
+### Summary: every arm, every model
+
+Cost relative to the baseline of the same batch (= 100; lower is cheaper). Each row is one batch, so compare across a row, not down a column. Pass rates and details are in the sections below. "Not run" means that combination has no batch with the current versions yet.
+
+| Test | Model | No plugins | frugal | caveman | ponytail | ponytail + caveman |
+|---|---|---|---|---|---|---|
+| Feature work (ponytail's harness, 39 tasks) | Haiku 4.5 | 100 | **81.6** | 100.3 | 91.3 | 98.7 |
+| | Sonnet 5.5 | not run | not run | not run | not run | not run |
+| | Opus 5.5 | not run | not run | not run | not run | not run |
+| Fixes, analysis, writing (`bench.py`, six tasks) | Haiku 4.5 | not run | not run | not run | not run | not run |
+| | Sonnet 5.5 | not run | not run | not run | not run | not run |
+| | Opus 5.5 | 100 | 100.1 | not run | not run | not run |
+| Plain questions (caveman's eval, median output tokens) | Haiku 4.5 | not run | not run | not run | | |
+| | Sonnet 5.5 | not run | not run | not run | | |
+| | Opus 5.5 | 100 | **87.1** | 91.8 | | |
+
+Batches: feature work 2026-10-04 (frugal 0.12.2 before its last rule); `bench.py` 2026-10-03 (frugal 0.12); caveman's eval 2026-10-03 (frugal 0.12, baseline "Answer concisely."; caveman's eval has no ponytail arm). Where frugal still loses: on `bench.py` with Opus the one-step tasks cost 6 to 16% more than no plugins (1 to 8% in a 0.12.1 rerun), because turning frugal on adds a fixed ~1,140 input tokens that a 3-call task cannot win back; the longer tasks pay it back, and the six-task sum is even.
+
 ### Feature work: ponytail's harness, Haiku 4.5
 
 Five-arm batch (2026-10-04), 39 tasks, n=3, 585 cells. Relative cost is the geometric mean of the per-task cost ratio against no plugins:
