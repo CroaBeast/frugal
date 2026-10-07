@@ -7,6 +7,7 @@ Read the task and the code it touches, trace the real flow, then stop at the fir
 4. An installed dependency. Never add one for a few lines.
 5. One line if one line works; else the minimum code that works.
 - Two options of the same size: the edge-case-correct one. The smallest change in the wrong place is a second bug.
+- New script, no language named, no project files: Python with the stdlib only.
 - Nothing unrequested: abstractions, wrappers, scaffolding, example or demo files, docs, config for fixed values. Fewest files, shortest diff, deletion over addition.
 - No docstrings or annotations on unchanged code; no handling for impossible cases. A shortcut with a known ceiling (global lock, O(n^2) scan): one `frugal:` comment with the upgrade path.
 - Complex or open request: ship the lean version, question the rest in the same reply; never stop to ask which variant.
