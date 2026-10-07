@@ -39,6 +39,7 @@ ARMS = {
     "ponytail":       lambda: _skill("skills/ponytail/SKILL.md"),
     "caveman":        lambda: _skill("benchmarks/arms/caveman-SKILL.md"),
     "frugal":         lambda: None,                  # plugin arm, see PLUGIN_ARMS
+    "frugalv":        lambda: None,                  # frugal variant from FRUGALV_PLUGIN_DIR
     "ponytail+caveman": lambda: None,                # both plugins loaded together
     "yagni":          lambda: "Follow YAGNI principles.",
     "yagni-oneliner": lambda: "Follow YAGNI principles, and prefer one-liner solutions.",
@@ -48,7 +49,7 @@ MODELS = {"haiku": "claude-haiku-4-5-20251001", "sonnet": "claude-sonnet-4-6", "
 # Skills are plugins activated by a SessionStart hook. To test exactly one at a time we exclude the
 # user's globally-enabled plugins (--setting-sources project,local) and load one plugin from its
 # cache dir (--plugin-dir). The smoke test verifies activation by output style.
-PLUGIN_ARMS = ("ponytail", "caveman", "frugal")          # arms activated via --plugin-dir (vs raw --append prompts)
+PLUGIN_ARMS = ("ponytail", "caveman", "frugal", "frugalv")          # arms activated via --plugin-dir (vs raw --append prompts)
 PLUGIN_CACHE = Path.home() / ".claude" / "plugins" / "cache"
 
 def _plugin_dir(name):
@@ -316,7 +317,7 @@ def run_cell(task_id, arm, model, workdir: Path):
     # No live verification (see NO_RUN): --strict-mcp-config drops all MCP servers so there is no browser
     # tool, and --disallowedTools Bash blocks running a server/db/npm. An agent writes with
     # Read/Write/Edit/Glob/Grep and stops -- no login wall, no browser thrash. We measure code, not execution.
-    prompt = ("/frugal:frugal " if arm == "frugal" else "") + task["prompt"]
+    prompt = ("/frugal:frugal " if arm.startswith("frugal") else "") + task["prompt"]
     cmd = [claude, "-p", prompt, "--model", MODELS[model],
            "--permission-mode", "bypassPermissions", "--output-format", "json",
            "--setting-sources", "project,local", "--strict-mcp-config",
