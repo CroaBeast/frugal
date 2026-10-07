@@ -44,7 +44,7 @@ ARMS = {
     "yagni":          lambda: "Follow YAGNI principles.",
     "yagni-oneliner": lambda: "Follow YAGNI principles, and prefer one-liner solutions.",
 }
-MODELS = {"haiku": "claude-haiku-4-5-20251001", "sonnet": "claude-sonnet-4-6", "opus": "claude-opus-4-8"}
+MODELS = {"haiku": "claude-haiku-4-5-20251001", "sonnet": "claude-sonnet-5-5", "opus": "claude-opus-5-5"}
 
 # Skills are plugins activated by a SessionStart hook. To test exactly one at a time we exclude the
 # user's globally-enabled plugins (--setting-sources project,local) and load one plugin from its
