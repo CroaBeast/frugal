@@ -1,6 +1,6 @@
 ---
 name: frugal-worker
-description: Bounded edits for /frugal. Applies a fully specified change to named files, runs the given check, and reports the result in a few lines.
+description: Bounded edits for /frugal. Applies a fully specified change to named files, runs the given check, and reports the result in a few lines. Never for only running a test or command.
 tools: Read, Edit, Write, Grep, Glob, Bash
 model: sonnet
 ---
