@@ -78,6 +78,12 @@ def _limited(workdir):
     except Exception: return False
     return j.get("api_error_status") == 429 or (j.get("is_error") and "limit" in str(j.get("result", "")).lower())
 
+def _done(workdir):
+    """A kept cell that already ran: valid CLI JSON with a cost, not a limit refusal."""
+    try: j = json.loads((workdir / "_claude.json").read_text(encoding="utf-8"))
+    except Exception: return False
+    return bool(j.get("total_cost_usd")) and not _limited(workdir)
+
 def _rmtree(path):
     def _w(fn, p, _): os.chmod(p, 0o700); fn(p)      # read-only files (.git objects) on Windows
     shutil.rmtree(path, onerror=_w)
@@ -435,6 +441,7 @@ def main():
     ap.add_argument("--models", default="haiku", help="comma list: haiku,sonnet,opus")
     ap.add_argument("--runs", type=int, default=1)
     ap.add_argument("--workers", type=int, default=4, help="cells to run concurrently (default 4; cells are fully isolated)")
+    ap.add_argument("--resume", help="run dir to finish: rescore cells that ran, rerun the rest (same args)")
     args = ap.parse_args()
 
     if args.selftest:
@@ -449,8 +456,8 @@ def main():
     if not task_ids: sys.exit("give --task <id> (comma list ok), --all, or --rescore <dir>")
     arms = [a.strip() for a in args.arms.split(",")]
     models = [m.strip() for m in (args.model or args.models).split(",")]
-    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    out_dir = RUNS_DIR / stamp
+    out_dir = Path(args.resume) if args.resume else RUNS_DIR / datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    stamp = out_dir.name
     out_dir.mkdir(parents=True, exist_ok=True)
 
     cells = [(tid, arm, model, r)
@@ -461,6 +468,7 @@ def main():
     def _one(spec):
         tid, arm, model, r = spec
         ws = out_dir / f"{tid}__{arm}__{model}__{r}"
+        if _done(ws): return {**score_workspace(tid, arm, model, ws), "run": r}   # --resume: no API
         for _ in range(LIMIT_TRIES):
             if ws.exists(): _rmtree(ws)                 # fresh workspace: a refused cell may be half-seeded
             ws.mkdir(parents=True)
