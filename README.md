@@ -106,14 +106,23 @@ Knowledge-graph tools such as Graphify target a different cost (exploring very l
 
 ## Benchmarks
 
-Two harnesses, both running real headless Claude Code sessions (`claude -p`) and checking the result automatically. Costs are the `total_cost_usd` Claude Code reports. Arms are only compared within the same batch, because the system prompt changes between batches. This section shows the current results; earlier batches and discarded experiments are in [BENCHMARKS.md](BENCHMARKS.md).
+Every number here comes from real headless Claude Code sessions (`claude -p`), checked automatically, with every arm run in the same batch, and losses are shown next to wins. caveman and ponytail publish numbers from their own setups: caveman from single API calls against a model with no system prompt, ponytail from feature tasks on Haiku only. Here each plugin runs the way you would use it, on three tests and three models. Per-task tables, methods, and every earlier batch are in [BENCHMARKS.md](BENCHMARKS.md).
 
-- `bench/bench.py`: fixed tasks in a temp copy of a fixture. t1 fix a bug without touching the test; t2 find the largest month-over-month drop in a CSV; t3 draft a support reply with placeholders for unknown facts; t4 a 16-message session; t5 log triage, a rate limiter from scratch, and a long explanation; t6 extract notice periods from 30 contracts into a CSV; t7 a 40-message session; t8 a risk review of the same 30 contracts; t9 a risk review of 150 contracts (~165k tokens), each with one planted risk that must be named, checked for at least 90% of vendors.
-- `bench/ponytail_agentic`: ponytail's own agentic benchmark (MIT) with frugal and ponytail + caveman arms added: 39 security, reuse, root-cause, open-ended, vibe, frontend, and backend tasks, scored by its own checks. caveman and ponytail run at `full`, their default.
+```mermaid
+xychart-beta
+    title "frugal vs no plugins (= 100), every test measured so far"
+    x-axis ["Feature work, Haiku", "Fixes and analysis, Opus", "Plain questions, Opus"]
+    y-axis "Relative cost" 0 --> 110
+    bar [81.6, 100.1, 87.1]
+    line [100, 100, 100]
+```
+
+Bars are frugal, the line is no plugins. The chart covers only what has been measured; the table below shows every plugin and the combinations not run yet.
 
 ### Summary: every arm, every model
 
-Cost relative to the baseline of the same batch (= 100; lower is cheaper). Each row is one batch, so compare across a row, not down a column. Pass rates and details are in the sections below. "Not run" means that combination has no batch with the current versions yet.
+
+Cost relative to the baseline of the same batch (= 100; lower is cheaper). Each row is one batch, so compare across a row, not down a column. Pass rates and per-task results are in [BENCHMARKS.md](BENCHMARKS.md). "Not run" means that combination has no batch with the current versions yet.
 
 | Test | Model | No plugins | frugal | caveman | ponytail | ponytail + caveman |
 |---|---|---|---|---|---|---|
@@ -127,83 +136,11 @@ Cost relative to the baseline of the same batch (= 100; lower is cheaper). Each 
 | | Sonnet 5.5 | not run | not run | not run | | |
 | | Opus 5.5 | 100 | **87.1** | 91.8 | | |
 
-Batches: feature work 2026-10-04 (frugal 0.12.2 before its last rule); `bench.py` 2026-10-03 (frugal 0.12); caveman's eval 2026-10-03 (frugal 0.12, baseline "Answer concisely."; caveman's eval has no ponytail arm). Where frugal still loses: on `bench.py` with Opus the one-step tasks cost 6 to 16% more than no plugins (1 to 8% in a 0.12.1 rerun), because turning frugal on adds a fixed ~1,140 input tokens that a 3-call task cannot win back; the longer tasks pay it back, and the six-task sum is even.
+Batches: feature work 2026-10-04 (frugal 0.12.2 before its last rule); `bench.py` 2026-10-03 (frugal 0.12); caveman's eval 2026-10-03 (frugal 0.12, baseline "Answer concisely."; caveman's eval has no ponytail arm).
 
-### Feature work: ponytail's harness, Haiku 4.5
+**Where frugal loses.** On `bench.py` with Opus, one-step tasks cost 6 to 16% more than no plugins (1 to 8% in a 0.12.1 rerun): turning frugal on adds a fixed ~1,140 input tokens that a 3-call task cannot win back. Longer tasks pay it back, and the six-task sum comes out even. Sonnet has no batch with the current version.
 
-Five-arm batch (2026-10-04), 39 tasks, n=3, 585 cells. Relative cost is the geometric mean of the per-task cost ratio against no plugins:
-
-```mermaid
-xychart-beta
-    title "Cost per run vs no plugins (= 100), Haiku 4.5, 39 tasks"
-    x-axis ["No plugins", "frugal", "ponytail", "caveman", "ponytail + caveman"]
-    y-axis "Relative cost" 0 --> 110
-    bar [100, 81.6, 91.3, 100.3, 98.7]
-```
-
-| Arm | Correct | Safe | Lines (median) | USD per run | vs no plugins |
-|---|---|---|---|---|---|
-| No plugins | 0.949 | 0.974 | 59 | 0.0810 | 0% |
-| frugal | 0.974 | 0.983 | 38 | 0.0646 | -18.4% |
-| ponytail | 0.991 | 0.966 | 38 | 0.0722 | -8.7% |
-| caveman | 0.949 | 0.957 | 40 | 0.0830 | +0.3% |
-| ponytail + caveman | 0.966 | 0.974 | 40 | 0.0793 | -1.3% |
-
-That batch ran before the last 0.12.2 rule (Python by default, see below). frugal 0.12.2 against ponytail, all 39 tasks (2026-10-06), n=3, 234 cells, one batch. Cost is the mean per run; "vs ponytail" is the geometric mean of the per-task cost ratio:
-
-| Arm | Correct | Safe | Lines (median) | USD per run | vs ponytail |
-|---|---|---|---|---|---|
-| frugal | 1.000 | 0.991 | 29 | 0.0512 | -13.2% (90% CI -19.6% to -6.8%) |
-| ponytail | 0.983 | 0.974 | 30 | 0.0614 | 0% |
-
-frugal passed every correctness check. Its one miss was a safety check on trace-transfer (1 of 3 runs patched `transfer` but not the shared debit that `withdraw` also uses); ponytail missed it in 3 of 3.
-
-What changed in 0.12.2, each tested against the previous rules in its own batch on Haiku:
-
-- With no shell, frugal sometimes spawned a subagent only to run a test, and sometimes left requested code in the scratchpad or only in the reply. `SKILL.md` now says requested code goes in a file in the working directory and that a check is never run by a subagent, and the worker's description excludes it. Both rules together, on the 12 tasks where frugal had failed (n=3): correct 0.806 to 0.944, runs with a subagent 7 of 36 to 1 of 36, cost -14.7%.
-- A new script with no language named and no project files is Python with the stdlib. frugal had written JavaScript with npm packages for "build me a web scraper", which the harness scores as no file: 4 of 4 correct instead of 2 of 4, at 0.034 instead of 0.078 USD per run; the frontend control task was unchanged.
-
-### Fixes, analysis, and heavy tasks: Opus 5.5
-
-frugal 0.12, six tasks of `bench.py` (2026-10-03), median cost per run in USD, n=3. Every run passed every check.
-
-| Task | No plugins | frugal | Difference | Output tokens |
-|---|---|---|---|---|
-| t1 bug fix | 0.135 | 0.157 | +16% | 608 to 724 |
-| t2 CSV question | 0.127 | 0.134 | +6% | 632 to 566 |
-| t3 support reply | 0.137 | 0.147 | +7% | 1,145 to 1,125 |
-| t5 heavy | 0.347 | 0.287 | -17% | 5,946 to 4,134 |
-| t6 30 contracts | 0.232 | 0.221 | -5% | 1,994 to 1,855 |
-| t8 risk review | 0.398 | 0.432 | +9% | 5,700 to 5,895 |
-| **Sum** | **1.376** | **1.378** | **0%** | **16.0k to 14.3k (-11%)** |
-
-t1 cost more because this batch made every code task read `code.md`. That rule now applies on Opus and Fable only past 3 tool calls; a t1 rerun of 3 runs each came out 0.136 to 0.145 (+7%), with fewer output tokens. t4, t7, and t9 were not rerun.
-
-### Plain questions: caveman's eval, Opus 5.5
-
-caveman's own ten dev questions (`evals/prompts/en.txt`), each answered with a replaced system prompt: "Answer concisely." alone, plus caveman's `SKILL.md`, or plus frugal's. n=20 answers per arm; a Sonnet judge scored each answer blind, 0 to 3.
-
-| Arm | Median output tokens | Mean output tokens | Mean cost per answer | Judge score |
-|---|---|---|---|---|
-| "Answer concisely." | 560 | 605 | 0.0172 | 2.95 |
-| caveman | 514 | 483 | 0.0159 | 3.00 |
-| frugal 0.12 | 488 | 524 | 0.0158 | 2.95 |
-
-A tie on caveman's ground: lower median, higher mean, same cost, same quality (one answer at 2 in each of the control and frugal arms). Script: `bench/caveman_eval.py`.
-
-frugal's visible answers were already the shortest (922 to 1,024 characters against caveman's 1,184 to 1,230); its output tokens were not, because Opus counts its thinking as output and frugal's rules made it weigh more before answering (roughly 250 hidden tokens per answer against caveman's 155, estimated as output tokens minus characters / 3.6). Two variants in one batch, n=20 each: removing the rules that ask for a decision on every task cut output 20%; a first line that sends plain questions straight to an answer, with only the reply and exactness rules applying, cut it 33%. 0.12.1 ships that line. Rerun against caveman (2026-10-03, n=20 each):
-
-| Arm | Median output tokens | Mean output tokens | Mean characters | Judge score |
-|---|---|---|---|---|
-| caveman | 504 | 493 | 1,196 | 3.00 |
-| frugal 0.12.1 | 278 | 354 | 922 | 3.00 |
-
-**Fixed cost.** A one-word task (`t0_ok`, "Reply with only the word ok", Opus, n=8) measures what having frugal on costs before it saves anything: the plugin enabled adds ~330 input tokens (skill and agent descriptions), `/frugal` adds ~1,140 in all. Claude Code writes them to the prompt cache once per session, about 0.009 USD on Opus. On a 3-call task that is the whole difference: 0.12.1 vs no plugins, n=4, t1 bug fix +1%, t2 CSV question +8%, t3 support reply +4%, all passed. Tasks that short have too little output to pay the fixed cost back; longer ones do.
-
-### How this relates to the published numbers
-
-- **caveman** reports 65% fewer output tokens on single API calls against a model with no system prompt, whose average reply was 1,214 tokens. Its README notes that the rules cost 1 to 1.5k input tokens per turn and that already-terse workloads can lose money.
-- **ponytail** reports 54% fewer lines of code and 20% lower cost on 12 feature tasks in its harness, with Haiku 4.5 and n=4. Our 39-task batch with Haiku 4.5 found ponytail 8.7% cheaper than no plugins, with 36% fewer lines of code (median 38 against 59).
+**Latest head-to-head.** frugal 0.12.2 against ponytail on ponytail's own harness (Haiku 4.5, 39 tasks, n=3, 2026-10-06): every correctness check passed (ponytail 0.983), safety 0.991 against 0.974, and 13.2% cheaper (90% CI 6.8 to 19.6%).
 
 ### Reproduce
 
@@ -219,7 +156,6 @@ python run.py ... --resume <run dir>      # finish a batch cut by a usage limit
 ```
 
 `bench.py run` skips runs that already have results, and does not save runs that hit the `claude -p` session limit, so re-running the same command fills the gaps. The system prompt changes between days (org skills, connector notices), so compare arms from the same batch, and discard the first run of a batch when it pays for writing the cache.
-
 ## Versions
 
 - **0.12.2**: requested code goes in a file in the working directory; a check is never run by a subagent; a new script with no language named is Python with the stdlib. On ponytail's harness (Haiku 4.5, 39 tasks) it passed every correctness check and cost 13% less than ponytail.
