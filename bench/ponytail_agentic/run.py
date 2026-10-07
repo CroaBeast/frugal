@@ -22,7 +22,7 @@ over-engineering score is a later pass.
 ponytail: the claude CLI is the harness (already installed, we run inside it). No SDK
 dependency. The CLI's JSON output already carries cost/tokens/duration/permission_denials.
 """
-import argparse, concurrent.futures, datetime, json, os, re, shutil, signal, statistics, subprocess, sys, tempfile
+import argparse, concurrent.futures, datetime, json, os, re, shutil, signal, statistics, subprocess, sys, tempfile, time
 from collections import defaultdict
 from pathlib import Path
 
@@ -69,6 +69,18 @@ def _plugins(arm):
     """Plugin names an arm loads: "ponytail+caveman" -> both; [] for a prompt arm."""
     names = arm.split("+")
     return names if all(n in PLUGIN_ARMS for n in names) else []
+
+LIMIT_WAIT, LIMIT_TRIES = 600, 48   # session limit hit: retry the cell every 10 min, up to 8h
+
+def _limited(workdir):
+    """True when the CLI refused the cell for a usage limit (429), so it never ran."""
+    try: j = json.loads((workdir / "_claude.json").read_text(encoding="utf-8"))
+    except Exception: return False
+    return j.get("api_error_status") == 429 or (j.get("is_error") and "limit" in str(j.get("result", "")).lower())
+
+def _rmtree(path):
+    def _w(fn, p, _): os.chmod(p, 0o700); fn(p)      # read-only files (.git objects) on Windows
+    shutil.rmtree(path, onerror=_w)
 
 CELL_TIMEOUT = 300  # seconds per cell; a hung agent is force-killed (process tree) so the pool can't freeze
 
@@ -449,8 +461,14 @@ def main():
     def _one(spec):
         tid, arm, model, r = spec
         ws = out_dir / f"{tid}__{arm}__{model}__{r}"
-        ws.mkdir(parents=True, exist_ok=True)
-        return run_cell(tid, arm, model, ws)
+        for _ in range(LIMIT_TRIES):
+            if ws.exists(): _rmtree(ws)                 # fresh workspace: a refused cell may be half-seeded
+            ws.mkdir(parents=True)
+            res = run_cell(tid, arm, model, ws)
+            if not _limited(ws): return {**res, "run": r}
+            print(f"  usage limit on {ws.name}; waiting {LIMIT_WAIT // 60} min", flush=True)
+            time.sleep(LIMIT_WAIT)
+        return {**res, "run": r}
 
     print(f"running {total} cells, {args.workers} at a time", flush=True)
     # Cells are fully isolated (own copy + own claude context), so they parallelize safely.
