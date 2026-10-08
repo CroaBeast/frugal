@@ -266,6 +266,18 @@ def report():
         if g:
             print(f"| {c} | {len(g)} | {sum(r['ok'] for r in g)} | {st.median(r['out'] for r in g):.0f} | {st.median(r['inp'] for r in g):.0f} | "
                   f"{st.median(r['cost'] for r in g):.3f} | {sum(r['cost'] for r in g):.3f} |")
+    fixed = [r for r in rows if r["task"] == "t0_ok" and r["rep"] != "1"]  # rep 1 pays the cache write
+    if fixed:
+        base = [r for r in fixed if r["cond"] == "A"]
+        print("\n| cond | t0_ok warm runs | median input tok | vs A | median cost USD | vs A |")
+        print("|---|---|---|---|---|---|")
+        for c in "ABCDEFGPRT":
+            g = [r for r in fixed if r["cond"] == c]
+            if g:
+                i, k = st.median(r["inp"] for r in g), st.median(r["cost"] for r in g)
+                di = f"{i - st.median(r['inp'] for r in base):+.0f}" if base else "-"
+                dk = f"{k - st.median(r['cost'] for r in base):+.4f}" if base else "-"
+                print(f"| {c} | {len(g)} | {i:.0f} | {di} | {k:.4f} | {dk} |")
     long = [r for r in rows if r["task"] == "t4_long"]
     if long:
         print("\n| t4_long msg | " + " | ".join(f"{c} median cost USD | {c} median input tok" for c in "ABCDEFGPRT") + " |")
