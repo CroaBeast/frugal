@@ -22,7 +22,7 @@ over-engineering score is a later pass.
 ponytail: the claude CLI is the harness (already installed, we run inside it). No SDK
 dependency. The CLI's JSON output already carries cost/tokens/duration/permission_denials.
 """
-import argparse, concurrent.futures, datetime, json, os, re, shutil, signal, statistics, subprocess, sys, tempfile, time
+import argparse, concurrent.futures, datetime, json, math, os, random, re, shutil, signal, statistics, subprocess, sys, tempfile, time
 from collections import defaultdict
 from pathlib import Path
 
@@ -431,16 +431,61 @@ def _claude_version():
     try: return subprocess.run([shutil.which("claude"), "--version"], capture_output=True, text=True).stdout.strip()
     except Exception: return "unknown"
 
+# Cheaper batches. Sonnet and Opus spot-check behavior on a stratified subset; Haiku runs --all.
+PRESETS = {"core8": ["auth-token", "reuse-slug", "trace-transfer", "open-dataclass",
+                     "vibe-rename", "vibe-jsonconf", "tmpl-fe-datepicker", "tmpl-be-search"]}
+UNSETTLED_CV = 0.25   # --max-runs: a cell group gets another run while its cost CV is above this or pass/fail is mixed
+DRIFT_MAX = 0.10      # --reuse: the anchor baseline must match the reused batch's baseline within this
+
+def _unsettled(cells):
+    costs = [c["cost"] for c in cells if c.get("cost")]
+    if len(costs) < 2: return True
+    ok = [c.get("correct", 0) * c.get("safe", 1) for c in cells]
+    return 0 < sum(ok) < len(ok) or statistics.stdev(costs) / statistics.mean(costs) > UNSETTLED_CV
+
+def _geo(by, model, arm, ref, tasks):
+    """Cost of arm vs ref: geometric mean of per-task mean-cost ratios, with a 90% bootstrap CI over tasks."""
+    logs = [math.log(statistics.mean(c["cost"] for c in by[(model, arm, t)]) /
+                     statistics.mean(c["cost"] for c in by[(model, ref, t)])) for t in tasks]
+    rng = random.Random(0)
+    boots = sorted(statistics.mean(rng.choice(logs) for _ in logs) for _ in range(2000))
+    return [math.exp(x) - 1 for x in (statistics.mean(logs), boots[100], boots[1899])]
+
+def overall(results, ref="baseline"):
+    by = defaultdict(list)
+    for r in results:
+        if r.get("cost") and not r.get("anchor"): by[(r["model"], r["arm"], r["task"])].append(r)
+    for model in sorted({k[0] for k in by}):
+        arms = sorted({k[1] for k in by if k[0] == model})
+        print(f"\n=== overall ({model}) ===")
+        print(f"  {'arm':17} {'tasks':>5} {'cells':>5} {'correct':>8} {'safe':>6} {'LOC':>5} {'$/run':>8}  vs {ref}, 90% CI")
+        for a in arms:
+            tasks = sorted(t for (m, aa, t) in by if m == model and aa == a)
+            cells = [c for t in tasks for c in by[(model, a, t)]]
+            loc = [c["src_loc"] for c in cells if c.get("total_loc", 0) > 0]
+            shared = [t for t in tasks if (model, ref, t) in by]
+            rel = ""
+            if a != ref and shared:
+                g, lo, hi = _geo(by, model, a, ref, shared)
+                rel = f"{g:+.1%} ({lo:+.1%} to {hi:+.1%})"
+            reused = sum(1 for c in cells if c.get("reused_from"))
+            print(f"  {a:17} {len(tasks):>5} {len(cells):>5} {statistics.mean(c['correct'] for c in cells):>8.3f} "
+                  f"{statistics.mean(c['safe'] for c in cells):>6.3f} {(statistics.median(loc) if loc else 0):>5} "
+                  f"{statistics.mean(c['cost'] for c in cells):>8.4f}  {rel}{'  (reused)' if reused else ''}")
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--selftest", action="store_true")
     ap.add_argument("--rescore", help="recompute metrics from a kept run dir (no API)")
-    ap.add_argument("--task", help="single task id")
+    ap.add_argument("--task", help="task ids (comma list) or a preset: " + ", ".join(PRESETS))
     ap.add_argument("--all", action="store_true", help="all tasks")
     ap.add_argument("--arms", default=",".join(ARMS))
     ap.add_argument("--model", help="single model (shorthand for --models)")
     ap.add_argument("--models", default="haiku", help="comma list: haiku,sonnet,opus")
-    ap.add_argument("--runs", type=int, default=1)
+    ap.add_argument("--runs", type=int, default=1, help="runs per cell (the first round with --max-runs)")
+    ap.add_argument("--max-runs", type=int, default=0, help="add runs, one round at a time, to cells whose cost or pass/fail is still unsettled")
+    ap.add_argument("--reuse", help="earlier run dir: merge its arms that are not in --arms, after an anchor baseline checks for drift")
+    ap.add_argument("--anchors", type=int, default=4, help="--reuse: tasks the anchor baseline reruns once")
     ap.add_argument("--workers", type=int, default=4, help="cells to run concurrently (default 4; cells are fully isolated)")
     ap.add_argument("--resume", help="run dir to finish: rescore cells that ran, rerun the rest (same args)")
     args = ap.parse_args()
@@ -453,18 +498,14 @@ def main():
         sys.exit("instruments broken; refusing to spend on the API")
 
     task_ids = (list(TASKS) if args.all
-                else ([t.strip() for t in args.task.split(",")] if args.task else []))
-    if not task_ids: sys.exit("give --task <id> (comma list ok), --all, or --rescore <dir>")
+                else [t for x in (args.task or "").split(",") if x.strip() for t in PRESETS.get(x.strip(), [x.strip()])])
+    if not task_ids: sys.exit("give --task <ids or preset>, --all, or --rescore <dir>")
     arms = [a.strip() for a in args.arms.split(",")]
     models = [m.strip() for m in (args.model or args.models).split(",")]
     out_dir = Path(args.resume) if args.resume else RUNS_DIR / datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     stamp = out_dir.name
     out_dir.mkdir(parents=True, exist_ok=True)
-
-    cells = [(tid, arm, model, r)
-             for tid in task_ids for model in models for arm in arms for r in range(args.runs)]
-    total = len(cells)
-    results, done = [], 0
+    results, anchors, reused, meta = [], [], [], {}
 
     def _one(spec):
         tid, arm, model, r = spec
@@ -479,33 +520,68 @@ def main():
             time.sleep(LIMIT_WAIT)
         return {**res, "run": r}
 
-    print(f"running {total} cells, {args.workers} at a time", flush=True)
-    # Cells are fully isolated (own copy + own claude context), so they parallelize safely.
-    # To STOP a parallel run, kill the whole tree: taskkill /PID <pid> /T /F. Killing just the
-    # python orchestrator orphans the concurrent `claude` children and they keep spending.
-    with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as ex:
-        futs = {ex.submit(_one, s): s for s in cells}
-        for fut in concurrent.futures.as_completed(futs):
-            tid, arm, model, r = futs[fut]
-            try:
-                res = fut.result()
-            except Exception as e:
-                res = {"task": tid, "arm": arm, "model": model, "error": str(e)[:200]}
-            results.append(res)
-            done += 1
-            print(f"  [{done}/{total}] {tid} / {arm} / {model} #{r}  "
-                  f"LOC={res.get('total_loc')} "
-                  f"tok={(res.get('in_tokens') or 0) + (res.get('out_tokens') or 0) + (res.get('cache_tokens') or 0)} "
-                  f"cost=${res.get('cost')} time={round((res.get('duration_ms') or 0) / 1000, 1)}s "
-                  f"correct={res.get('correct')}", flush=True)
-            (out_dir / "results.json").write_text(json.dumps(
-                {"date": stamp, "models": {m: MODELS[m] for m in models},
-                 "claude": _claude_version(), "results": results}, indent=2), encoding="utf-8")
+    def _save():
+        (out_dir / "results.json").write_text(json.dumps(
+            {"date": stamp, "models": {m: MODELS[m] for m in models}, "claude": _claude_version(), **meta,
+             "results": results + reused, "anchors": anchors}, indent=2), encoding="utf-8")
 
-    rows = aggregate(results)
+    def _round(cells, sink, label):
+        print(f"{label}: {len(cells)} cells, {args.workers} at a time", flush=True)
+        # Cells are fully isolated (own copy + own claude context), so they parallelize safely.
+        # To STOP a parallel run, kill the whole tree: taskkill /PID <pid> /T /F. Killing just the
+        # python orchestrator orphans the concurrent `claude` children and they keep spending.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as ex:
+            futs = {ex.submit(_one, s): s for s in cells}
+            for done, fut in enumerate(concurrent.futures.as_completed(futs), 1):
+                tid, arm, model, r = futs[fut]
+                try:
+                    res = fut.result()
+                except Exception as e:
+                    res = {"task": tid, "arm": arm, "model": model, "run": r, "error": str(e)[:200]}
+                sink.append(res)
+                print(f"  [{done}/{len(cells)}] {tid} / {arm} / {model} #{r}  "
+                      f"LOC={res.get('total_loc')} "
+                      f"tok={(res.get('in_tokens') or 0) + (res.get('out_tokens') or 0) + (res.get('cache_tokens') or 0)} "
+                      f"cost=${res.get('cost')} time={round((res.get('duration_ms') or 0) / 1000, 1)}s "
+                      f"correct={res.get('correct')}", flush=True)
+                _save()
+
+    if args.reuse:   # reuse arms that did not change; an anchor baseline checks the system prompt has not drifted
+        old = [c for c in json.loads((Path(args.reuse) / "results.json").read_text(encoding="utf-8"))["results"]
+               if c["task"] in task_ids and c["model"] in models and c.get("cost") and c["arm"] not in arms]
+        if "baseline" not in {c["arm"] for c in old}:
+            sys.exit("--reuse needs a baseline arm in the reused batch (and not in --arms)")
+        old_tasks = [t for t in task_ids if any(c["task"] == t and c["arm"] == "baseline" for c in old)]
+        pick = old_tasks[::max(1, len(old_tasks) // args.anchors)][:args.anchors]
+        _round([(t, "baseline", m, f"a{i}") for m in models for i, t in enumerate(pick)], anchors, "anchor baseline")
+        for a in anchors: a["anchor"] = True
+        meta["drift"] = {}
+        for m in models:
+            pairs = [(a["cost"], statistics.mean(c["cost"] for c in old if c["task"] == a["task"] and c["arm"] == "baseline" and c["model"] == m))
+                     for a in anchors if a["model"] == m and a.get("cost")]
+            if not pairs: sys.exit(f"anchor baseline produced no cost on {m}")
+            drift = math.exp(statistics.mean(math.log(n / o) for n, o in pairs)) - 1
+            meta["drift"][m] = round(drift, 4)
+            print(f"drift on {m}: {drift:+.1%} over {len(pairs)} anchor tasks (limit {DRIFT_MAX:.0%})", flush=True)
+            if abs(drift) > DRIFT_MAX:
+                _save()
+                sys.exit(f"drift above {DRIFT_MAX:.0%} on {m}: rerun every arm in one batch instead of --reuse")
+        reused = [{**c, "reused_from": str(args.reuse)} for c in old]
+        meta["reused_from"] = str(args.reuse)
+
+    _round([(t, a, m, r) for t in task_ids for m in models for a in arms for r in range(args.runs)], results, "running")
+    while args.max_runs:
+        groups = defaultdict(list)
+        for c in results: groups[(c["task"], c["arm"], c["model"])].append(c)
+        more = [(t, a, m, len(cs)) for (t, a, m), cs in groups.items() if len(cs) < args.max_runs and _unsettled(cs)]
+        if not more: break
+        _round(more, results, "unsettled cells, one more run")
+
+    rows = aggregate([c for c in results + reused if not c.get("anchor")])
     (out_dir / "summary.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
     print_table(rows)
-    print(f"\nwrote {out_dir}/results.json + summary.json ({len(results)} cells)")
+    overall(results + reused)
+    print(f"\nwrote {out_dir}/results.json + summary.json ({len(results)} new cells, {len(reused)} reused, {len(anchors)} anchors)")
 
 if __name__ == "__main__":
     main()
