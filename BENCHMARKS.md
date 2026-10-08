@@ -60,13 +60,27 @@ Five-arm batch (2026-10-07, frugal 0.12.2), 39 tasks, n=3, 585 cells, no cell fa
 
 | Arm | Correct | Safe | Lines (median) | USD per run | vs no plugins |
 |---|---|---|---|---|---|
-| No plugins | 1.000 | 1.000 | 74 | 0.0953 | 0% |
-| frugal | 1.000 | 1.000 | 39 | 0.0823 | -12.2% |
-| ponytail | 1.000 | 1.000 | 28 | 0.0853 | -8.7% |
-| caveman | 1.000 | 1.000 | 77 | 0.1131 | +20.3% |
-| ponytail + caveman | 1.000 | 1.000 | 33 | 0.1017 | +10.3% |
+| No plugins | 1.000 | 1.000 | 71 | 0.0953 | 0% |
+| frugal | 1.000 | 1.000 | 38 | 0.0823 | -12.2% (90% CI -16.8% to -7.6%) |
+| ponytail | 1.000 | 1.000 | 27 | 0.0853 | -8.7% (-13.5% to -3.6%) |
+| caveman | 1.000 | 1.000 | 77 | 0.1131 | +20.3% (+16.3% to +24.0%) |
+| ponytail + caveman | 1.000 | 1.000 | 33 | 0.1017 | +10.3% (+4.1% to +16.8%) |
 
-Every arm passed every check, so on Sonnet the comparison is cost and size only. caveman costs more than no plugins here and leaves the code about the same size.
+Lines are the median of code lines (comments excluded), as in the other tables. Every arm passed every check, so on Sonnet the comparison is cost and size only. caveman costs more than no plugins here and leaves the code about the same size.
+
+### Feature work: ponytail's harness, Opus 5.5
+
+Five-arm batch (2026-10-07 to 08, frugal 0.12.2), n=3. 34 of 39 tasks finished in every arm (510 cells); the rest stopped at the usage limit and are not counted. Lines are the median of code lines (comments excluded), as in the other tables. Relative cost is the geometric mean of the per-task cost ratio against no plugins, with a 90% bootstrap interval over tasks:
+
+| Arm | Correct | Safe | Lines (median) | USD per run | vs no plugins |
+|---|---|---|---|---|---|
+| No plugins | 0.980 | 0.980 | 151 | 0.2842 | 0% |
+| frugal | 0.990 | 0.990 | 40.5 | 0.1515 | -39.0% (-46.8% to -30.2%) |
+| ponytail | 0.990 | 1.000 | 34 | 0.1596 | -36.0% (-44.5% to -26.1%) |
+| caveman | 0.990 | 0.990 | 124 | 0.2959 | +8.1% (+2.0% to +14.4%) |
+| ponytail + caveman | 0.941 | 0.980 | 41 | 0.1870 | -23.9% (-34.1% to -12.1%) |
+
+Opus without plugins over-builds most (151 lines), so both minimal-code rule sets save the most here. frugal and ponytail are within each other's intervals; ponytail + caveman fails more correctness checks than either alone.
 
 ### Fixes, analysis, and heavy tasks: Opus 5.5
 

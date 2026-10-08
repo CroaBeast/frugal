@@ -79,7 +79,7 @@ Say `normal mode` to turn it off.
 
 ## Should you use it?
 
-On Opus 5.5 (0.12, six tasks) frugal came out even on cost with 11% less output; on feature work with Haiku 4.5 (39 tasks) it cost 18% less than plain Claude Code and passed more checks:
+On Opus 5.5 (0.12, six tasks) frugal came out even on cost with 11% less output; on feature work (ponytail's harness) it cost 18% less than plain Claude Code on Haiku 4.5, 12% less on Sonnet 5.5, and 39% less on Opus 5.5, with the same or a higher pass rate:
 
 - **Long sessions and heavy tasks:** in 0.11, 10 to 12% cheaper on the 40-message session, the heavy coding task, and the contract risk review. Every call re-reads the whole history, so shorter replies and fewer re-reads compound as a session grows. The 16-message session came out -2%: at the 10th message frugal writes a handoff block for a fresh chat, which only pays back when you actually move to one (see [BENCHMARKS.md](BENCHMARKS.md)).
 - **Short one-off tasks:** +1 to +8% on Opus. Turning frugal on costs ~1,140 input tokens once per session (about 0.009 USD on Opus), and a 3-call task has too little output to win that back.
@@ -109,15 +109,15 @@ Knowledge-graph tools such as Graphify target a different cost (exploring very l
 Every number here comes from real headless Claude Code sessions (`claude -p`), checked automatically, with every arm run in the same batch, and losses are shown next to wins. caveman and ponytail publish numbers from their own setups: caveman from single API calls against a model with no system prompt, ponytail from feature tasks on Haiku only. Here each plugin runs the way you would use it, on three tests and three models. Per-task tables, methods, and every earlier batch are in [BENCHMARKS.md](BENCHMARKS.md).
 
 ```mermaid
-xychart-beta
-    title "Feature work, cost per run vs no plugins (= 100)"
-    x-axis ["Haiku frugal", "Haiku ponytail", "Haiku caveman", "Haiku both", "Sonnet frugal", "Sonnet ponytail", "Sonnet caveman", "Sonnet both"]
-    y-axis "Relative cost" 0 --> 125
-    bar [81.6, 91.3, 100.3, 98.7, 87.8, 91.3, 120.3, 110.3]
-    line [100, 100, 100, 100, 100, 100, 100, 100]
+xychart-beta horizontal
+    title "Cost vs no plugins (= 100), lower is cheaper"
+    x-axis ["frugal, Haiku", "frugal, Sonnet", "frugal, Opus", "ponytail, Haiku", "ponytail, Sonnet", "ponytail, Opus", "ponytail + caveman, Haiku", "ponytail + caveman, Sonnet", "ponytail + caveman, Opus", "caveman, Haiku", "caveman, Sonnet", "caveman, Opus", "frugal, Opus, fixes", "frugal, Opus, questions", "caveman, Opus, questions"]
+    y-axis "Relative cost" 0 --> 130
+    bar [81.6, 87.8, 61.0, 91.3, 91.3, 64.0, 98.7, 110.3, 76.1, 100.3, 120.3, 108.1, 100.1, 91.9, 92.4]
+    line [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
 ```
 
-Bars are each plugin or pair, the line is no plugins (both = ponytail + caveman). The chart covers only rows measured with every arm; the table below shows what is still pending.
+Each bar is one plugin on one model, against no plugins in the same batch (the line at 100). The first twelve are feature work on ponytail's harness; the last three are the other two tests, where only some arms have run so far. The table below shows every combination, including the ones still pending.
 
 ### Summary: every arm, every model
 
@@ -128,19 +128,19 @@ Cost relative to the baseline of the same batch (= 100; lower is cheaper). Each 
 |---|---|---|---|---|---|---|
 | Feature work (ponytail's harness, 39 tasks) | Haiku 4.5 | 100 | **81.6** | 100.3 | 91.3 | 98.7 |
 | | Sonnet 5.5 | 100 | **87.8** | 120.3 | 91.3 | 110.3 |
-| | Opus 5.5 | not run | not run | not run | not run | not run |
+| | Opus 5.5 (34 tasks) | 100 | **61.0** | 108.1 | 64.0 | 76.1 |
 | Fixes, analysis, writing (`bench.py`, six tasks) | Haiku 4.5 | not run | not run | not run | not run | not run |
 | | Sonnet 5.5 | not run | not run | not run | not run | not run |
 | | Opus 5.5 | 100 | 100.1 | not run | not run | not run |
-| Plain questions (caveman's eval, median output tokens) | Haiku 4.5 | not run | not run | not run | | |
+| Plain questions (caveman's eval, cost per answer) | Haiku 4.5 | not run | not run | not run | | |
 | | Sonnet 5.5 | not run | not run | not run | | |
-| | Opus 5.5 | 100 | **87.1** | 91.8 | | |
+| | Opus 5.5 | 100 | **91.9** | 92.4 | | |
 
-Batches: feature work, Haiku 2026-10-04 (frugal 0.12.2 before its last rule) and Sonnet 2026-10-07 (frugal 0.12.2); `bench.py` 2026-10-03 (frugal 0.12); caveman's eval 2026-10-03 (frugal 0.12, baseline "Answer concisely."; caveman's eval has no ponytail arm).
+Batches: feature work, Haiku 2026-10-04 (frugal 0.12.2 before its last rule) Sonnet 2026-10-07 and Opus 2026-10-07 to 08 (frugal 0.12.2; Opus has 34 of 39 tasks, the rest stopped at the usage limit); `bench.py` 2026-10-03 (frugal 0.12); caveman's eval 2026-10-03 (frugal 0.12, baseline "Answer concisely."; caveman's eval has no ponytail arm).
 
 **Where frugal loses.** On `bench.py` with Opus, one-step tasks cost 6 to 16% more than no plugins (1 to 8% in a 0.12.1 rerun): turning frugal on adds a fixed ~1,140 input tokens that a 3-call task cannot win back. Longer tasks pay it back, and the six-task sum comes out even. Sonnet has no batch with the current version.
 
-**Latest head-to-head.** frugal 0.12.2 against ponytail on ponytail's own harness (Haiku 4.5, 39 tasks, n=3, 2026-10-06): every correctness check passed (ponytail 0.983), safety 0.991 against 0.974, and 13.2% cheaper (90% CI 6.8 to 19.6%).
+**Latest head-to-head.** frugal 0.12.2 against ponytail on ponytail's own harness (Haiku 4.5, 39 tasks, n=3, 2026-10-06): every correctness check passed (ponytail 0.983), safety 0.991 against 0.974, and 13.2% cheaper (90% CI 6.8 to 19.6%). In the five-arm batches frugal was also the cheapest arm on Sonnet (-12.2% against ponytail's -8.7%) and on Opus (-39.0% against -36.0%, intervals overlapping), while ponytail wrote fewer lines on both (27 against 38 on Sonnet, 34 against 40.5 on Opus).
 
 ### Reproduce
 
