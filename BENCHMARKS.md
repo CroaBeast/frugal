@@ -54,6 +54,20 @@ What changed in 0.12.2, each tested against the previous rules in its own batch 
 - With no shell, frugal sometimes spawned a subagent only to run a test, and sometimes left requested code in the scratchpad or only in the reply. `SKILL.md` now says requested code goes in a file in the working directory and that a check is never run by a subagent, and the worker's description excludes it. Both rules together, on the 12 tasks where frugal had failed (n=3): correct 0.806 to 0.944, runs with a subagent 7 of 36 to 1 of 36, cost -14.7%.
 - A new script with no language named and no project files is Python with the stdlib. frugal had written JavaScript with npm packages for "build me a web scraper", which the harness scores as no file: 4 of 4 correct instead of 2 of 4, at 0.034 instead of 0.078 USD per run; the frontend control task was unchanged.
 
+### Feature work: ponytail's harness, Sonnet 5.5
+
+Five-arm batch (2026-10-07, frugal 0.12.2), 39 tasks, n=3, 585 cells, no cell failed to run. The first 234 cells (frugal and ponytail) and the other 351 were run in two passes of the same run directory, minutes apart. Relative cost is the geometric mean of the per-task cost ratio against no plugins:
+
+| Arm | Correct | Safe | Lines (median) | USD per run | vs no plugins |
+|---|---|---|---|---|---|
+| No plugins | 1.000 | 1.000 | 74 | 0.0953 | 0% |
+| frugal | 1.000 | 1.000 | 39 | 0.0823 | -12.2% |
+| ponytail | 1.000 | 1.000 | 28 | 0.0853 | -8.7% |
+| caveman | 1.000 | 1.000 | 77 | 0.1131 | +20.3% |
+| ponytail + caveman | 1.000 | 1.000 | 33 | 0.1017 | +10.3% |
+
+Every arm passed every check, so on Sonnet the comparison is cost and size only. caveman costs more than no plugins here and leaves the code about the same size.
+
 ### Fixes, analysis, and heavy tasks: Opus 5.5
 
 frugal 0.12, six tasks of `bench.py` (2026-10-03), median cost per run in USD, n=3. Every run passed every check.
