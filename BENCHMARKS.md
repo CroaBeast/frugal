@@ -10,6 +10,14 @@ Costs are the `total_cost_usd` Claude Code reports.
 - `bench/ponytail_agentic`: ponytail's own agentic benchmark (MIT) with frugal and ponytail + caveman arms added: 39 security, reuse, root-cause, open-ended, vibe, frontend, and backend tasks, scored by its own checks. caveman and ponytail run at `full`, their default.
 - `bench/caveman_eval.py`: caveman's own ten dev questions, each answered with a replaced system prompt ("Answer concisely." alone, plus caveman's `SKILL.md`, or plus frugal's), scored blind by a Sonnet judge from 0 to 3.
 
+**How batches stay affordable.** Most of a run's cost is Claude Code's own context, not the task, so a full matrix (39 tasks, five arms, three runs, three models) would cost hundreds of dollars. Instead:
+
+1. Fixed cost is measured once per model with `t0_ok`, a one-word task. It is deterministic, so a few warm runs give the exact overhead each plugin adds; `bench.py report` prints it against no plugins.
+2. Behavior (lines of code, turns, pass rate) is measured on Haiku over all 39 tasks.
+3. Sonnet and Opus confirm it on `core8`, eight tasks covering every category. Their intervals are wider, and the README shows them.
+4. `--runs 2 --max-runs 3` adds a run only where cost varies more than 25% or pass and fail are mixed.
+5. Arms that did not change are reused from an earlier batch (`--reuse`) only if a baseline rerun on four anchor tasks matches it within 10%; otherwise every arm reruns together. Reused cells are labeled in `results.json`.
+
 ## Current batches
 
 ### Feature work: ponytail's harness, Haiku 4.5

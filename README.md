@@ -146,16 +146,19 @@ Batches: feature work 2026-10-04 (frugal 0.12.2 before its last rule); `bench.py
 
 ```
 cd bench
-python bench.py run --conds AE --reps 4 --out results      # A: no plugins, E: /frugal
-python bench.py run --conds AE --tasks t1_bug,t4_long --out results
-python bench.py report --out results
+python bench.py run --conds AEFGB --tasks t0_ok --reps 3 --model claude-sonnet-5-5 --out fixed_sonnet   # fixed cost per plugin
+python bench.py run --conds AEFGB --tasks t1_bug,t2_analysis,t3_email,t5_heavy,t8_review --reps 2 --model claude-opus-5-5 --out tasks_opus
+python bench.py report --out tasks_opus
 
 cd ponytail_agentic
-FRUGAL_PLUGIN_DIR=<path to this repo> python run.py --all --arms baseline,frugal,ponytail,caveman,ponytail+caveman --models haiku --runs 3
+FRUGAL_PLUGIN_DIR=<path to this repo> python run.py --all --arms baseline,frugal,ponytail,caveman,ponytail+caveman --models haiku --runs 2 --max-runs 3
+python run.py --task core8 --arms baseline,frugal,ponytail,caveman,ponytail+caveman --models opus --runs 2 --max-runs 3
+python run.py --all --arms frugal --models haiku --runs 2 --max-runs 3 --reuse runs/<earlier batch>   # new frugal, other arms reused
 python run.py ... --resume <run dir>      # finish a batch cut by a usage limit
 ```
 
-`bench.py run` skips runs that already have results, and does not save runs that hit the `claude -p` session limit, so re-running the same command fills the gaps. The system prompt changes between days (org skills, connector notices), so compare arms from the same batch, and discard the first run of a batch when it pays for writing the cache.
+A: no plugins, E: frugal, F: caveman, G: ponytail, B: caveman + ponytail. `bench.py run` skips runs that already have results and does not save runs that hit the usage limit, so re-running the same command fills the gaps. Rep 1 of each batch pays for writing the prompt cache, so the fixed-cost table uses only later reps. How the batches are kept small is in [BENCHMARKS.md](BENCHMARKS.md#tests).
+
 ## Versions
 
 - **0.12.2**: requested code goes in a file in the working directory; a check is never run by a subagent; a new script with no language named is Python with the stdlib. On ponytail's harness (Haiku 4.5, 39 tasks) it passed every correctness check and cost 13% less than ponytail.
