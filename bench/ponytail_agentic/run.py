@@ -118,8 +118,29 @@ def _count(p: Path, with_comments: bool):
         n += 1
     return n
 
+_TEST_DEFS = ("def test(", "def _test(", "def tests(", "def _tests(", "def run_tests(", "def _run_tests(",
+              "def selftest(", "def _selftest(", "def self_test(", "def _self_test(")
 _SELFCHECK_DEFS = ("def demo(", "def _demo(", "def selfcheck(", "def _selfcheck(",
-                   "def _check(", "def _smoke(", "def smoke(")
+                   "def _check(", "def _smoke(", "def smoke(") + _TEST_DEFS
+
+def _testfn_split(p: Path):
+    """Open tasks: count top-level test functions (def _test() and the like) as test, the rest as
+    source. A __main__ guard stays source here, because in a CLI app it is the entry point. Without
+    this, a test kept in the same file counted as code while the same test in test_*.py did not.
+    Returns (src_total, src_code, test_total)."""
+    try: lines = p.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except Exception: return 0, 0, 0
+    t = c = tt = 0
+    inside = False
+    for ln in lines:
+        s = ln.strip()
+        if not s: continue
+        if ln[:1] not in (" ", "\t") and not s.startswith(("#", "@", ")", "]", "}")):
+            inside = ln.startswith(_TEST_DEFS)
+        if inside: tt += 1; continue
+        t += 1
+        if not s.startswith(("#", "//", "*", "/*", "*/")): c += 1
+    return t, c, tt
 def _selfcheck_split(p: Path):
     """Split a produced .py file at the first TOP-LEVEL self-check marker (a `__main__` guard or a
     demo()/selfcheck() function) through end of file. Returns (src_total, src_code, sc_total,
@@ -145,7 +166,7 @@ def _selfcheck_split(p: Path):
     t, c = cnt(lines[:start]); st, sc = cnt(lines[start:])
     return t, c, st, sc
 
-def code_stats(workdir: Path, selfcheck_as_test: bool = False):
+def code_stats(workdir: Path, selfcheck_as_test: bool = False, testfn_as_test: bool = False):
     """LOC over code-extension source files only (generated images/data can't pollute it).
     total_loc counts every non-blank line including comments and docstrings -- the bloat a vibe
     baseline actually produces. src_loc is code-only, for the breakdown. Tests tracked separately,
@@ -172,6 +193,13 @@ def code_stats(workdir: Path, selfcheck_as_test: bool = False):
         return {"files": len(files), "src_files": len(src),
                 "total_loc": total, "src_loc": code,
                 "test_files": len(tst), "test_loc": test_loc + sc_test}
+    if testfn_as_test:
+        total = code = fn_test = 0
+        for p in src:
+            t, c, tt = _testfn_split(p) if p.suffix == ".py" else (_count(p, True), _count(p, False), 0)
+            total += t; code += c; fn_test += tt
+        return {"files": len(files), "src_files": len(src), "total_loc": total, "src_loc": code,
+                "test_files": len(tst), "test_loc": test_loc + fn_test}
     return {"files": len(files), "src_files": len(src),
             "total_loc": sum(_count(p, True) for p in src),   # incl comments + docstrings (the bloat)
             "src_loc": sum(_count(p, False) for p in src),    # code only
@@ -226,6 +254,13 @@ def selftest():
             print(f"{'ok ' if ok else 'XX '} {tid:12} {kind:4} correct={r['correct']} "
                   f"safe={r['safe']} axis={axis}  {r['reason']}")
             failures += 0 if ok else 1
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:   # in-file test fn counts as test
+        f = Path(d) / "app.py"
+        f.write_text("def run(x):\n    return x\n\ndef _test():\n    assert run(1) == 1\n\n"
+                     "if __name__ == '__main__':\n    _test()\n", encoding="utf-8")
+        ok = _testfn_split(f) == (4, 4, 2)
+    print(f"{'ok ' if ok else 'XX '} testfn_split  in-file test function counted as test")
+    failures += 0 if ok else 1
     failures += _selftest_plugin_dir()
     failures += _selftest_kill()
     print(f"\nselftest: {'all instruments valid' if not failures else str(failures) + ' BROKEN'}")
@@ -297,7 +332,8 @@ def score_workspace(task_id, arm, model, workdir: Path):
             result_text = j.get("result", "")
         except Exception: pass
     surgical = not TASKS[task_id].get("open") and not TASKS[task_id].get("fixture")
-    stats = git_diff_stats(workdir) if TASKS[task_id].get("fixture") else code_stats(workdir, selfcheck_as_test=surgical)
+    stats = (git_diff_stats(workdir) if TASKS[task_id].get("fixture")
+             else code_stats(workdir, selfcheck_as_test=surgical, testfn_as_test=not surgical))
     # open/explain tasks answer in the chat, not a file. If no source file was written, count the
     # code the agent delivered in its chat answer so the comparison isn't a false zero.
     if TASKS[task_id].get("open") and stats["total_loc"] == 0 and result_text:

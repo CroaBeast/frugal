@@ -140,7 +140,7 @@ Batches: feature work, Haiku 2026-10-04 (frugal 0.12.2 before its last rule) Son
 
 **Where frugal loses.** On `bench.py` with Opus, one-step tasks cost 6 to 16% more than no plugins (1 to 8% in a 0.12.1 rerun): turning frugal on adds a fixed ~1,140 input tokens that a 3-call task cannot win back. Longer tasks pay it back, and the six-task sum comes out even. Sonnet has no batch with the current version.
 
-**Latest head-to-head.** frugal 0.12.2 against ponytail on ponytail's own harness (Haiku 4.5, 39 tasks, n=3, 2026-10-06): every correctness check passed (ponytail 0.983), safety 0.991 against 0.974, and 13.2% cheaper (90% CI 6.8 to 19.6%). In the five-arm batches frugal was also the cheapest arm on Sonnet (-12.2% against ponytail's -8.7%) and on Opus (-39.0% against -36.0%, intervals overlapping), while ponytail wrote fewer lines on both (27 against 38 on Sonnet, 34 against 40.5 on Opus).
+**Latest head-to-head.** frugal 0.12.2 against ponytail on ponytail's own harness (Haiku 4.5, 39 tasks, n=3, 2026-10-06): every correctness check passed (ponytail 0.983), safety 0.991 against 0.974, and 13.2% cheaper (90% CI 6.8 to 19.6%). In the five-arm batches frugal was also the cheapest arm on Sonnet (-12.2% against ponytail's -8.7%) and on Opus (-39.0% against -36.0%, intervals overlapping), while ponytail wrote fewer lines on both (27 against 38 on Sonnet, 34 against 39 on Opus).
 
 ### Reproduce
 

@@ -8,6 +8,7 @@ Costs are the `total_cost_usd` Claude Code reports.
 
 - `bench/bench.py`: fixed tasks in a temp copy of a fixture. t1 fix a bug without touching the test; t2 find the largest month-over-month drop in a CSV; t3 draft a support reply with placeholders for unknown facts; t4 a 16-message session; t5 log triage, a rate limiter from scratch, and a long explanation; t6 extract notice periods from 30 contracts into a CSV; t7 a 40-message session; t8 a risk review of the same 30 contracts; t9 a risk review of 150 contracts (~165k tokens), each with one planted risk that must be named, checked for at least 90% of vendors.
 - `bench/ponytail_agentic`: ponytail's own agentic benchmark (MIT) with frugal and ponytail + caveman arms added: 39 security, reuse, root-cause, open-ended, vibe, frontend, and backend tasks, scored by its own checks. caveman and ponytail run at `full`, their default.
+- Lines of code count source only. Tests count separately whether they sit in `test_*.py` or in a test function inside the same file (`def _test()` and the like); before 2026-10-10 the in-file kind counted as source on open tasks, which moved frugal's Opus median from 40.5 to 39 lines and nothing else.
 - `bench/caveman_eval.py`: caveman's own ten dev questions, each answered with a replaced system prompt ("Answer concisely." alone, plus caveman's `SKILL.md`, or plus frugal's), scored blind by a Sonnet judge from 0 to 3.
 
 **How batches stay affordable.** Most of a run's cost is Claude Code's own context, not the task, so a full matrix (39 tasks, five arms, three runs, three models) would cost hundreds of dollars. Instead:
@@ -45,7 +46,7 @@ That batch ran before the last 0.12.2 rule (Python by default, see below). fruga
 | Arm | Correct | Safe | Lines (median) | USD per run | vs ponytail |
 |---|---|---|---|---|---|
 | frugal | 1.000 | 0.991 | 29 | 0.0512 | -13.2% (90% CI -19.6% to -6.8%) |
-| ponytail | 0.983 | 0.974 | 30 | 0.0614 | 0% |
+| ponytail | 0.983 | 0.974 | 31 | 0.0614 | 0% |
 
 frugal passed every correctness check. Its one miss was a safety check on trace-transfer (1 of 3 runs patched `transfer` but not the shared debit that `withdraw` also uses); ponytail missed it in 3 of 3.
 
@@ -75,7 +76,7 @@ Five-arm batch (2026-10-07 to 08, frugal 0.12.2), n=3. 34 of 39 tasks finished i
 | Arm | Correct | Safe | Lines (median) | USD per run | vs no plugins |
 |---|---|---|---|---|---|
 | No plugins | 0.980 | 0.980 | 151 | 0.2842 | 0% |
-| frugal | 0.990 | 0.990 | 40.5 | 0.1515 | -39.0% (-46.8% to -30.2%) |
+| frugal | 0.990 | 0.990 | 39 | 0.1515 | -39.0% (-46.8% to -30.2%) |
 | ponytail | 0.990 | 1.000 | 34 | 0.1596 | -36.0% (-44.5% to -26.1%) |
 | caveman | 0.990 | 0.990 | 124 | 0.2959 | +8.1% (+2.0% to +14.4%) |
 | ponytail + caveman | 0.941 | 0.980 | 41 | 0.1870 | -23.9% (-34.1% to -12.1%) |
