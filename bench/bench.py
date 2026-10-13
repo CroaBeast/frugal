@@ -261,7 +261,7 @@ def report():
         print(f"| {r['cond']} | {r['task']} | {r['rep']} | {r['ok']} | {r['out']} | {r['inp']} | {r['turns']} | {r['tools']} | {r['cost']:.3f} | {r['sec']:.0f} | {r['skills']} |")
     print("\n| cond | runs | passed | median output tok | median input tok | median cost USD | total cost USD |")
     print("|---|---|---|---|---|---|---|")
-    for c in "ABCDEFGPRT":
+    for c in "ABCDEFGPRTV":
         g = [r for r in rows if r["cond"] == c and r["task"] != "t4_long"]
         if g:
             print(f"| {c} | {len(g)} | {sum(r['ok'] for r in g)} | {st.median(r['out'] for r in g):.0f} | {st.median(r['inp'] for r in g):.0f} | "
@@ -271,7 +271,7 @@ def report():
         base = [r for r in fixed if r["cond"] == "A"]
         print("\n| cond | t0_ok warm runs | median input tok | vs A | median cost USD | vs A |")
         print("|---|---|---|---|---|---|")
-        for c in "ABCDEFGPRT":
+        for c in "ABCDEFGPRTV":
             g = [r for r in fixed if r["cond"] == c]
             if g:
                 i, k = st.median(r["inp"] for r in g), st.median(r["cost"] for r in g)
@@ -280,11 +280,11 @@ def report():
                 print(f"| {c} | {len(g)} | {i:.0f} | {di} | {k:.4f} | {dk} |")
     long = [r for r in rows if r["task"] == "t4_long"]
     if long:
-        print("\n| t4_long msg | " + " | ".join(f"{c} median cost USD | {c} median input tok" for c in "ABCDEFGPRT") + " |")
-        print("|---|" + "---|---|" * 10)
+        print("\n| t4_long msg | " + " | ".join(f"{c} median cost USD | {c} median input tok" for c in "ABCDEFGPRTV") + " |")
+        print("|---|" + "---|---|" * 11)
         for i in range(len(TASKS["t4_long"])):
             cells = []
-            for c in "ABCDEFGPRT":
+            for c in "ABCDEFGPRTV":
                 g = [r["per_msg"][i] for r in long if r["cond"] == c]
                 cells += [f"{st.median(m['cost'] for m in g):.3f}", f"{st.median(m['inp'] for m in g):.0f}"] if g else ["-", "-"]
             print(f"| {i + 1} | " + " | ".join(cells) + " |")
