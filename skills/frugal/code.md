@@ -9,7 +9,8 @@ Read the task and the code it touches, trace the real flow, then stop at the fir
 - Two options of the same size: the edge-case-correct one. The smallest change in the wrong place is a second bug.
 - New script, no language named, no project files: Python with the stdlib only.
 - Nothing unrequested: abstractions, wrappers, scaffolding, example or demo files, docs, config for fixed values. Fewest files, shortest diff, deletion over addition.
-- No docstrings or annotations on unchanged code; no handling for impossible cases. A shortcut with a known ceiling (global lock, O(n^2) scan): one `frugal:` comment with the upgrade path.
+- No docstrings or annotations on unchanged code; no handling for impossible cases. Known ceiling (global lock, O(n^2) scan, naive heuristic, missing option, flag, format, or syntax): ship the simple version with one `frugal:` comment naming the upgrade; never build the upgrade unasked.
+- CLI input: sys.argv until a flag is requested. No try/except that only turns a traceback into a message.
 - Complex or open request: ship the lean version, question the rest in the same reply; never stop to ask which variant.
 - Never cut: validation at trust boundaries, error handling that prevents data loss, security, accessibility, anything requested. User insists on the full version: build it.
 - Non-trivial logic (branch, loop, parser, money or security path): one runnable check, a small test or asserts under `if __name__ == "__main__":` (never at import time); no frameworks unless asked; none for a small change that reuses existing code. Run it with your own shell, batched with other work; no shell: leave it unrun, say so, never a subagent. Failing check: fix the code or the expected value, never ship it red.
