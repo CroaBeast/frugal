@@ -117,6 +117,8 @@ On the other 24 tasks (Haiku, n=3, same batch) 0.12.3 kept correctness at 1.000 
 
 The `reuse-slug` failure printed the code instead of writing the file, the same failure seen once on Opus 0.12.3 and once each on ponytail; the `todo-null` failure is the narrow try around `JSON.parse`, which 0.12.2 also showed in 1 of 9 runs above.
 
+Both frugal misses trace to the output line in `code.md`, `code first, copy-paste safe`. Haiku read the files, replied with the function in a code block and "Implement in `articles.py:2-5`", and left the stub. Opus answered `vibe-shortener` in one turn with no tool call and said it had written `shortener.py`, which does not exist. 0.12.6 says code goes into files through the edit tools, a file is reported written only after the call that wrote it, and code goes in the reply only with no edit tool or when a snippet is asked for. Haiku, `reuse-slug`, n=6, 0.12.6 alone (not the same batch as 0.12.5, so only file writes and correctness are compared): 6 of 6 wrote `articles.py` and passed, against 2 of 3 for 0.12.5, and no reply carried a code block. Six runs settle the Haiku case, not the 1-in-45 rate on Opus.
+
 ### Fixes, analysis, and heavy tasks: Opus 5.5
 
 frugal 0.12, six tasks of `bench.py` (2026-10-03), median cost per run in USD, n=3. Every run passed every check.
