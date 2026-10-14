@@ -2,3 +2,5 @@ bench/results*/
 __pycache__/
 bench/*.log
 bench/_aborted/
+bench/cand*/
+bench/*.report.md
