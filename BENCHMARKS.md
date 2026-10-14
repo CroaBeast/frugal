@@ -83,6 +83,18 @@ Five-arm batch (2026-10-07 to 08, frugal 0.12.2), n=3. 34 of 39 tasks finished i
 
 Opus without plugins over-builds most (151 lines), so both minimal-code rule sets save the most here. frugal and ponytail are within each other's intervals; ponytail + caveman fails more correctness checks than either alone.
 
+### frugal 0.12.3: open-ended tasks, three models
+
+The 15 `vibe-*` and `open-*` tasks, n=3 (2026-10-13). Reading the Opus code of 0.12.2 against ponytail showed the extra lines were scope, not form: unrequested options and syntax, upgrades ponytail leaves as a `ponytail:` comment (temp-name staging, sequence heuristics), argparse where `sys.argv` does, and try/except that only rewords a traceback. Docstrings, logging, and classes differed by about 0 lines. 0.12.3 adds two lines to `code.md` for that. Mean code lines (comments excluded):
+
+| Model | frugal 0.12.2 | frugal 0.12.3 | ponytail | Change | Correct (0.12.3) | Safe (0.12.3) |
+|---|---|---|---|---|---|---|
+| Sonnet 5.5 | 70.7 | 58.5 | 49.3 | -17% | 1.000 | 1.000 |
+| Opus 5.5 | 78.6 | 65.0 | 58.4 | -17% | 0.978 | 1.000 |
+| Haiku 4.5 | 51.9 | 48.1 | 56.2 | -7% | 1.000 | 1.000 |
+
+Haiku ran all three arms in one batch. Sonnet and Opus ran only 0.12.3 and reuse 0.12.2 and ponytail from the 2026-10-07 batches; the anchor check failed on cost (+116%, a cold prompt cache) while anchor lines stayed in range, so only lines, correctness, and safety are compared there. The one Opus failure printed the code instead of writing the file; ponytail failed one Opus task too. Runs that left a separate test: Sonnet 11 to 7 of 45, Opus 23 to 21.
+
 ### Fixes, analysis, and heavy tasks: Opus 5.5
 
 frugal 0.12, six tasks of `bench.py` (2026-10-03), median cost per run in USD, n=3. Every run passed every check.
