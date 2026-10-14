@@ -105,6 +105,18 @@ On the other 24 tasks (Haiku, n=3, same batch) 0.12.3 kept correctness at 1.000 
 
 `trace-transfer` is noisy on Haiku for both versions (0.12.2 passed 2 of 3 and 5 of 6 in the two earlier batches); the one-run difference is within that noise. On `vibe-csvstats` (n=6) the candidate wrote 35 lines against 41.5 for 0.12.2.
 
+`trace-transfer` failures read `bank.py`, guard `transfer`, and stop; one reply even noted that `withdraw()` has the same issue and left it. The rules reach Haiku (the hook injects `code.md`), so 0.12.5 makes the bug-fix line concrete: the guard goes in the shared helper, not the function the report names, and a sibling with the same bug is in scope. Haiku, two batches, 0.12.2 and 0.12.5 in each:
+
+| Task | 0.12.2 | 0.12.5 |
+|---|---|---|
+| trace-transfer (n=9, twice) | 5/9, 4/9 | 8/9, 6/9 |
+| trace-amount (n=9) | 9/9 | 9/9 |
+| auth-token, reuse-money, safe-path, sql-user (n=3 each) | 12/12 | 12/12 |
+| reuse-slug (n=3) | 3/3 | 2/3 |
+| todo-null (n=3) | 3/3 | 2/3 |
+
+The `reuse-slug` failure printed the code instead of writing the file, the same failure seen once on Opus 0.12.3 and once each on ponytail; the `todo-null` failure is the narrow try around `JSON.parse`, which 0.12.2 also showed in 1 of 9 runs above.
+
 ### Fixes, analysis, and heavy tasks: Opus 5.5
 
 frugal 0.12, six tasks of `bench.py` (2026-10-03), median cost per run in USD, n=3. Every run passed every check.
