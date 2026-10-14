@@ -93,7 +93,17 @@ The 15 `vibe-*` and `open-*` tasks, n=3 (2026-10-13). Reading the Opus code of 0
 | Opus 5.5 | 78.6 | 65.0 | 58.4 | -17% | 0.978 | 1.000 |
 | Haiku 4.5 | 51.9 | 48.1 | 56.2 | -7% | 1.000 | 1.000 |
 
-Haiku ran all three arms in one batch. Sonnet and Opus ran only 0.12.3 and reuse 0.12.2 and ponytail from the 2026-10-07 batches; the anchor check failed on cost (+116%, a cold prompt cache) while anchor lines stayed in range, so only lines, correctness, and safety are compared there. The one Opus failure printed the code instead of writing the file; ponytail failed one Opus task too. Runs that left a separate test: Sonnet 11 to 7 of 45, Opus 23 to 21.
+Haiku ran all three arms in one batch. Sonnet and Opus ran only 0.12.3 and reuse 0.12.2 and ponytail from the 2026-10-07 batches; the anchor check failed on cost (+116%, a cold prompt cache) while anchor lines stayed in range, so only lines, correctness, and safety are compared there. The one Opus failure printed the code instead of writing the file; ponytail failed one Opus task too. Runs that left a separate test: Sonnet 11 to 7 of 45, Opus 23 to 21; on Sonnet, 0.12.3 left asserts under `__main__` in 30 more runs, so 37 of 45 had a check.
+
+On the other 24 tasks (Haiku, n=3, same batch) 0.12.3 kept correctness at 1.000 but safety fell from 0.986 to 0.958: one `todo-null` run guarded `JSON.parse` but not `data.title` on a `null` body, likely from the rule against try/except that only rewords a traceback, and `trace-transfer` failed 2 of 3 against 1 of 3. 0.12.4 scopes the ceiling rule to new code and the error rule to CLI scripts. Haiku, n=9, same batch:
+
+| Task | 0.12.2 | 0.12.4 |
+|---|---|---|
+| todo-null | 8/9 | 9/9 |
+| trace-amount | 9/9 | 9/9 |
+| trace-transfer | 4/9 | 3/9 |
+
+`trace-transfer` is noisy on Haiku for both versions (0.12.2 passed 2 of 3 and 5 of 6 in the two earlier batches); the one-run difference is within that noise. On `vibe-csvstats` (n=6) the candidate wrote 35 lines against 41.5 for 0.12.2.
 
 ### Fixes, analysis, and heavy tasks: Opus 5.5
 
