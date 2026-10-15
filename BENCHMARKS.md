@@ -119,6 +119,15 @@ The `reuse-slug` failure printed the code instead of writing the file, the same 
 
 Both frugal misses trace to the output line in `code.md`, `code first, copy-paste safe`. Haiku read the files, replied with the function in a code block and "Implement in `articles.py:2-5`", and left the stub. Opus answered `vibe-shortener` in one turn with no tool call and said it had written `shortener.py`, which does not exist. 0.12.6 says code goes into files through the edit tools, a file is reported written only after the call that wrote it, and code goes in the reply only with no edit tool or when a snippet is asked for. Haiku, `reuse-slug`, n=6, 0.12.6 alone (not the same batch as 0.12.5, so only file writes and correctness are compared): 6 of 6 wrote `articles.py` and passed, against 2 of 3 for 0.12.5, and no reply carried a code block. Six runs settle the Haiku case, not the 1-in-45 rate on Opus.
 
+The new line reaches every code task, so 0.12.6 also ran against 0.12.5 on all 39 tasks in one batch (Haiku, `--runs 2 --max-runs 3`, 167 cells, $9.16):
+
+| Version | Cells | Correct | Safe | LOC (median) | $/run |
+|---|---|---|---|---|---|
+| 0.12.5 | 83 | 1.000 | 0.988 | 26 | 0.0551 |
+| 0.12.6 | 84 | 1.000 | 0.988 | 25.5 | 0.0545 |
+
+Each version missed safety once, on the same `trace-transfer` case (only `transfer` patched). `open-dataclass` and `open-decorators` ask for an example, not a file; 0.12.6 answered in the reply in 4 of 4 runs and 0.12.5 in 3 of 4, so the rule did not force files where a snippet fits. Per-task lines moved by up to 30 in both directions at n=2 (`vibe-jsonconf` +28.5, `vibe-restapi` -15.5); the median held.
+
 ### Fixes, analysis, and heavy tasks: Opus 5.5
 
 frugal 0.12, six tasks of `bench.py` (2026-10-03), median cost per run in USD, n=3. Every run passed every check.
