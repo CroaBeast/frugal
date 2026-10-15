@@ -69,6 +69,15 @@ Five-arm batch (2026-10-07, frugal 0.12.2), 39 tasks, n=3, 585 cells, no cell fa
 
 Lines are the median of code lines (comments excluded), as in the other tables. Every arm passed every check, so on Sonnet the comparison is cost and size only. caveman costs more than no plugins here and leaves the code about the same size.
 
+frugal 0.12.6 against ponytail, all 39 tasks (2026-10-15), n=3, 234 cells, one batch, $20.04. Cost is the mean per run; "vs ponytail" is the geometric mean of the per-task cost ratio with a 90% bootstrap interval over tasks:
+
+| Arm | Correct | Safe | Lines (median) | Lines (mean) | USD per run | vs ponytail |
+|---|---|---|---|---|---|---|
+| frugal 0.12.6 | 1.000 | 1.000 | 34 | 43.5 | 0.0845 | -3.4% (-5.6% to -1.1%) |
+| ponytail | 1.000 | 1.000 | 31 | 39.8 | 0.0868 | 0% |
+
+frugal was cheaper on 28 of 39 tasks. ponytail still writes less: 49.1 against 54.0 mean lines on the 15 open-ended tasks and 33.9 against 36.9 on the other 24. The largest gaps went both ways (`vibe-adventure` +39, `tmpl-fe-command` +30, `vibe-md2html` -21, `tmpl-fe-colorpicker` -20). On the open-ended tasks the gap was 21 lines with 0.12.2 (70.7 against 49.3, table below) and 5 here.
+
 ### Feature work: ponytail's harness, Opus 5.5
 
 Five-arm batch (2026-10-07 to 08, frugal 0.12.2), n=3. 34 of 39 tasks finished in every arm (510 cells); the rest stopped at the usage limit and are not counted. Lines are the median of code lines (comments excluded), as in the other tables. Relative cost is the geometric mean of the per-task cost ratio against no plugins, with a 90% bootstrap interval over tasks:

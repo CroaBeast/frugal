@@ -83,7 +83,7 @@ On Opus 5.5 (0.12, six tasks) frugal came out even on cost with 11% less output;
 
 - **Long sessions and heavy tasks:** in 0.11, 10 to 12% cheaper on the 40-message session, the heavy coding task, and the contract risk review. Every call re-reads the whole history, so shorter replies and fewer re-reads compound as a session grows. The 16-message session came out -2%: at the 10th message frugal writes a handoff block for a fresh chat, which only pays back when you actually move to one (see [BENCHMARKS.md](BENCHMARKS.md)).
 - **Short one-off tasks:** +1 to +8% on Opus. Turning frugal on costs ~1,140 input tokens once per session (about 0.009 USD on Opus), and a 3-call task has too little output to win that back.
-- **Writing features:** on ponytail's own harness (Haiku 4.5, 39 tasks, n=3), 0.12.2 passed every correctness check, cost 13% less than ponytail, and wrote slightly less code in the same batch (see below).
+- **Writing features:** on ponytail's own harness (Haiku 4.5, 39 tasks, n=3), 0.12.2 passed every correctness check, cost 13% less than ponytail, and wrote slightly less code in the same batch (see below). On Sonnet 5.5 (same harness, n=3), 0.12.6 tied ponytail on every check and cost 3.4% less, while ponytail wrote a few lines less.
 - **Plain questions:** on caveman's own eval, 0.12.1 answered with 28 to 45% fewer output tokens than caveman at the same judged quality.
 - **Behavior, not just tokens:** verify APIs and versions instead of guessing, build the sensible default instead of stopping to ask, minimal code that keeps validation and tests, opt-in humanizer for text people read.
 
@@ -140,7 +140,7 @@ Batches: feature work, Haiku 2026-10-04 (frugal 0.12.2 before its last rule) Son
 
 **Where frugal loses.** On `bench.py` with Opus, one-step tasks cost 6 to 16% more than no plugins (1 to 8% in a 0.12.1 rerun): turning frugal on adds a fixed ~1,140 input tokens that a 3-call task cannot win back. Longer tasks pay it back, and the six-task sum comes out even. Sonnet has no batch with the current version.
 
-**Latest head-to-head.** frugal 0.12.2 against ponytail on ponytail's own harness (Haiku 4.5, 39 tasks, n=3, 2026-10-06): every correctness check passed (ponytail 0.983), safety 0.991 against 0.974, and 13.2% cheaper (90% CI 6.8 to 19.6%). In the five-arm batches frugal was also the cheapest arm on Sonnet (-12.2% against ponytail's -8.7%) and on Opus (-39.0% against -36.0%, intervals overlapping), while ponytail wrote fewer lines on both (27 against 38 on Sonnet, 34 against 39 on Opus).
+**Latest head-to-head.** frugal 0.12.2 against ponytail on ponytail's own harness (Haiku 4.5, 39 tasks, n=3, 2026-10-06): every correctness check passed (ponytail 0.983), safety 0.991 against 0.974, and 13.2% cheaper (90% CI 6.8 to 19.6%). In the five-arm batches frugal was also the cheapest arm on Sonnet (-12.2% against ponytail's -8.7%) and on Opus (-39.0% against -36.0%, intervals overlapping), while ponytail wrote fewer lines on both (27 against 38 on Sonnet, 34 against 39 on Opus). frugal 0.12.6 against ponytail on Sonnet 5.5 (39 tasks, n=3, 2026-10-15): both passed every check, frugal 3.4% cheaper (90% CI 1.1 to 5.6%), lines 34 against 31.
 
 ### Reproduce
 
@@ -161,7 +161,7 @@ A: no plugins, E: frugal, F: caveman, G: ponytail, B: caveman + ponytail. `bench
 
 ## Versions
 
-- **0.12.6**: code goes into files through the edit tools, not only into the reply, and a file is reported written only after the call that wrote it. On Haiku, `reuse-slug` wrote the file in 6 of 6 runs against 2 of 3 for 0.12.5.
+- **0.12.6**: code goes into files through the edit tools, not only into the reply, and a file is reported written only after the call that wrote it. On Haiku, `reuse-slug` wrote the file in 6 of 6 runs against 2 of 3 for 0.12.5. On Sonnet (39 tasks) it cost 3.4% less than ponytail with every check passed.
 - **0.12.5**: a bug-fix guard goes in the shared helper, not the function the report names, and a sibling with the same bug is fixed, never only mentioned. On Haiku, `trace-transfer` passed 14 of 18 runs against 9 of 18 for 0.12.2.
 - **0.12.4**: the ceiling rule covers new code only, not bug fixes; the error rule covers CLI scripts only (`let file and argument errors raise`), after 0.12.3 left a `null` body unguarded in one Haiku run of `todo-null`.
 - **0.12.3**: a known ceiling (naive heuristic, missing option, flag, format, or syntax) ships as the simple version with a `frugal:` comment naming the upgrade; CLI input stays on `sys.argv` until a flag is requested; no try/except that only rewords a traceback. On ponytail's harness (15 open-ended tasks, n=3) it wrote 17% fewer lines on Sonnet and Opus and 7% fewer on Haiku, with safety unchanged.
