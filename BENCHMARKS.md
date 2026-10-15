@@ -137,6 +137,19 @@ The new line reaches every code task, so 0.12.6 also ran against 0.12.5 on all 3
 
 Each version missed safety once, on the same `trace-transfer` case (only `transfer` patched). `open-dataclass` and `open-decorators` ask for an example, not a file; 0.12.6 answered in the reply in 4 of 4 runs and 0.12.5 in 3 of 4, so the rule did not force files where a snippet fits. Per-task lines moved by up to 30 in both directions at n=2 (`vibe-jsonconf` +28.5, `vibe-restapi` -15.5); the median held.
 
+### frugal 0.12.7: unrequested features and limits
+
+Reading the Sonnet code of 0.12.6 against ponytail (2026-10-15 batch above) showed the extra lines were scope again, not tests (9.3 against 9.8 test lines, `__main__` blocks 1.6 lines apart): extra commands, rooms, and aliases in `vibe-adventure`, sequence detection in `vibe-password`, body-size and title-length limits in `todo-null` from "never cut validation at trust boundaries". 0.12.7 adds features, commands, options, and limits to the unrequested list (an extra worth having goes in the `frugal:` comment) and says trust-boundary validation rejects malformed, missing, or unsafe input, with size or rate limits only when asked. The 15 open-ended tasks, the 9 safety tasks, and `tmpl-fe-command`, n=3, 150 cells per model, one batch each (2026-10-15). Cost is the geometric mean of the per-task cost ratio with a 90% bootstrap interval:
+
+| Model | Version | Correct | Safe | Lines (mean) | Open-ended lines (mean) | USD per run | vs 0.12.6 |
+|---|---|---|---|---|---|---|---|
+| Sonnet 5.5 | 0.12.6 | 1.000 | 1.000 | 48.3 | 55.5 | 0.0763 | 0% |
+| | candidate | 1.000 | 1.000 | 44.5 | 51.0 | 0.0737 | -2.8% (-5.4% to -0.3%) |
+| Haiku 4.5 | 0.12.6 | 1.000 | 0.987 | 42.6 | 46.6 | 0.0430 | 0% |
+| | candidate | 0.987 | 1.000 | 42.4 | 45.3 | 0.0407 | -4.4% (-8.5% to -0.2%) |
+
+On Sonnet the largest drops were `vibe-md2html` -24, `vibe-todo` -18, `tmpl-fe-command` -16, `vibe-shortener` -16, and `todo-null` -12, with every safety task still passing; `vibe-adventure` did not move. Haiku already wrote less than ponytail, so its lines barely changed. Haiku's one safety miss was 0.12.6 on `trace-transfer`. The candidate's one miss wrote `config_loader.py` to the scratchpad on `vibe-jsonconf`, an older Haiku failure the rule does not touch; 0.12.7 also names the working directory and the scratchpad in the output line of `code.md`, as `SKILL.md` already did. That last wording was not in the measured candidate.
+
 ### Fixes, analysis, and heavy tasks: Opus 5.5
 
 frugal 0.12, six tasks of `bench.py` (2026-10-03), median cost per run in USD, n=3. Every run passed every check.

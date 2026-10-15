@@ -161,6 +161,7 @@ A: no plugins, E: frugal, F: caveman, G: ponytail, B: caveman + ponytail. `bench
 
 ## Versions
 
+- **0.12.7**: unrequested features, commands, options, and limits stay out of new code (an extra worth having goes in a `frugal:` comment); trust-boundary validation rejects bad input, with size or rate limits only when asked; code goes in the working directory, never the scratchpad. On 25 tasks (n=3) it wrote 8% fewer lines on Sonnet and cost 2.8% less on Sonnet and 4.4% less on Haiku than 0.12.6, with every safety check passed.
 - **0.12.6**: code goes into files through the edit tools, not only into the reply, and a file is reported written only after the call that wrote it. On Haiku, `reuse-slug` wrote the file in 6 of 6 runs against 2 of 3 for 0.12.5. On Sonnet (39 tasks) it cost 3.4% less than ponytail with every check passed.
 - **0.12.5**: a bug-fix guard goes in the shared helper, not the function the report names, and a sibling with the same bug is fixed, never only mentioned. On Haiku, `trace-transfer` passed 14 of 18 runs against 9 of 18 for 0.12.2.
 - **0.12.4**: the ceiling rule covers new code only, not bug fixes; the error rule covers CLI scripts only (`let file and argument errors raise`), after 0.12.3 left a `null` body unguarded in one Haiku run of `todo-null`.
