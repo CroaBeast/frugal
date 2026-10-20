@@ -461,8 +461,8 @@ def rescore(run_dir):
     for ws in sorted(p for p in run_dir.iterdir() if p.is_dir()):
         parts = ws.name.split("__")
         if len(parts) != 4 or parts[0] not in TASKS: continue
-        tid, arm, model, _r = parts
-        results.append(score_workspace(tid, arm, model, ws))
+        tid, arm, model, r = parts
+        results.append({**score_workspace(tid, arm, model, ws), "run": int(r)})
     rows = aggregate(results)
     (run_dir / "results.json").write_text(json.dumps({"rescored": True, "results": results}, indent=2), encoding="utf-8")
     (run_dir / "summary.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
