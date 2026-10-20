@@ -21,6 +21,33 @@ Costs are the `total_cost_usd` Claude Code reports.
 
 ## Current batches
 
+### Head-to-head: frugal 0.12.7 against ponytail 5.2.0, three models
+
+ponytail's own harness, all 39 tasks, n=3, 234 cells per model, both arms in one batch per model (Haiku 2026-10-15, Sonnet 2026-10-16, Opus 2026-10-16 to 20). ponytail ran from its v5.2.0 tag (`2961b52`) in its default `full` mode. Cost is the mean per run; "vs ponytail" is the geometric mean of the per-task cost ratio with a 90% bootstrap interval over tasks:
+
+| Model | Arm | Correct | Safe | Lines (median) | USD per run | vs ponytail | Cheaper on |
+|---|---|---|---|---|---|---|---|
+| Haiku 4.5 | frugal | **1.000** | **1.000** | **27** | 0.0561 | **-8.3%** (-13.8% to -2.6%) | 26 of 39 tasks |
+| | ponytail | 0.983 | 0.974 | 32 | 0.0605 | 0% | |
+| Sonnet 5.5 | frugal | 1.000 | 1.000 | 29 | 0.0817 | **-5.8%** (-9.2% to -3.0%) | 29 of 39 |
+| | ponytail | 1.000 | 1.000 | 28 | 0.0868 | 0% | |
+| Opus 5.5 | frugal | **1.000** | 1.000 | 34 | 0.1631 | **-6.2%** (-10.4% to -2.1%) | 29 of 39 |
+| | ponytail | 0.991 | 1.000 | 31 | 0.1747 | 0% | |
+
+Mean code lines by task group (comments excluded):
+
+| Model | Open-ended (15) frugal / ponytail | Template features (12) | Fixes and reuse (12) |
+|---|---|---|---|
+| Haiku 4.5 | **44.8** / 56.1 | **91.2** / 109.0 | 17.2 / 16.4 |
+| Sonnet 5.5 | **51.0** / 52.2 | 52.8 / 47.8 | 18.5 / 17.6 |
+| Opus 5.5 | 60.6 / 60.5 | 55.5 / 55.3 | 21.2 / 20.2 |
+
+frugal failed no check on any model. ponytail missed `trace-transfer` safety in 3 of 3 Haiku runs (patched `transfer`, left `withdraw` overdrawing) and wrote no file in 2 Haiku runs of `vibe-rename` and 1 Opus run of `vibe-shortener`. On lines, ponytail leads on Sonnet's template tasks (up to 17 lines on `tmpl-fe-command`); reading `tmpl-fe-rating`, both arms built the same native-radio component and the gap was line wrapping and one optional prop. frugal's extra lines on fixes come from guarding the shared helper and fixing siblings, which is why it passes `trace-transfer`. On `vibe-restapi` frugal writes a stdlib `http.server` app where ponytail writes FastAPI, which needs an install.
+
+Against ponytail 4.10.0, frugal was 13.2% cheaper on Haiku (0.12.2) and 3.4% cheaper on Sonnet (0.12.6), and on Opus the two were within each other's intervals (0.12.2). 5.2.0 narrowed the Haiku gap; 0.12.7's scope rule closed the open-ended line gap on Sonnet and Opus.
+
+The Opus batch stopped at the usage limit after 166 cells and was finished with `--resume` four days later; the 12 template tasks ran entirely in the second session, both arms together. Its first scoring failed 3 runs of `reuse-money` and `reuse-slug` on import errors with files identical to passing runs: the scorers import produced modules by name through `sys.path` and `sys.modules`, and four cells scored in parallel raced. The harness now scores one cell at a time, and all three batches were rescored (`--rescore`, no API); only those Opus results changed.
+
 ### Feature work: ponytail's harness, Haiku 4.5
 
 Five-arm batch (2026-10-04), 39 tasks, n=3, 585 cells. Relative cost is the geometric mean of the per-task cost ratio against no plugins:
