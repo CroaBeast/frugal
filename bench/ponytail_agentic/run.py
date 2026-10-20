@@ -22,7 +22,7 @@ over-engineering score is a later pass.
 ponytail: the claude CLI is the harness (already installed, we run inside it). No SDK
 dependency. The CLI's JSON output already carries cost/tokens/duration/permission_denials.
 """
-import argparse, concurrent.futures, datetime, json, math, os, random, re, shutil, signal, statistics, subprocess, sys, tempfile, time
+import argparse, concurrent.futures, datetime, json, math, os, random, re, shutil, signal, statistics, subprocess, sys, tempfile, threading, time
 from collections import defaultdict
 from pathlib import Path
 
@@ -318,7 +318,13 @@ def chat_code_loc(text):
             if not s.startswith(("#", "//", "*", "/*", "*/")): code += 1
     return total, code
 
+_SCORE_LOCK = threading.Lock()   # frugal: scorers import by name via sys.path/sys.modules; parallel cells raced
+
 def score_workspace(task_id, arm, model, workdir: Path):
+    with _SCORE_LOCK:
+        return _score_workspace(task_id, arm, model, workdir)
+
+def _score_workspace(task_id, arm, model, workdir: Path):
     meta, result_text = {}, ""
     cj = workdir / "_claude.json"
     if cj.exists():
@@ -455,8 +461,8 @@ def rescore(run_dir):
     for ws in sorted(p for p in run_dir.iterdir() if p.is_dir()):
         parts = ws.name.split("__")
         if len(parts) != 4 or parts[0] not in TASKS: continue
-        tid, arm, model, _r = parts
-        results.append(score_workspace(tid, arm, model, ws))
+        tid, arm, model, r = parts
+        results.append({**score_workspace(tid, arm, model, ws), "run": int(r)})
     rows = aggregate(results)
     (run_dir / "results.json").write_text(json.dumps({"rescored": True, "results": results}, indent=2), encoding="utf-8")
     (run_dir / "summary.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
