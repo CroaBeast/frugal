@@ -235,6 +235,21 @@ frugal 0.15, six tasks of `bench.py` (2026-10-03), median cost per run in USD, n
 
 t1 cost more because this batch made every code task read `code.md`. That rule now applies on Opus and Fable only past 3 tool calls; a t1 rerun of 3 runs each came out 0.136 to 0.145 (+7%), with fewer output tokens. t4, t7, and t9 were not rerun.
 
+### Plain questions: caveman's eval, Haiku 4.5 and Sonnet 5.5
+
+Same ten questions and Sonnet judge as the Opus table below, frugal 0.18.5's `SKILL.md`, n=20 answers per arm (2026-10-21). On Haiku 18 of 60 cells returned no output when the session limit hit at the end of the batch, leaving n=14 per arm:
+
+| Model | Arm | Median output tokens | Mean output tokens | Mean characters | Mean cost per answer | Judge score |
+|---|---|---|---|---|---|---|
+| Haiku 4.5 | "Answer concisely." | 492 | 520 | 1,383 | 0.00315 | 2.21 |
+| | caveman | 778 | 785 | 1,034 | 0.00619 | 2.00 |
+| | frugal | **297** | **326** | **649** | **0.00285** | **2.29** |
+| Sonnet 5.5 | "Answer concisely." | 460 | 496 | 1,329 | 0.00752 | 3.00 |
+| | caveman | 374 | 370 | 930 | 0.00671 | 2.90 |
+| | frugal | **272** | 341 | **927** | **0.00583** | 3.00 |
+
+frugal answered shortest on both models at equal or higher judged quality: 22% cheaper than the control on Sonnet and 10% on Haiku. caveman cost twice the control on Haiku (its visible answers were shorter, its output tokens 50% higher) and scored lowest on both.
+
 ### Plain questions: caveman's eval, Opus 5.5
 
 caveman's own ten dev questions (`evals/prompts/en.txt`), each answered with a replaced system prompt: "Answer concisely." alone, plus caveman's `SKILL.md`, or plus frugal's. n=20 answers per arm; a Sonnet judge scored each answer blind, 0 to 3.
