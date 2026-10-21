@@ -202,6 +202,23 @@ Reading the Sonnet code of 0.12.6 against ponytail (2026-10-15 batch above) show
 
 On Sonnet the largest drops were `vibe-md2html` -24, `vibe-todo` -18, `tmpl-fe-command` -16, `vibe-shortener` -16, and `todo-null` -12, with every safety task still passing; `vibe-adventure` did not move. Haiku already wrote less than ponytail, so its lines barely changed. Haiku's one safety miss was 0.12.6 on `trace-transfer`. The candidate's one miss wrote `config_loader.py` to the scratchpad on `vibe-jsonconf`, an older Haiku failure the rule does not touch; 0.12.7 also names the working directory and the scratchpad in the output line of `code.md`, as `SKILL.md` already did. That last wording was not in the measured candidate.
 
+### Fixes, analysis, and heavy tasks: Haiku 4.5 and Sonnet 5.5
+
+frugal 0.12.8 from this repo (`bench.py` condition V, `--plugin-dir`) against no plugins (A), the six tasks of the Opus table below plus `t0_ok`, n=3, one batch per model (2026-10-20 to 21). Median cost per run in USD, with runs that passed each task's checks:
+
+| Task | Haiku: no plugins | frugal | Difference | Sonnet: no plugins | frugal | Difference |
+|---|---|---|---|---|---|---|
+| t0 fixed cost | 0.021 | 0.023 | +10% | 0.051 | 0.056 | +10% |
+| t1 bug fix | 0.072 | 0.072 | 0% | 0.083 | 0.085 | +2% |
+| t2 CSV question | 0.034 | 0.035 | +3% | 0.073 | 0.078 | +7% |
+| t3 support reply | 0.035 | 0.036 | +3% | 0.080 | 0.085 | +6% |
+| t5 heavy | 0.228 | 0.160 | **-30%** | 0.166 | 0.175 | +5% |
+| t6 30 contracts | 0.153 (2 of 3) | 0.152 (2 of 3) | -1% | 0.147 (2 of 3) | 0.136 (3 of 3) | -7% |
+| t8 risk review | 0.153 | 0.151 (2 runs) | -1% | 0.236 | 0.262 | +11% |
+| **Sum, t1 to t8** | **0.675** | **0.606** | **-10.1%** | **0.785** | **0.821** | **+4.6%** |
+
+On Haiku frugal pays for itself on the heavy task (-30%) and comes out even elsewhere. On Sonnet it loses 5% over the six tasks: the fixed cost (+1,243 input tokens, +0.005 USD a session in warm `t0_ok` runs, against +802 tokens on Haiku) is a large share of a 3-call task, and `t5` and `t8` did not win it back (one `t8` run cost 0.327 against a 0.262 median). frugal passed 21 of 21 on Sonnet against 20 of 21; both arms missed `t6` once on Haiku. One Haiku `t8` run of frugal was not saved.
+
 ### Fixes, analysis, and heavy tasks: Opus 5.5
 
 frugal 0.12, six tasks of `bench.py` (2026-10-03), median cost per run in USD, n=3. Every run passed every check.
@@ -217,6 +234,21 @@ frugal 0.12, six tasks of `bench.py` (2026-10-03), median cost per run in USD, n
 | **Sum** | **1.376** | **1.378** | **0%** | **16.0k to 14.3k (-11%)** |
 
 t1 cost more because this batch made every code task read `code.md`. That rule now applies on Opus and Fable only past 3 tool calls; a t1 rerun of 3 runs each came out 0.136 to 0.145 (+7%), with fewer output tokens. t4, t7, and t9 were not rerun.
+
+### Plain questions: caveman's eval, Haiku 4.5 and Sonnet 5.5
+
+Same ten questions and Sonnet judge as the Opus table below, frugal 0.12.8's `SKILL.md`, n=20 answers per arm (2026-10-21). On Haiku 18 of 60 cells returned no output when the session limit hit at the end of the batch, leaving n=14 per arm:
+
+| Model | Arm | Median output tokens | Mean output tokens | Mean characters | Mean cost per answer | Judge score |
+|---|---|---|---|---|---|---|
+| Haiku 4.5 | "Answer concisely." | 492 | 520 | 1,383 | 0.00315 | 2.21 |
+| | caveman | 778 | 785 | 1,034 | 0.00619 | 2.00 |
+| | frugal | **297** | **326** | **649** | **0.00285** | **2.29** |
+| Sonnet 5.5 | "Answer concisely." | 460 | 496 | 1,329 | 0.00752 | 3.00 |
+| | caveman | 374 | 370 | 930 | 0.00671 | 2.90 |
+| | frugal | **272** | 341 | **927** | **0.00583** | 3.00 |
+
+frugal answered shortest on both models at equal or higher judged quality: 22% cheaper than the control on Sonnet and 10% on Haiku. caveman cost twice the control on Haiku (its visible answers were shorter, its output tokens 50% higher) and scored lowest on both.
 
 ### Plain questions: caveman's eval, Opus 5.5
 

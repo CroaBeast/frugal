@@ -1,0 +1,426 @@
+{
+ "model": "haiku",
+ "caveman": "3b74643f4d91",
+ "rows": [
+  {
+   "arm": "terse",
+   "prompt": 0,
+   "rep": 0,
+   "output_tokens": 540,
+   "cost": 0.003254,
+   "chars": 1269,
+   "score": 2,
+   "answer": "# React Re-rendering Issue\n\nYour component re-renders when the parent updates because **React re-renders child components by default**, even if their props haven't changed.\n\n## Main Causes\n\n1. **Parent state/prop changes** \u2192 parent re-renders \u2192 all children re-render\n2. **New object/function references passed as props** \u2192 React treats them as \"changed\" props\n3. **No memoization in place** \u2192 no optimization preventing unnecessary renders\n\n## Solutions\n\n**1. Memoize the component** (for functional components)\n```jsx\nconst MyComponent = React.memo(({ prop }) => {\n  return <div>{prop}</div>;\n});\n```\n\n**2. Memoize callbacks with `useCallback`**\n```jsx\n// Parent\nconst handleClick = useCallback(() => {\n  // logic\n}, [dependency]);\n\n<Child onClick={handleClick} />\n```\n\n**3. Memoize values with `useMemo`**\n```jsx\nconst memoizedValue = useMemo(() => expensiveCalculation(), [deps]);\n```\n\n**4. Lift state up strategically** - Only keep state where needed to reduce parent re-renders\n\n## Quick Check\nOpen React DevTools \u2192 Profiler tab and enable \"Highlight updates when components render\" to see which components are re-rendering unnecessarily.\n\nWhich approach fits your situation? Are you passing callbacks/objects as props, or is the parent state changing frequently?"
+  },
+  {
+   "arm": "terse",
+   "prompt": 1,
+   "rep": 0,
+   "output_tokens": 483,
+   "cost": 0.002963,
+   "chars": 1526,
+   "score": 2,
+   "answer": "# Database Connection Pooling\n\n**Connection pooling** is a technique that maintains a reusable pool of database connections rather than creating new connections for each request.\n\n## How It Works\n\n1. **Pool Creation**: On startup, a pool of pre-opened connections is created\n2. **Connection Reuse**: Applications borrow connections from the pool when needed\n3. **Return to Pool**: After use, connections go back to the pool (not closed)\n4. **Waiting Queue**: If no connections are available, requests wait until one is freed\n\n## Why It Matters\n\n**Without pooling:**\n- Each request opens a new connection (expensive)\n- Each request closes the connection (resource waste)\n- Creating connections has overhead: authentication, network handshake, memory allocation\n\n**With pooling:**\n- Connections stay open and ready\n- Reuse eliminates connection overhead\n- Faster response times\n- Lower resource consumption\n\n## Key Benefits\n\n| Benefit | Impact |\n|---------|--------|\n| **Performance** | Reduces latency (no connection setup per request) |\n| **Scalability** | Handles more concurrent users with fewer resources |\n| **Resource Control** | Limits max connections (prevents server overload) |\n| **Efficiency** | Connection setup happens once, used many times |\n\n## Common Pooling Libraries\n\n- **Java**: HikariCP, Apache DBCP, C3P0\n- **Node.js**: node-mysql2, pg-pool\n- **Python**: SQLAlchemy, psycopg2-pool\n- **C#**: Built into ADO.NET\n\nConnection pooling is essential for any production application with concurrent database access."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 0,
+   "rep": 0,
+   "output_tokens": 443,
+   "cost": 0.003444,
+   "chars": 884,
+   "score": 3,
+   "answer": "React re-renders child components whenever the parent re-renders, regardless of prop changes\u2014that's the default behavior.\n\nTo prevent unnecessary re-renders:\n\n1. **`React.memo`** \u2014 memoize the child if its props didn't change:\n   ```jsx\n   export default React.memo(MyComponent);\n   ```\n\n2. **`useMemo`** \u2014 memoize expensive computations or objects passed as props in the parent:\n   ```jsx\n   const memoizedValue = useMemo(() => ({id: 1}), []);\n   ```\n\n3. **`useCallback`** \u2014 memoize functions passed as props:\n   ```jsx\n   const handleClick = useCallback(() => { /* ... */ }, []);\n   ```\n\n4. **Lift state down** \u2014 move state closer to where it's used, so fewer components re-render.\n\n`React.memo` is usually the quickest fix; wrap the child. If props are objects or functions, also memoize those in the parent with `useMemo`/`useCallback` so `React.memo` can detect no actual change."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 0,
+   "rep": 0,
+   "output_tokens": 796,
+   "cost": 0.006239,
+   "chars": 1153,
+   "score": 2,
+   "answer": "Common culprits:\n\n**1. Object/array props created inline**\n```jsx\n// \u274c New object every render \u2192 child re-renders\n<Child config={{ name: \"foo\" }} />\n\n// \u2705 Memoize it\nconst config = useMemo(() => ({ name: \"foo\" }), []);\n<Child config={config} />\n```\n\n**2. Function props created inline**\n```jsx\n// \u274c New function every render\n<Child onClick={() => doSomething()} />\n\n// \u2705 Use useCallback\nconst handleClick = useCallback(() => doSomething(), []);\n<Child onClick={handleClick} />\n```\n\n**3. Child not wrapped in `React.memo`**\n```jsx\n// Without memo, child re-renders even if props identical\nconst Child = ({ data }) => <div>{data}</div>;\n\n// With memo, only re-renders if props change\nconst Child = React.memo(({ data }) => <div>{data}</div>);\n```\n\n**4. Context value recreated every render**\n```jsx\n// \u274c New object every render\n<MyContext.Provider value={{ user, setUser }}>\n\n// \u2705 Memoize it\nconst value = useMemo(() => ({ user, setUser }), [user, setUser]);\n<MyContext.Provider value={value}>\n```\n\n**Quick fix:** Check if child's props are actually changing. Use React DevTools Profiler to see what triggered the re-render.\n\nWhich scenario matches yours?"
+  },
+  {
+   "arm": "frugal",
+   "prompt": 1,
+   "rep": 0,
+   "output_tokens": 204,
+   "cost": 0.002242,
+   "chars": 462,
+   "score": 2,
+   "answer": "Connection pooling maintains a reusable set of open database connections instead of creating a new one per request, eliminating the overhead of connection startup (authentication, resource allocation) for each operation.\n\nA pool holds idle connections ready to use; requests grab one, release it when done (staying open), and the next request reuses it. Pools limit concurrent connections to prevent resource exhaustion and can evict stale or failed connections."
+  },
+  {
+   "arm": "terse",
+   "prompt": 2,
+   "rep": 0,
+   "output_tokens": 434,
+   "cost": 0.002719,
+   "chars": 1288,
+   "score": 3,
+   "answer": "# TCP vs UDP\n\n## **TCP (Transmission Control Protocol)**\n- **Connection-oriented**: Establishes connection before sending data (3-way handshake)\n- **Reliable**: Guarantees all data arrives in order, or notifies of failure\n- **Slower**: Overhead from connection management and acknowledgments\n- **Ordered**: Packets arrive in the order sent\n- **Error checking**: Extensive\n- **Header**: 20+ bytes\n- **Use cases**: Email, web browsing, file transfers, banking\n\n## **UDP (User Datagram Protocol)**\n- **Connectionless**: Sends data directly without establishing connection\n- **Unreliable**: No guarantee data arrives; packets can be lost or duplicated\n- **Faster**: Minimal overhead\n- **Unordered**: Packets may arrive out of order\n- **Error checking**: Minimal (just checksum)\n- **Header**: 8 bytes\n- **Use cases**: Video streaming, online gaming, VoIP, DNS queries, live broadcasting\n\n## **Quick Comparison**\n\n| Feature | TCP | UDP |\n|---------|-----|-----|\n| **Speed** | Slower | Faster |\n| **Reliability** | Guaranteed delivery | Best effort |\n| **Connection** | Required | Not needed |\n| **Overhead** | Higher | Lower |\n\n**Bottom line**: Use TCP when reliability matters (data must arrive correctly), use UDP when speed matters and occasional loss is acceptable (real-time applications)."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 1,
+   "rep": 0,
+   "output_tokens": 738,
+   "cost": 0.005949,
+   "chars": 516,
+   "score": 2,
+   "answer": "Pool reuse open DB connections. No new connection per request. Skip handshake overhead.\n\nEach new connection: TCP handshake, auth, setup cost. Pool keep idle connections ready. Request grab one, run query, return to pool. Connection stay open. Next request reuse same connection, instant.\n\nBenefit: faster response, lower CPU/network load on DB.\n\nConfigure: pool size, idle timeout, max wait time. Too small pool = requests queue. Too large = waste memory.\n\nCommon: HikariCP (Java), psycopg2 (Python), mysql2 (Node)."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 2,
+   "rep": 0,
+   "output_tokens": 997,
+   "cost": 0.0072429999999999994,
+   "chars": 466,
+   "score": 2,
+   "answer": "**TCP**\nConnection-oriented (handshake first). Reliable\u2014retransmit lost packets. Ordered delivery. Flow control, error checking. Overhead cost. Use: email, HTTP, SSH, file transfer. When all data must arrive intact.\n\n**UDP**\nConnectionless (send immediately). Unreliable\u2014no retransmit. Unordered packets possible. Fast, low overhead. Use: video/audio streaming, online gaming, DNS. When speed > reliability.\n\n**Pick TCP** = need guarantee. **Pick UDP** = need speed."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 2,
+   "rep": 0,
+   "output_tokens": 223,
+   "cost": 0.002337,
+   "chars": 482,
+   "score": 3,
+   "answer": "TCP is connection-oriented and reliable; UDP is connectionless and fast.\n\n**TCP** (Transmission Control Protocol): Establishes a connection before sending data, guarantees delivery in order, detects errors, uses acknowledgments. Slower overhead. Used for email, web, file transfer.\n\n**UDP** (User Datagram Protocol): Sends packets without connection setup, no delivery guarantee, no error recovery, minimal overhead. Lower latency. Used for video streaming, online games, DNS, VoIP."
+  },
+  {
+   "arm": "terse",
+   "prompt": 3,
+   "rep": 0,
+   "output_tokens": 575,
+   "cost": 0.003431,
+   "chars": 1605,
+   "score": 2,
+   "answer": "# Fixing Memory Leaks in Node.js\n\n## Detection\n1. **Monitor memory usage** over time:\n   ```javascript\n   setInterval(() => {\n     const usage = process.memoryUsage();\n     console.log(`Heap: ${Math.round(usage.heapUsed / 1024 / 1024)}MB`);\n   }, 5000);\n   ```\n\n2. **Use profiling tools**:\n   - Chrome DevTools: `node --inspect app.js` then visit `chrome://inspect`\n   - Clinic.js: `npm install -g clinic` \u2192 `clinic doctor -- node app.js`\n\n## Common Causes & Fixes\n\n| Issue | Solution |\n|-------|----------|\n| **Unreleased timers** | Clear intervals/timeouts: `clearInterval()`, `clearTimeout()` |\n| **Event listener buildup** | Remove listeners: `emitter.removeListener()` or `.off()` |\n| **Circular references** | Nullify refs when done: `obj = null` |\n| **Large caches** | Implement size limits or TTL (use `lru-cache` module) |\n| **Global variables** | Avoid accidental globals in loops |\n| **Database connections** | Properly close connections in error handlers |\n\n## Quick Debugging\n```javascript\n// Take heap snapshots at intervals\nconst fs = require('fs');\nconst v8 = require('v8');\n\nsetInterval(() => {\n  const snapshot = v8.writeHeapSnapshot();\n  console.log(`Heap snapshot: ${snapshot}`);\n}, 60000); // Every minute\n```\n\n## Best Practices\n- Use async/await instead of nested callbacks (better memory management)\n- Enable `--max-old-space-size` flag if needed (temp workaround, not a fix)\n- Regular code reviews for forgotten cleanup\n- Unit tests with memory profiling in CI/CD\n\n**What type of process are you debugging?** (server, worker, stream processor) I can provide more specific guidance."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 3,
+   "rep": 0,
+   "output_tokens": 912,
+   "cost": 0.0068249999999999995,
+   "chars": 1831,
+   "score": 1,
+   "answer": "# Node.js Memory Leak Fixes\n\n## Common Causes & Solutions\n\n**1. Event Listeners Not Removed**\n```javascript\n// \u274c Leak\nemitter.on('event', handler);\n\n// \u2705 Fix\nemitter.on('event', handler);\n// Later:\nemitter.removeListener('event', handler);\n// or use once() for single-fire listeners\nemitter.once('event', handler);\n```\n\n**2. Timers Left Running**\n```javascript\n// \u274c Leak\nsetInterval(() => { /* ... */ }, 1000);\n\n// \u2705 Fix\nconst id = setInterval(() => { /* ... */ }, 1000);\n// Clear when done:\nclearInterval(id);\n```\n\n**3. Circular References in Closures**\n```javascript\n// \u274c Leak\nfunction createWorker() {\n  const large = Buffer.alloc(1024 * 1024);\n  return {\n    work: () => console.log(large.length)\n  };\n}\n\n// \u2705 Fix - extract what you need\nfunction createWorker() {\n  const size = (Buffer.alloc(1024 * 1024)).length;\n  return {\n    work: () => console.log(size)\n  };\n}\n```\n\n**4. Unbounded Cache**\n```javascript\n// \u274c Leak\nconst cache = new Map();\nfunction store(key, value) {\n  cache.set(key, value); // grows forever\n}\n\n// \u2705 Fix\nimport LRU from 'lru-cache';\nconst cache = new LRU({ max: 500 });\n```\n\n## Debugging Tools\n\n- **Clinic.js**: `clinic doctor` \u2014 identifies memory, CPU, event loop issues\n- **Node Inspector**: `node --inspect app.js` \u2192 chrome://inspect\n- **Heap Snapshots**: Take two snapshots during operation, compare with Chrome DevTools\n\n## Heap Snapshot Process\n```bash\nnode --expose-gc --inspect app.js\n# In Chrome DevTools:\n# 1. Take initial heap snapshot\n# 2. Run operations that trigger leak\n# 3. Force garbage collection (gc button)\n# 4. Take second snapshot\n# 5. Filter \"detached\" objects in comparison\n```\n\n**Quick wins:** Audit event listeners, clear intervals/timeouts on shutdown, use `.once()` where appropriate, set cache size limits.\n\nWhat aspect of your process is leaking\u2014specific pattern or unknown?"
+  },
+  {
+   "arm": "frugal",
+   "prompt": 3,
+   "rep": 0,
+   "output_tokens": 511,
+   "cost": 0.0037819999999999998,
+   "chars": 1223,
+   "score": 2,
+   "answer": "**Isolate the leak first:** use a heap snapshot tool (`--inspect` flag + Chrome DevTools, or `clinic.js`) to compare memory before and after a suspect operation; look for growing object counts.\n\n**Common causes and fixes:**\n- **Event listeners:** remove listeners with `.removeListener()` or `.off()` when done; use `.once()` for single events.\n- **Timers:** clear intervals/timeouts with `clearInterval()` or `clearTimeout()`.\n- **Closures:** ensure callbacks don't retain unneeded scopes; reassign large objects to `null` when done.\n- **Global references:** avoid accumulating data in globals; use weak maps (`WeakMap`, `WeakSet`) for caches.\n- **Stream backpressure:** handle `drain` events and respect `highWaterMark` to prevent buffering.\n- **Database connections:** close or limit pool size; reuse connections, don't create new ones per request.\n\n**Tools:**\n- `node --inspect` \u2192 Chrome DevTools (Memory tab, heap snapshots)\n- `clinic.js` \u2192 real-time monitoring\n- `autocannon` + memory profiling \u2192 load test + detect growth\n- `memlab` (Meta) \u2192 automated heap analysis\n\n**Workflow:** take heap snapshot at baseline, trigger suspected code 100 times, take another snapshot, compare retained objects and their references."
+  },
+  {
+   "arm": "terse",
+   "prompt": 4,
+   "rep": 0,
+   "output_tokens": 462,
+   "cost": 0.002863,
+   "chars": 1354,
+   "score": 2,
+   "answer": "# SQL EXPLAIN Command\n\nThe **EXPLAIN** command shows you the **execution plan** for a SQL query \u2014 essentially how the database engine will execute it.\n\n## Key Information It Provides:\n\n- **Access methods**: Whether it uses table scans, index scans, etc.\n- **Join strategy**: How tables will be joined (nested loop, hash join, merge join)\n- **Estimated costs**: CPU and I/O resource estimates\n- **Row counts**: Estimated number of rows processed at each step\n- **Filtering**: Which WHERE clauses are applied and when\n- **Sorting/Grouping**: Operations like ORDER BY, GROUP BY\n- **Index usage**: Which indexes (if any) are being used\n\n## Why It's Useful:\n\n- **Performance tuning**: Identify slow queries and bottlenecks\n- **Optimization**: Spot missing indexes or inefficient joins\n- **Understanding behavior**: See if the optimizer's choices match your expectations\n- **Query validation**: Verify queries run efficiently before deploying\n\n## Example:\n```sql\nEXPLAIN SELECT * FROM users WHERE age > 30;\n```\n\n## Database Variations:\n\n- **PostgreSQL**: `EXPLAIN` and `EXPLAIN ANALYZE` (the latter actually runs the query)\n- **MySQL**: `EXPLAIN` shows the execution plan\n- **SQL Server**: `SET STATISTICS IO ON` or execution plans in Management Studio\n- **SQLite**: `EXPLAIN QUERY PLAN`\n\nDifferent databases have slightly different output formats and options."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 4,
+   "rep": 0,
+   "output_tokens": 790,
+   "cost": 0.006209000000000001,
+   "chars": 1192,
+   "score": 2,
+   "answer": "# SQL EXPLAIN\n\n**Shows the database query execution plan** \u2014 how the database engine will execute your query, not the results.\n\n## What you learn:\n\n1. **Access method** \u2014 table scan (full table), index scan, index seek, etc.\n2. **Join order** \u2014 which tables join first, which second\n3. **Estimated rows** \u2014 how many rows the engine predicts at each step\n4. **Cost** \u2014 CPU and I/O expense (relative units, varies by DB)\n5. **Filters & predicates** \u2014 where clauses applied at each stage\n6. **Index usage** \u2014 whether indexes are used or ignored\n\n## Common uses:\n\n- **Find slow queries** \u2014 pinpoint expensive operations\n- **Spot missing indexes** \u2014 full table scans when index would help\n- **Understand join strategy** \u2014 is it nesting loops, hash, merge?\n- **Cardinality issues** \u2014 query plan wrong because row estimates off\n\n## Basic syntax:\n\n```sql\nEXPLAIN SELECT * FROM users WHERE age > 30;\n```\n\nOr verbose mode (varies by DB):\n```sql\nEXPLAIN ANALYZE SELECT ...;  -- PostgreSQL: runs query + actual stats\nEXPLAIN FORMAT=JSON SELECT ...; -- MySQL: JSON output\n```\n\nNot the result rows themselves \u2014 it's the *blueprint* of how to get them. Helps diagnose performance problems before query runs."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 4,
+   "rep": 0,
+   "output_tokens": 234,
+   "cost": 0.002392,
+   "chars": 404,
+   "score": 2,
+   "answer": "EXPLAIN shows the query execution plan\u2014how the database will execute your query, including which indexes it uses, join methods, row estimates, and costs.\n\nRun `EXPLAIN SELECT ...` to see the plan before execution; `EXPLAIN ANALYZE` (PostgreSQL) or `EXPLAIN FORMAT=JSON` (MySQL) to see actual runtime stats after execution. Use it to spot missing indexes, poor join orders, or table scans on large tables."
+  },
+  {
+   "arm": "terse",
+   "prompt": 5,
+   "rep": 0,
+   "output_tokens": 495,
+   "cost": 0.0030219999999999995,
+   "chars": 1456,
+   "score": 2,
+   "answer": "# Hash Table Collision Handling\n\nWhen two different keys hash to the same index, that's a collision. Here are the main strategies:\n\n## 1. **Chaining (Separate Chaining)**\n- Store a linked list (or other collection) at each hash table index\n- When collisions occur, append the new entry to that bucket's list\n- Simple to implement, but uses extra memory for pointers\n- Lookup time: O(1) average case, O(n) worst case\n\n```\nIndex 0: [key1\u2192val1] \u2192 [key2\u2192val2] \u2192 [key3\u2192val3]\nIndex 1: [key4\u2192val4]\nIndex 2: (empty)\n```\n\n## 2. **Open Addressing (Probing)**\n- Store entries directly in the table; if a slot is taken, find another one\n- **Linear probing**: Check next slot, then next, etc.\n- **Quadratic probing**: Check slots at increasing intervals (1, 4, 9, 16...)\n- **Double hashing**: Use a second hash function to compute probe intervals\n- More memory-efficient but can degrade performance when table gets full\n\n## 3. **Double Hashing**\n- Use two hash functions; if the first causes collision, apply the second\n- Reduces clustering patterns compared to linear/quadratic probing\n\n## Trade-offs\n\n| Method | Pros | Cons |\n|--------|------|------|\n| **Chaining** | Simple, works well even when full | Extra memory (pointers) |\n| **Open Addressing** | Memory efficient | Degrades with high load factor |\n\n**Load factor** (entries / table size) is critical\u2014most implementations resize when it exceeds a threshold (often 0.7-0.75).\n\nWhich approach interests you most?"
+  },
+  {
+   "arm": "caveman",
+   "prompt": 5,
+   "rep": 0,
+   "output_tokens": 519,
+   "cost": 0.0048579999999999995,
+   "chars": 1113,
+   "score": 2,
+   "answer": "Hash tables use two main approaches:\n\n**Chaining**\nStore colliding entries in linked list at bucket. On lookup, scan list. Simple, handles load factor > 1. Cost: extra memory for pointers, cache misses on long chains.\n\n**Open addressing**\nWhen slot occupied, probe for next empty slot. Methods:\n- Linear probing: check next slot, next, next. Fast but clusters.\n- Quadratic probing: check slot + 1\u00b2, slot + 2\u00b2, etc. Reduce clustering, but may miss empty slots if table > 50% full.\n- Double hashing: use second hash function to step. Best distribution, more computation.\n\n**Trade-offs**\n\n| Method | Pros | Cons |\n|--------|------|------|\n| Chaining | Handles high load, simple | Extra memory, pointer chasing |\n| Linear probing | Cache-friendly, compact | Clustering |\n| Double hashing | Good distribution | Slower (2 hash calls) |\n\nMost production hash tables use chaining or double hashing. Load factor (entries / buckets) stay low \u2014 typically resize when > 0.75. Resize = rebuild table with larger capacity.\n\nJava `HashMap` = chaining. Python `dict` = open addressing (quadratic). C++ `unordered_map` = chaining."
+  },
+  {
+   "arm": "terse",
+   "prompt": 6,
+   "rep": 0,
+   "output_tokens": 470,
+   "cost": 0.002901,
+   "chars": 1263,
+   "score": 2,
+   "answer": "# CORS Errors - Common Causes & Solutions\n\n**CORS (Cross-Origin Resource Sharing) errors** occur when your browser blocks requests from your frontend to a different domain/port for security reasons.\n\n## Common causes:\n\n1. **Different origin** - Frontend and backend on different domains/ports\n   - `http://localhost:3000` \u2192 `http://localhost:5000` \u274c\n   - `https://example.com` \u2192 `https://api.example.com` \u274c\n\n2. **Missing CORS headers** - Backend doesn't include proper headers:\n   ```\n   Access-Control-Allow-Origin: *\n   Access-Control-Allow-Methods: GET, POST, etc.\n   Access-Control-Allow-Headers: Content-Type, etc.\n   ```\n\n3. **Credentials issue** - Sending cookies/auth without proper headers\n\n## Quick fixes:\n\n- **Backend**: Add CORS headers to responses\n  - Express: `npm install cors` \u2192 `app.use(cors())`\n  - Other frameworks have similar middleware\n\n- **Development**: Use a proxy in your frontend config\n  - Next.js/Create React App: Add `\"proxy\"` in `package.json`\n\n- **Temporary dev workaround**: Browser extensions (not for production)\n\n## To help you further, I need:\n- What's your frontend URL?\n- What API endpoint are you calling?\n- What's your backend framework?\n- Full error message from console?\n\nShare details and I can provide specific code!"
+  },
+  {
+   "arm": "frugal",
+   "prompt": 5,
+   "rep": 0,
+   "output_tokens": 342,
+   "cost": 0.002935,
+   "chars": 668,
+   "score": 2,
+   "answer": "Hash tables handle collisions using two main strategies:\n\n1. **Chaining**: Store colliding items in a linked list (or other structure) at each bucket. On collision, append to the list; lookup searches the list.\n\n2. **Open addressing**: Probe for an empty slot using a sequence (linear probing: next slot; quadratic probing: next\u00b2; double hashing: alternate hash function). Insert at first empty slot found; lookup follows the same probe sequence.\n\nChaining is simpler and scales better with high load factors; open addressing wastes less memory but performs worse under collisions. Other variants like cuckoo hashing and Robin Hood hashing optimize specific scenarios."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 6,
+   "rep": 0,
+   "output_tokens": 501,
+   "cost": 0.0037290000000000005,
+   "chars": 1140,
+   "score": 2,
+   "answer": "CORS errors occur when your browser blocks a request from one origin (scheme + domain + port) to a different origin for security reasons.\n\n**Common causes:**\n\n1. **Missing `Access-Control-Allow-Origin` header** \u2014 the target server isn't allowing requests from your origin. The server needs to send this header in its response.\n\n2. **Credentials not allowed** \u2014 if your request includes cookies/auth and the server doesn't return `Access-Control-Allow-Credentials: true`.\n\n3. **Wrong preflight response** \u2014 for complex requests (POST with custom headers, etc.), the browser sends an OPTIONS preflight check first; the server must respond to it.\n\n4. **Disallowed headers/methods** \u2014 server needs `Access-Control-Allow-Headers` or `Access-Control-Allow-Methods`.\n\n**Quick fixes:**\n\n- **If you control the target server:** add the correct CORS headers (or use a CORS middleware).\n- **If you don't:** use a proxy server you control, or ask the API owner to enable CORS.\n- **In development:** some tools (like `http-server` with `--cors` flag) can add headers.\n\nWhat's the exact error message, and what origin/URL pair are you requesting between?"
+  },
+  {
+   "arm": "caveman",
+   "prompt": 6,
+   "rep": 0,
+   "output_tokens": 1216,
+   "cost": 0.008341000000000001,
+   "chars": 564,
+   "score": 2,
+   "answer": "CORS error = browser block cross-origin request. Server missing headers.\n\n**Common causes:**\n- Frontend domain \u2260 API domain (e.g., `localhost:3000` calls `localhost:5000`)\n- Backend missing `Access-Control-Allow-Origin` header\n- Request method (POST/PUT/DELETE) not in `Access-Control-Allow-Methods`\n- Custom headers not in `Access-Control-Allow-Headers`\n- Credentials needed but no `Access-Control-Allow-Credentials: true`\n\n**Fix:** Add CORS headers to API responses. Share your frontend code + server setup (framework, current headers if any) for exact solution."
+  },
+  {
+   "arm": "terse",
+   "prompt": 7,
+   "rep": 0,
+   "output_tokens": 622,
+   "cost": 0.003667,
+   "chars": 1147,
+   "score": 3,
+   "answer": "# Debouncing Search Inputs\n\nThe main benefits are:\n\n## **Reduces API Calls**\nWithout debouncing, every keystroke triggers a request. Typing \"javascript\" makes 10 requests. With debouncing (e.g., 300ms delay), you get 1-2 requests instead.\n\n## **Performance & Cost**\n- Fewer server queries = lower CPU usage and bandwidth\n- Reduces expenses if you're charged per API call\n- Client side is more responsive\n\n## **Better UX**\n- Eliminates flickering/lag from constant updates\n- Users get results after they pause typing (when they're actually ready to see them)\n\n## **How It Works**\n```javascript\n// Pseudocode\nfunction debounce(fn, delay) {\n  let timeoutId;\n  return function(...args) {\n    clearTimeout(timeoutId);  // Cancel previous timer\n    timeoutId = setTimeout(() => fn(...args), delay);  // Set new timer\n  };\n}\n\nconst debouncedSearch = debounce(performSearch, 300);\nsearchInput.addEventListener('input', debouncedSearch);\n```\n\nEach keystroke resets the timer\u2014the function only executes when the user stops typing for the specified delay.\n\n**TL;DR**: Debouncing prevents hammering your server with a request for every single character typed."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 7,
+   "rep": 0,
+   "output_tokens": 649,
+   "cost": 0.005509,
+   "chars": 350,
+   "score": 3,
+   "answer": "Reduce API calls. Without debounce: each keystroke fires search request (wasteful). With debounce: fire only after user stops typing (~300ms). Saves network, server load. Better UX\u2014no lag, no partial-query spam.\n\nCommon debounce times: 300\u2013500ms. User type, pause, results fetch. Type again before results return? Cancel old request, start new timer."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 7,
+   "rep": 0,
+   "output_tokens": 186,
+   "cost": 0.002153,
+   "chars": 273,
+   "score": 2,
+   "answer": "Debouncing delays search execution until the user stops typing, reducing unnecessary API calls and server load.\n\nWithout it, a search request fires on every keystroke; with it, only when the user pauses (typically 300\u2013500ms), cutting requests from dozens to one per search."
+  },
+  {
+   "arm": "terse",
+   "prompt": 8,
+   "rep": 0,
+   "output_tokens": 444,
+   "cost": 0.0027670000000000004,
+   "chars": 1086,
+   "score": 2,
+   "answer": "# git merge vs git rebase\n\n## **git merge**\n- **Creates a merge commit** that ties two branches together\n- **Preserves history** of both branches\n- Results in a **non-linear history** with branching points\n\n```bash\ngit merge branch-name\n```\n\n**Pros:** Safe, preserves complete history, easy to understand\n**Cons:** Can create cluttered commit history\n\n---\n\n## **git rebase**\n- **Replays your commits** on top of another branch\n- **Rewrites history** by moving commits\n- Results in a **clean, linear history**\n\n```bash\ngit rebase branch-name\n```\n\n**Pros:** Cleaner, linear history, easier to review\n**Cons:** Rewrites history (problematic if commits are already shared), can be confusing\n\n---\n\n## **Visual Comparison**\n\n**After merge:**\n```\n    A---B---C (feature)\n   /         \\\n--D---E---F---G (main)\n```\n\n**After rebase:**\n```\n--D---E---F---A'---B'---C' (main)\n```\n\n---\n\n## **When to use:**\n- **Merge:** Public/shared branches, collaborative work\n- **Rebase:** Local branches, keeping history clean before pushing\n\n**Golden rule:** Don't rebase commits that have been pushed publicly."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 8,
+   "rep": 0,
+   "output_tokens": 265,
+   "cost": 0.002546,
+   "chars": 414,
+   "score": 3,
+   "answer": "**Merge** combines branch histories into a new merge commit; **rebase** replays one branch's commits on top of another, rewriting history.\n\n**Merge** preserves the full history and creates a branching graph. **Rebase** linearizes commits but rewrites their hashes, so don't use it on shared branches. Use merge for long-lived branches or collaboration; rebase for cleaning up local feature branches before merging."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 8,
+   "rep": 0,
+   "output_tokens": 927,
+   "cost": 0.006895,
+   "chars": 1160,
+   "score": 3,
+   "answer": "# git merge vs git rebase\n\n| Aspect | merge | rebase |\n|--------|-------|--------|\n| **Result** | Combines branches, creates merge commit | Replays your commits on top of target branch |\n| **History** | Non-linear, shows branches | Linear, cleaner history |\n| **Use case** | Integrating finished features | Cleaning up local commits before push |\n| **Safety** | Safer\u2014preserves all history | Rewrites history\u2014don't use on public branches |\n\n## Merge\n```bash\ngit merge feature-branch\n```\n- Creates a **merge commit** linking two branches\n- History shows both parallel development paths\n- Safe for shared/public branches\n\n## Rebase\n```bash\ngit rebase main\n```\n- **Replays** your commits on top of `main`\n- Rewrites commit history\u2014your commits get new SHAs\n- Results in linear, readable history\n- **Never rebase commits already pushed** to shared repos (breaks others' work)\n\n## When to use\n- **Merge**: Pull requests, integrating feature branches into main, shared branches\n- **Rebase**: Clean up local work before pushing, interactive rebase (`git rebase -i`) to squash/edit commits\n\n**Golden rule:** Rebase private/local branches. Merge public/shared branches."
+  },
+  {
+   "arm": "terse",
+   "prompt": 9,
+   "rep": 0,
+   "output_tokens": 563,
+   "cost": 0.003367,
+   "chars": 1502,
+   "score": 2,
+   "answer": "# Queues vs Topics in Messaging Systems\n\n## **Use a Queue when:**\n- **One consumer processes each message** \u2014 Point-to-point communication\n- **Work distribution** \u2014 Distribute tasks across multiple workers (each task goes to one worker)\n- **Task processing** \u2014 Job queues, order processing, email sending\n- **Sequential reliability** \u2014 You need guaranteed ordering and delivery\n- **Examples:** Background job processing, request handling\n\n## **Use a Topic when:**\n- **Multiple subscribers need the same message** \u2014 Pub/Sub pattern\n- **Event broadcasting** \u2014 Many services react to the same event\n- **Decoupled systems** \u2014 Publishers don't know/care about subscribers\n- **Real-time notifications** \u2014 Alert multiple systems simultaneously\n- **Examples:** Order placed \u2192 notify inventory, billing, shipping simultaneously\n\n## **Quick Comparison**\n\n| Aspect | Queue | Topic |\n|--------|-------|-------|\n| Consumers | One per message | Many (subscribers) |\n| Coupling | Tighter | Looser |\n| Message lifecycle | Consumed \u2192 removed | Broadcast to all |\n| Use case | Work distribution | Event notification |\n| Ordering | Often guaranteed | May vary |\n\n## **Practical Tips**\n- **Queue:** \"Do this job\" (imperative)\n- **Topic:** \"This happened\" (declarative)\n- Many systems use **both** \u2014 topics publish events, queues handle async work\n- Consider **fan-out pattern:** Topic \u2192 Multiple Queues (broadcast to different worker pools)\n\nWhich messaging system are you considering? (RabbitMQ, Kafka, AWS SNS/SQS, etc.)"
+  },
+  {
+   "arm": "caveman",
+   "prompt": 9,
+   "rep": 0,
+   "output_tokens": 655,
+   "cost": 0.0055379999999999995,
+   "chars": 1519,
+   "score": 2,
+   "answer": "# Queue vs Topic\n\n| Aspect | Queue | Topic |\n|--------|-------|-------|\n| **Pattern** | Point-to-point | Publish-subscribe |\n| **Consumption** | One consumer per message | Multiple consumers per message |\n| **Message fate** | Deleted after consumption | Broadcast to all subscribers |\n| **Order** | FIFO guaranteed | Per-subscriber, usually recent only |\n| **Use case** | Task distribution, work queues | Events, notifications, state broadcast |\n\n## Use Queue when:\n- **Single destination**: One service processes the message\n- **Guaranteed delivery**: Must know message was processed\n- **Order matters**: Tasks have dependencies or sequence requirement\n- **Load balancing**: Distribute work across multiple workers on same queue\n\nExamples: job processing, order fulfillment, payment transactions, email sending\n\n## Use Topic when:\n- **Multiple consumers**: Many services react to same event\n- **Publisher agnostic**: Don't know or care who consumes\n- **Broadcast**: \"This happened\" notification, not \"do this task\"\n- **Event-driven**: Decoupled microservices responding to domain events\n\nExamples: user signup event, order placed event, metrics published, configuration changed\n\n## Hybrid approach:\nMany systems combine both. Topic publishes event \u2192 each interested service has its own queue subscribed to that topic. Gives broadcast flexibility + guaranteed delivery per consumer.\n\n**Framework examples**: RabbitMQ (both), Kafka (topic-first), AWS SQS (queue) + SNS (topic), Google Pub/Sub (topic with subscriptions)."
+  },
+  {
+   "arm": "terse",
+   "prompt": 0,
+   "rep": 1,
+   "output_tokens": 641,
+   "cost": 0.003756,
+   "chars": 1399,
+   "score": 2,
+   "answer": "# React Re-render Issue\n\nBy default, when a parent component re-renders, **all its children re-render too**, regardless of whether their props changed. Here are the main causes and solutions:\n\n## Common Causes\n\n1. **Parent state updated** \u2014 Even if child props didn't change, child still re-renders\n2. **New function/object references** \u2014 Passing `onClick={() => ...}` or `obj={{}}` creates new references each render\n3. **Context changes** \u2014 All Context consumers re-render when context value changes\n4. **Unrelated state** \u2014 Parent re-rendering due to unrelated state updates\n\n## Solutions\n\n### 1. **Memoize the component** (most common fix)\n```jsx\nconst ChildComponent = React.memo(({ prop1, prop2 }) => {\n  return <div>{prop1}</div>;\n});\n```\n\n### 2. **Memoize callbacks and objects**\n```jsx\nconst ParentComponent = () => {\n  const handleClick = useCallback(() => {\n    // do something\n  }, [dependency]);\n  \n  const config = useMemo(() => ({ key: 'value' }), []);\n  \n  return <ChildComponent onClick={handleClick} config={config} />;\n};\n```\n\n### 3. **Check what props actually changed**\nUse React DevTools Profiler to identify which props are changing unexpectedly.\n\n### 4. **Split state strategically**\nMove state closer to where it's needed to avoid unnecessary parent re-renders.\n\n**Which solution fits your use case?** Share your parent/child component structure if you need specific advice."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 9,
+   "rep": 0,
+   "output_tokens": 246,
+   "cost": 0.002455,
+   "chars": 424,
+   "score": 2,
+   "answer": "**Queue** for point-to-point: one producer, one consumer per message; use when you need guaranteed delivery to a single handler (tasks, jobs, work distribution).\n\n**Topic** for pub-sub: one producer, multiple consumers each get the message; use when multiple systems need the same event (notifications, state broadcasts, event streams).\n\nChoose queue if consumers compete for work; topic if they all need independent copies."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 0,
+   "rep": 1,
+   "output_tokens": 418,
+   "cost": 0.0033170000000000005,
+   "chars": 705,
+   "score": 2,
+   "answer": "React re-renders a child whenever its parent re-renders, **unless the child is memoized or props/context don't change**. Culprits:\n\n1. **New object/function references on each render** \u2014 parent creates `{ key: value }` or `() => {}` inline, passed as props\n2. **Context changes** \u2014 child consumes context that updates; entire tree re-renders\n3. **No memoization** \u2014 wrap child with `React.memo()` if props are stable\n4. **Key prop** \u2014 missing or non-unique keys in lists cause re-renders\n\n**Quick fixes:**\n- Use `React.memo(MyComponent)` \n- Move object/function props outside component or wrap with `useCallback`/`useMemo`\n- Check context: split into smaller context slices\n\nShow your code to pinpoint it?"
+  },
+  {
+   "arm": "caveman",
+   "prompt": 0,
+   "rep": 1,
+   "output_tokens": 716,
+   "cost": 0.0058390000000000004,
+   "chars": 1105,
+   "score": 2,
+   "answer": "Parent re-render cascade to child by default. React re-renders all children when parent state change, even if child props stay same.\n\n**Causes:**\n\n1. **No memoization** \u2014 child render on every parent update\n2. **Inline prop objects/functions** \u2014 new reference each render = prop differ = re-render\n   ```jsx\n   // Bad: new object every render\n   <Child config={{ color: 'red' }} />\n   \n   // Good: stable reference\n   const config = useMemo(() => ({ color: 'red' }), []);\n   <Child config={config} />\n   ```\n3. **Function props** \u2014 same issue\n   ```jsx\n   // Bad\n   <Child onClick={() => doThing()} />\n   \n   // Good\n   const handleClick = useCallback(() => doThing(), []);\n   <Child onClick={handleClick} />\n   ```\n\n**Fixes:**\n\n- **React.memo** \u2014 wrap child, skip render if props identical\n  ```jsx\n  const Child = React.memo(({ prop }) => <div>{prop}</div>);\n  ```\n- **useMemo** \u2014 stabilize object/array props\n- **useCallback** \u2014 stabilize function props\n- **Key prop** \u2014 if list rendering, use stable unique key\n\nMost common: inline object prop or missing `React.memo` on child.\n\nWhich pattern hit you?"
+  },
+  {
+   "arm": "terse",
+   "prompt": 1,
+   "rep": 1,
+   "output_tokens": 477,
+   "cost": 0.00293,
+   "chars": 1785,
+   "score": 2,
+   "answer": "# Database Connection Pooling\n\nDatabase connection pooling is a technique that maintains a set of reusable database connections rather than creating new ones for each request.\n\n## How It Works\n\nInstead of establishing a fresh connection each time your application needs database access, a pool:\n1. **Pre-creates** a set of connections during initialization\n2. **Reuses** existing connections from the pool when requests arrive\n3. **Returns** connections to the pool when done (rather than closing them)\n4. **Creates new connections** if the pool is exhausted and max size allows\n\n## Key Benefits\n\n| Benefit | Impact |\n|---------|--------|\n| **Performance** | Eliminates connection overhead; creating connections is expensive |\n| **Resource efficiency** | Limits total open connections; prevents resource exhaustion |\n| **Scalability** | Allows handling many concurrent requests with limited connections |\n| **Responsiveness** | Faster request processing without connection setup delay |\n\n## Basic Configuration\n\nTypical pool parameters:\n- **Min pool size**: Always-open connections (e.g., 5)\n- **Max pool size**: Maximum connections allowed (e.g., 20)\n- **Timeout**: How long to wait for an available connection\n- **Idle timeout**: When to close unused connections\n\n## Example Flow\n\n```\nRequest 1 \u2192 Grab connection from pool \u2192 Use it \u2192 Return to pool\nRequest 2 \u2192 Grab same connection \u2192 Use it \u2192 Return to pool\nRequest 3 \u2192 Grab new connection (if available) \u2192 Use \u2192 Return\n```\n\n## Common Implementations\n\n- **Java**: HikariCP, JDBC pools\n- **Node.js**: node-postgres pool, MySQL pool\n- **Python**: SQLAlchemy pool\n- **C#**: ADO.NET connection pooling (built-in)\n\nConnection pooling is a standard best practice in production applications to balance performance with resource consumption."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 1,
+   "rep": 1,
+   "output_tokens": 516,
+   "cost": 0.004836,
+   "chars": 851,
+   "score": 2,
+   "answer": "Pool reuse open DB connections. No new connection per request. Skip handshake overhead.\n\n**How it works:**\n- Client request arrives\n- Pool checks available connection\n- If open, hand off connection; request execute; connection return to pool\n- If none available, wait or create new (up to limit)\n- Idle connections close after timeout\n\n**Why matter:**\n- TCP handshake expensive (network round-trip)\n- Auth/encryption setup each new connection cost CPU\n- Fewer total connections = less memory, easier server load\n\n**Config knobs:**\n- Min pool size (keep warm)\n- Max pool size (cap resource use)\n- Connection timeout (how long wait if none free)\n- Idle timeout (close unused connections)\n\n**Tools:**\nMost frameworks handle auto: Spring (HikariCP), Node (connection-pool library), Python (SQLAlchemy), Go (sql.DB). Config via env vars or code, not magic."
+  },
+  {
+   "arm": "terse",
+   "prompt": 2,
+   "rep": 1,
+   "output_tokens": 490,
+   "cost": 0.003,
+   "chars": 1138,
+   "score": 3,
+   "answer": "# TCP vs UDP\n\n## **TCP (Transmission Control Protocol)**\n- **Connection-oriented**: Establishes connection before sending data (handshake)\n- **Reliable**: Guarantees delivery in order, with error checking\n- **Slower**: More overhead due to reliability mechanisms\n- **Flow control**: Adjusts speed based on receiver capacity\n- **Use cases**: Email, web browsing, file transfer, banking\n\n## **UDP (User Datagram Protocol)**\n- **Connectionless**: Sends data immediately without setup\n- **Unreliable**: No guarantee of delivery or order\n- **Faster**: Minimal overhead\n- **No flow control**: Fires data without checking if receiver is ready\n- **Use cases**: Video streaming, online gaming, VoIP, DNS queries\n\n## **Quick Comparison**\n\n| Feature | TCP | UDP |\n|---------|-----|-----|\n| **Speed** | Slower | Faster |\n| **Reliability** | High | Low |\n| **Ordering** | Guaranteed | Not guaranteed |\n| **Overhead** | Higher | Lower |\n| **Connection** | Required | Not required |\n\n**Choose TCP** when accuracy matters (data must arrive correctly and in order).  \n**Choose UDP** when speed matters more than perfect delivery (minor losses acceptable)."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 1,
+   "rep": 1,
+   "output_tokens": 322,
+   "cost": 0.002829,
+   "chars": 599,
+   "score": 2,
+   "answer": "Connection pooling maintains a reusable set of database connections instead of creating a new connection for each request. Connections are created once, kept open in a pool, and borrowed/returned as needed\u2014avoiding the overhead of connection setup (authentication, network handshake) on every query.\n\n**Key benefits:** reduced latency, lower CPU/memory usage, improved throughput. **Trade-off:** requires managing pool size (too small = contention, too large = wasted resources). Most ORMs and database drivers include pooling; configure it with max connections, timeout, and idle eviction policies."
+  },
+  {
+   "arm": "frugal",
+   "prompt": 2,
+   "rep": 1,
+   "output_tokens": 272,
+   "cost": 0.0025830000000000002,
+   "chars": 383,
+   "score": 3,
+   "answer": "**TCP** establishes a connection before sending data (3-way handshake), guarantees delivery in order, and retransmits lost packets\u2014slower but reliable. **UDP** sends data immediately without connection setup, has no delivery guarantee, and is faster\u2014used where speed matters more than accuracy.\n\n**TCP:** files, email, web; **UDP:** video/audio streaming, online gaming, DNS queries."
+  },
+  {
+   "arm": "caveman",
+   "prompt": 2,
+   "rep": 1,
+   "output_tokens": 794,
+   "cost": 0.006229999999999999,
+   "chars": 981,
+   "score": 2,
+   "answer": "**TCP (Transmission Control Protocol):**\n- Connection-oriented: establishes connection before sending data\n- Reliable delivery: guarantees data arrives in order, no duplicates/losses\n- Slower: overhead from handshakes and acknowledgments\n- Error-checking built-in\n- Use: email, web browsing, file transfer, banking\n\n**UDP (User Datagram Protocol):**\n- Connectionless: sends data without setup\n- Unreliable: no guarantee delivery arrives or in order\n- Faster: minimal overhead\n- No error-checking (app handles it)\n- Use: video streaming, online gaming, DNS queries, VoIP\n\n**Quick comparison:**\n| Feature | TCP | UDP |\n|---------|-----|-----|\n| Connection | Required | Not required |\n| Speed | Slower | Faster |\n| Reliability | Guaranteed | Best-effort |\n| Order | Preserved | Not guaranteed |\n| Header size | 20+ bytes | 8 bytes |\n\n**Rule of thumb:** Use TCP when accuracy matters (data integrity essential). Use UDP when speed matters (small losses acceptable, real-time priority)."
+  },
+  {
+   "arm": "terse",
+   "prompt": 3,
+   "rep": 1,
+   "output_tokens": 588,
+   "cost": 0.003496,
+   "chars": 1547,
+   "score": 2,
+   "answer": "# Fixing Memory Leaks in Node.js\n\n## 1. **Identify the Leak**\n- Monitor memory usage over time with `process.memoryUsage()`\n- Use tools like:\n  - **Clinic.js** - `npm install -g clinic`\n  - **Node Inspector** - `node --inspect app.js`\n  - **Heap snapshots** in Chrome DevTools\n\n## 2. **Common Causes & Fixes**\n\n| Issue | Fix |\n|-------|-----|\n| **Unreleased event listeners** | Use `.removeListener()` or `.once()` instead of `.on()` |\n| **Global variables accumulating** | Avoid storing data in global scope; use proper scoping |\n| **Circular references** | Ensure objects can be garbage collected |\n| **Unclosed connections** | Always `.close()` or `.destroy()` DB/HTTP connections |\n| **Timers not cleared** | Store `setInterval()` IDs and `clearInterval()` on shutdown |\n| **Large caches** | Implement TTL, size limits, or LRU cache pattern |\n\n## 3. **Quick Debugging Approach**\n\n```javascript\n// Log memory usage periodically\nsetInterval(() => {\n  const mem = process.memoryUsage();\n  console.log(`Heap: ${Math.round(mem.heapUsed / 1024 / 1024)}MB`);\n}, 5000);\n\n// On shutdown - cleanup\nprocess.on('SIGTERM', () => {\n  server.close();\n  db.close();\n  process.exit(0);\n});\n```\n\n## 4. **Tools to Use**\n- **`node --max-old-space-size=4096`** - Allocate more heap if needed (temporary)\n- **Heap snapshots** - Compare before/after snapshots to find growing objects\n- **0x** - Flamegraph tool: `npx 0x app.js`\n\n**Start with event listeners and connection cleanup** \u2014 those cause ~80% of leaks.\n\nNeed help investigating a specific part of your code?"
+  },
+  {
+   "arm": "caveman",
+   "prompt": 3,
+   "rep": 1,
+   "output_tokens": 765,
+   "cost": 0.006088,
+   "chars": 1673,
+   "score": 1,
+   "answer": "# Fix Memory Leaks in Long-Running Node.js\n\n## Common Sources\n\n1. **Event listener leaks** \u2013 listeners not removed\n2. **Circular references** \u2013 objects holding each other\n3. **Growing caches** \u2013 unbounded collections\n4. **Timers/intervals** \u2013 not cleared\n5. **Global references** \u2013 accidental globals\n\n## Detection\n\n```bash\n# Enable heap snapshots\nnode --inspect app.js\n\n# Then in Chrome DevTools (chrome://inspect):\n# - Memory tab \u2192 Take heap snapshot\n# - Compare snapshots over time\n# - Look for growing objects\n```\n\nOr use heap profiling:\n\n```javascript\nconst heapdump = require('heapdump');\nheapdump.writeSnapshot(`./heap-${Date.now()}.heapsnapshot`);\n```\n\n## Fixes\n\n**Remove listeners properly:**\n```javascript\nemitter.on('event', handler);\n// Later:\nemitter.removeListener('event', handler); // Must use same reference\n```\n\n**Limit cache size:**\n```javascript\nconst lru = require('lru-cache');\nconst cache = new lru({ max: 100, ttl: 1000 * 60 * 5 });\n```\n\n**Clear intervals/timeouts:**\n```javascript\nconst timer = setInterval(() => {}, 1000);\nclearInterval(timer); // On shutdown\n```\n\n**Avoid global accidental references:**\n```javascript\n// Bad\nglobal.data = [];\n\n// Good\nlet data = []; // Module scope, garbage-collectable\n```\n\n**Explicitly nullify large objects when done:**\n```javascript\nlet bigBuffer = Buffer.alloc(100 * 1024 * 1024);\n// ...use it...\nbigBuffer = null; // Help GC\n```\n\n## Monitoring\n\nUse tools like:\n- **clinic.js** \u2013 real-time leak detection\n- **autocannon** \u2013 load testing + memory watch\n- **node-inspect-native** \u2013 native binding leaks\n\nRun under load for 30+ min; stable memory = no leak.\n\nWhat's your symptom\u2014gradual growth or sudden spike?"
+  },
+  {
+   "arm": "frugal",
+   "prompt": 3,
+   "rep": 1,
+   "output_tokens": 391,
+   "cost": 0.003184,
+   "chars": 1022,
+   "score": 2,
+   "answer": "**Identify it first:** use Node's `--inspect` flag with Chrome DevTools memory profiler or `clinic.js` to find which objects aren't garbage-collecting.\n\n**Common causes and fixes:**\n- **Event listeners:** remove them when done (`emitter.off()`, `removeEventListener()`)\n- **Timers:** cancel intervals/timeouts (`clearInterval()`, `clearTimeout()`)\n- **Circular references in closures:** break them when done\n- **Large objects cached globally:** use `Map` with WeakMap, or delete after use\n- **Streams not ending:** call `.destroy()` or `.end()` explicitly\n- **Database/HTTP connection pools:** configure max size, idle timeout\n\n**Quick checks:**\n```bash\nnode --inspect app.js\n# or use clinic\nnpx clinic doctor -- node app.js\n```\n\nThen in Chrome: `chrome://inspect` \u2192 memory tab \u2192 heap snapshots over time, filter by retainers.\n\n**Production:** restart the process on a schedule (e.g., every 24h with PM2/systemd) if you can't pinpoint it quickly.\n\nWhat's the process doing\u2014streams, timers, events, or database connections?"
+  }
+ ]
+}
