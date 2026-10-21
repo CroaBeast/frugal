@@ -79,7 +79,7 @@ Say `normal mode` to turn it off.
 
 ## Should you use it?
 
-On Opus 5.5 (0.12, six tasks) frugal came out even on cost with 11% less output; on feature work (ponytail's harness) it cost 18% less than plain Claude Code on Haiku 4.5, 12% less on Sonnet 5.5, and 39% less on Opus 5.5, with the same or a higher pass rate:
+On Opus 5.5 (0.12, six tasks) frugal came out even on cost with 11% less output; on feature work (ponytail's harness, 0.12.7) it cost 38% less than plain Claude Code on Opus 5.5 and 13% less on Sonnet 5.5, and on Haiku 4.5 it passed every check where plain Claude Code missed 10 of 117 runs, at a cost within noise (-7%):
 
 - **Long sessions and heavy tasks:** in 0.11, 10 to 12% cheaper on the 40-message session, the heavy coding task, and the contract risk review. Every call re-reads the whole history, so shorter replies and fewer re-reads compound as a session grows. The 16-message session came out -2%: at the 10th message frugal writes a handoff block for a fresh chat, which only pays back when you actually move to one (see [BENCHMARKS.md](BENCHMARKS.md)).
 - **Short one-off tasks:** +1 to +8% on Opus. Turning frugal on costs ~1,140 input tokens once per session (about 0.009 USD on Opus), and a 3-call task has too little output to win that back.
@@ -138,7 +138,7 @@ Cost relative to the baseline of the same batch (= 100; lower is cheaper). Each 
 
 Batches: feature work, Haiku 2026-10-04 (frugal 0.12.2 before its last rule) Sonnet 2026-10-07 and Opus 2026-10-07 to 08 (frugal 0.12.2; Opus has 34 of 39 tasks, the rest stopped at the usage limit); `bench.py` 2026-10-03 (frugal 0.12); caveman's eval 2026-10-03 (frugal 0.12, baseline "Answer concisely."; caveman's eval has no ponytail arm).
 
-**Where frugal loses.** On `bench.py` with Opus, one-step tasks cost 6 to 16% more than no plugins (1 to 8% in a 0.12.1 rerun): turning frugal on adds a fixed ~1,140 input tokens that a 3-call task cannot win back. Longer tasks pay it back, and the six-task sum comes out even. Sonnet has no batch with the current version.
+**Where frugal loses.** On `bench.py` with Opus, one-step tasks cost 6 to 16% more than no plugins (1 to 8% in a 0.12.1 rerun): turning frugal on adds a fixed ~1,140 input tokens that a 3-call task cannot win back. Longer tasks pay it back, and the six-task sum comes out even. Sonnet has no batch with the current version. The same fixed cost shows on Haiku feature work: the 12 small fix, security, and reuse tasks cost 19% more than no plugins (Sonnet +1%, Opus -10%), because a $0.03 task cannot absorb the extra rules and the caller and sibling search that bug fixes do.
 
 **Latest head-to-head.** frugal 0.12.7 against ponytail 5.2.0 on ponytail's own harness (39 tasks, n=3, both arms in one batch per model, 2026-10-15 to 20):
 
@@ -149,6 +149,16 @@ Batches: feature work, Haiku 2026-10-04 (frugal 0.12.2 before its last rule) Son
 | Opus 5.5 | **1.000** / 0.991 | 1.000 / 1.000 | 34 / 31 | **-6.2%** (-10.4% to -2.1%) |
 
 ponytail still writes a few lines less on Sonnet and Opus, mostly line wrapping in frontend components and the guards frugal adds when it fixes a shared helper. The five-arm batches above ran earlier versions against ponytail 4.10.0.
+
+**Against plain Claude Code.** frugal 0.12.7 against no plugins, same harness (39 tasks, n=3, both arms in one batch per model, 2026-10-20 to 21):
+
+| Model | Correct, frugal / no plugins | Safe | Lines (median) | frugal cost vs no plugins (90% CI) |
+|---|---|---|---|---|
+| Haiku 4.5 | **1.000** / 0.940 | **1.000** / 0.974 | **24** / 48 | -6.6% (-14.0% to +1.2%) |
+| Sonnet 5.5 | 1.000 / 1.000 | 1.000 / 1.000 | **30** / 73 | **-13.1%** (-19.0% to -7.2%) |
+| Opus 5.5 | **1.000** / 0.974 | 1.000 / 1.000 | **34** / 91 | **-38.2%** (-45.6% to -29.9%) |
+
+Plain Claude Code missed `trace-transfer` safety in 3 of 3 Haiku runs, wrote no file in 7 Haiku runs, and timed out (300 s) on all 3 Opus runs of `vibe-md2html`.
 
 ### Reproduce
 
@@ -169,6 +179,7 @@ A: no plugins, E: frugal, F: caveman, G: ponytail, B: caveman + ponytail. `bench
 
 ## Versions
 
+- **0.12.8**: `frugal-worker` runs on the session model unless a cheaper one is passed; on Haiku it had escalated to Sonnet in 2 of 117 runs.
 - **0.12.7**: unrequested features, commands, options, and limits stay out of new code (an extra worth having goes in a `frugal:` comment); trust-boundary validation rejects bad input, with size or rate limits only when asked; code goes in the working directory, never the scratchpad. On 25 tasks (n=3) it wrote 8% fewer lines on Sonnet and cost 2.8% less on Sonnet and 4.4% less on Haiku than 0.12.6, with every safety check passed.
 - **0.12.6**: code goes into files through the edit tools, not only into the reply, and a file is reported written only after the call that wrote it. On Haiku, `reuse-slug` wrote the file in 6 of 6 runs against 2 of 3 for 0.12.5. On Sonnet (39 tasks) it cost 3.4% less than ponytail with every check passed.
 - **0.12.5**: a bug-fix guard goes in the shared helper, not the function the report names, and a sibling with the same bug is fixed, never only mentioned. On Haiku, `trace-transfer` passed 14 of 18 runs against 9 of 18 for 0.12.2.

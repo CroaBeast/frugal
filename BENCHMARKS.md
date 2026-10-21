@@ -48,6 +48,31 @@ Against ponytail 4.10.0, frugal was 13.2% cheaper on Haiku (0.12.2) and 3.4% che
 
 The Opus batch stopped at the usage limit after 166 cells and was finished with `--resume` four days later; the 12 template tasks ran entirely in the second session, both arms together. Its first scoring failed 3 runs of `reuse-money` and `reuse-slug` on import errors with files identical to passing runs: the scorers import produced modules by name through `sys.path` and `sys.modules`, and four cells scored in parallel raced. The harness now scores one cell at a time, and all three batches were rescored (`--rescore`, no API); only those Opus results changed.
 
+### frugal 0.12.7 against no plugins, three models
+
+ponytail's harness, all 39 tasks, n=3, 234 cells per model, both arms in one batch per model (Haiku 2026-10-20, $13.57; Sonnet 2026-10-20, $20.46, resumed with `--resume` the same day after the runner died at the usage limit; Opus 2026-10-20 to 21, $51.38). Cost is the mean per run; "vs no plugins" is the geometric mean of the per-task cost ratio with a 90% bootstrap interval:
+
+| Model | Arm | Correct | Safe | Lines (median) | Lines (mean) | USD per run | vs no plugins | Cheaper on |
+|---|---|---|---|---|---|---|---|---|
+| Haiku 4.5 | no plugins | 0.940 | 0.974 | 48 | 110.6 | 0.0619 | 0% | |
+| | frugal | **1.000** | **1.000** | **24** | **50.8** | 0.0541 | -6.6% (-14.0% to +1.2%) | 18 of 39 tasks |
+| Sonnet 5.5 | no plugins | 1.000 | 1.000 | 73 | 98.4 | 0.0943 | 0% | |
+| | frugal | 1.000 | 1.000 | **30** | **41.4** | 0.0806 | **-13.1%** (-19.0% to -7.2%) | 27 of 39 |
+| Opus 5.5 | no plugins | 0.974 | 1.000 | 91 | 150.9 | 0.2852 | 0% | |
+| | frugal | **1.000** | 1.000 | **34** | **47.2** | 0.1613 | **-38.2%** (-45.6% to -29.9%) | 34 of 38 |
+
+Cost vs no plugins by task group:
+
+| Model | Open-ended (15) | Template features (12) | Fixes, security, reuse (12) |
+|---|---|---|---|
+| Haiku 4.5 | -9.1% | -24.1% | +18.9% |
+| Sonnet 5.5 | -25.9% | -8.9% | +1.0% |
+| Opus 5.5 | -55.2% (14 tasks) | -38.1% | -10.3% |
+
+Plain Claude Code missed `trace-transfer` safety in 3 of 3 Haiku runs (patched `transfer`, left `withdraw` overdrawing) and wrote no `.py` file in 7 Haiku runs (`vibe-rename` 3, `vibe-scraper` 2, `vibe-langgraph`, `vibe-logparse`). On Opus it was killed at the 300 s cell timeout on all 3 runs of `vibe-md2html`; that task has no cost for the baseline, so the Opus cost ratio covers 38 tasks (frugal paid 0.301 USD per run there).
+
+The fixed cost is what loses on Haiku's small tasks. Each frugal session writes about 1,900 more tokens to the prompt cache (`SKILL.md`, the hook-injected `code.md`, plugin descriptions), and bug fixes add one or two calls to grep callers and siblings, which is also why frugal passes `trace-transfer`. On a 0.03 USD task that is +19%; on Sonnet it is +1% and on Opus -10%. In 2 of 117 Haiku runs frugal also handed a small task to `frugal-worker`, whose frontmatter pinned Sonnet; `critic-email` cost 0.074 USD in that run against 0.031 for no plugins. 0.12.8 sets the worker to the session model (`model: inherit`); the delegate module still passes a cheaper model explicitly. Against the five-arm batches of 0.12.2 (below), Haiku went from -18.4% to -6.6% and Sonnet and Opus held (-12.2% to -13.1%, -39.0% to -38.2%); the plain-Claude-Code Haiku baseline also got cheaper between batches (0.081 to 0.062 USD per run).
+
 ### Feature work: ponytail's harness, Haiku 4.5
 
 Five-arm batch (2026-10-04), 39 tasks, n=3, 585 cells. Relative cost is the geometric mean of the per-task cost ratio against no plugins:
