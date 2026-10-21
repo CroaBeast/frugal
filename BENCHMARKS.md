@@ -202,6 +202,23 @@ Reading the Sonnet code of 0.18.3 against ponytail (2026-10-15 batch above) show
 
 On Sonnet the largest drops were `vibe-md2html` -24, `vibe-todo` -18, `tmpl-fe-command` -16, `vibe-shortener` -16, and `todo-null` -12, with every safety task still passing; `vibe-adventure` did not move. Haiku already wrote less than ponytail, so its lines barely changed. Haiku's one safety miss was 0.18.3 on `trace-transfer`. The candidate's one miss wrote `config_loader.py` to the scratchpad on `vibe-jsonconf`, an older Haiku failure the rule does not touch; 0.18.4 also names the working directory and the scratchpad in the output line of `code.md`, as `SKILL.md` already did. That last wording was not in the measured candidate.
 
+### Fixes, analysis, and heavy tasks: Haiku 4.5 and Sonnet 5.5
+
+frugal 0.18.5 from this repo (`bench.py` condition V, `--plugin-dir`) against no plugins (A), the six tasks of the Opus table below plus `t0_ok`, n=3, one batch per model (2026-10-20 to 21). Median cost per run in USD, with runs that passed each task's checks:
+
+| Task | Haiku: no plugins | frugal | Difference | Sonnet: no plugins | frugal | Difference |
+|---|---|---|---|---|---|---|
+| t0 fixed cost | 0.021 | 0.023 | +10% | 0.051 | 0.056 | +10% |
+| t1 bug fix | 0.072 | 0.072 | 0% | 0.083 | 0.085 | +2% |
+| t2 CSV question | 0.034 | 0.035 | +3% | 0.073 | 0.078 | +7% |
+| t3 support reply | 0.035 | 0.036 | +3% | 0.080 | 0.085 | +6% |
+| t5 heavy | 0.228 | 0.160 | **-30%** | 0.166 | 0.175 | +5% |
+| t6 30 contracts | 0.153 (2 of 3) | 0.152 (2 of 3) | -1% | 0.147 (2 of 3) | 0.136 (3 of 3) | -7% |
+| t8 risk review | 0.153 | 0.151 (2 runs) | -1% | 0.236 | 0.262 | +11% |
+| **Sum, t1 to t8** | **0.675** | **0.606** | **-10.1%** | **0.785** | **0.821** | **+4.6%** |
+
+On Haiku frugal pays for itself on the heavy task (-30%) and comes out even elsewhere. On Sonnet it loses 5% over the six tasks: the fixed cost (+1,243 input tokens, +0.005 USD a session in warm `t0_ok` runs, against +802 tokens on Haiku) is a large share of a 3-call task, and `t5` and `t8` did not win it back (one `t8` run cost 0.327 against a 0.262 median). frugal passed 21 of 21 on Sonnet against 20 of 21; both arms missed `t6` once on Haiku. One Haiku `t8` run of frugal was not saved.
+
 ### Fixes, analysis, and heavy tasks: Opus 5.5
 
 frugal 0.15, six tasks of `bench.py` (2026-10-03), median cost per run in USD, n=3. Every run passed every check.
