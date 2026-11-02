@@ -211,6 +211,11 @@ const runBrief = async ($: EngineInterface, id: string, brief: string, kind: Kin
       // The engine finds no sh on Windows; cmd runs the check there.
       const shell = (await $.env.get('OS')) === 'Windows_NT' ? ['cmd', '/c', check] : ['sh', '-c', check]
       const c = await $.process.run(shell, { cwd, timeoutMs: 5 * 60_000 })
+      // A run reports what failed; trying it on another account would fail the same way.
+      if (c.exitCode !== 0 && kind === 'run') {
+        await setTask($, id, { status: 'accepted' })
+        return `Run by ${r.account.id} (${modelFor(r.account, kind, pick)}); check \`${check}\` exited ${c.exitCode}.\n${r.text.slice(0, 2000)}`
+      }
       if (c.exitCode !== 0) {
         failure = `check \`${check}\` failed: ${(c.stdout + c.stderr).slice(-400)}`
         await setTask($, id, { status: 'retrying' })
