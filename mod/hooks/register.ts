@@ -15,6 +15,9 @@ const MARKS = [25, 45, 65, 85]
 // Context % at which the model is told to offer a handoff.
 const HANDOFF_MARKS = [40, 60]
 const COMPACT_AT = 80
+// Below this, a cold cache costs too little to ask about.
+const COLD_MIN_TOKENS = 20_000
+const MINUTE = 60_000
 // What the plugin's session-count.sh prints; the mod injects the same rules itself.
 const SH = /(frugal code rules \(loaded by a hook|frugal: this is the user's message \d+)[\s\S]*/
 const COMPACT_INSTRUCTIONS = 'Summarize as a frugal handoff: Goal; Done (file paths, settings changed, decisions and why); Pending (in order); Key context (versions, constraints, user preferences); Next step. Facts only, under 250 words.'
@@ -38,6 +41,7 @@ const resetAfterCompact = async ($: EngineInterface) => {
 
 export const register: Register = on => {
   let lastText = ''
+  let lastTurn = 0
 
   on('skill.prompt', async ($, e, next) => {
     if (!e.path || (e.skill !== 'frugal' && !e.skill.endsWith(':frugal'))) return next(e)
@@ -57,6 +61,19 @@ export const register: Register = on => {
     const dir = await read($, skillDir)
     if (!dir) return next(e)
     const u = await $.session.usage()
+
+    // Subscriptions cache for an hour, API keys for 5 minutes.
+    const idle = (await $.clock.now()) - lastTurn
+    const ttl = u.rateLimits.length ? 60 * MINUTE : 5 * MINUTE
+    if (lastTurn && idle > ttl && (u.context.tokens ?? 0) >= COLD_MIN_TOKENS) {
+      lastTurn = 0
+      const k = Math.round((u.context.tokens ?? 0) / 1000)
+      const pick = await $.ui.ask(
+        `The prompt cache expired after ${Math.round(idle / MINUTE)} min idle. Sending re-writes about ${k}k tokens. Send anyway?`,
+        ['Send', 'Cancel'],
+      ).catch(() => 'Send')
+      if (pick === 'Cancel') return { drop: 'frugal: not sent, the prompt cache is cold. Run /compact or ask for a handoff, or send again.' }
+    }
 
     const pct = u.context.percent ?? 0
     const add: string[] = []
@@ -81,6 +98,7 @@ export const register: Register = on => {
   on('turn.complete', async ($, e, next) => {
     if (e.agentId) return next(e)
     const r = await next(e)
+    lastTurn = await $.clock.now()
     if (!(await read($, skillDir)) || ((await $.session.usage()).context.percent ?? 0) < COMPACT_AT) return r
     const c = await $.session.compact({ instructions: COMPACT_INSTRUCTIONS }).catch(() => ({ skip: 'refused' }))
     if (!c.skip) await resetAfterCompact($)
