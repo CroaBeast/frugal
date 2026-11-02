@@ -5,7 +5,7 @@ Each phase is benchmarked with `bench/bench.py` against frugal 0.19.0 and droppe
 ## Phases
 
 1. Rule injection (done): code.md on the first code prompt, core.md + session.md at 25/45/65/85% context. /frugal detected from `skill.prompt`, no sh, no transcript grep. Rewrites the plugin's sh hook output so rules are not injected twice.
-2. Handoff and compact by context %. Cold-cache warning (zero tokens) on return after the cache expired.
+2. Handoff and compact (done): handoff nudge at 40/60% context with the usage line precomputed, so the model skips get_usage. At 80%, compacts when the turn ends (the engine refuses it from prompt.submit). Every compaction while frugal is on, /compact and auto-compaction included, is summarized in the handoff format, and the rules are injected again afterwards. On a cold cache (idle past the TTL with 20k+ tokens of context) it asks Send or Cancel; with nobody to ask (`-p`) it sends.
 3. Zero-token Edit/Write gates: files over 1000 lines, filler comments.
 4. Delegate, verify and escalate:
    - Accounts: the main one orchestrates; secondaries (Claude CLI with its own `CLAUDE_CONFIG_DIR`, Codex CLI, Anthropic API key, OpenAI-compatible endpoints, Ollama) do delegated work. Each stays inside its own limits; when the main one hits its limit, everything stops.
