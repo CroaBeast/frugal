@@ -30,6 +30,20 @@ const LIMIT = /usage limit|rate limit|limit reached|quota|too many requests|\b42
 const HOUR = 3_600_000
 const MAX_TRIES = 3
 export const DELEGATE_TOOL = 'mcp__frugal-mod__delegate'
+export const DELEGATE_SPEC = {
+  name: 'delegate',
+  description: `Run a bounded task on one of the user's secondary accounts (another Claude login, Codex, or a free model) so this session spends fewer tokens. Use for repo searches and mechanical edits with a clear brief; pass a shell check when one exists. Not for design or judgment calls. If it answers "do it here", do the task yourself.`,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      task: { type: 'string', description: 'The full brief: goal, exact paths, done-when.' },
+      kind: { type: 'string', enum: ['search', 'edit'] },
+      check: { type: 'string', description: 'Shell command that exits 0 when the task is done right.' },
+    },
+    required: ['task', 'kind'],
+  },
+  isDeferred: false,
+}
 
 // HTTP providers see only the prompt, so they cannot search or edit the repo.
 export const serves = (a: Account, kind: Kind) => a.kind === 'claude-cli' || a.kind === 'codex-cli' || kind === 'review' || kind === 'classify'

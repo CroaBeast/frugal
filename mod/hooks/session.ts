@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, On } from 'claude-code'
 
 import type { Account } from '../types'
+import { DELEGATE_SPEC } from './delegate'
 
 const accounts = atom({ plugin: 'frugal-mod', key: 'accounts' } as const, [])
 const modules = atom({ plugin: 'frugal-mod', key: 'modules' } as const, {})
@@ -37,20 +38,7 @@ export const registerSession = (on: On) => {
     const r = await next(e)
 
     if ((await isOn($, 'delegate')) && (a ?? []).some(x => x.enabled)) {
-      await $.tool.register({
-        name: 'delegate',
-        description: 'Run a bounded task on one of the user\'s secondary accounts (another Claude login, Codex, or a free model) so this session spends fewer tokens. Use for repo searches and mechanical edits with a clear brief; pass a shell check when one exists. Not for design or judgment calls. If it answers "do it here", do the task yourself.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            task: { type: 'string', description: 'The full brief: goal, exact paths, done-when.' },
-            kind: { type: 'string', enum: ['search', 'edit'] },
-            check: { type: 'string', description: 'Shell command that exits 0 when the task is done right.' },
-          },
-          required: ['task', 'kind'],
-        },
-        isDeferred: false,
-      })
+      await $.tool.register(DELEGATE_SPEC)
     }
 
     return r
