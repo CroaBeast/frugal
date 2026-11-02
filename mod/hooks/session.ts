@@ -112,7 +112,8 @@ const checkAccount = async ($: EngineInterface, a: Account): Promise<Partial<Acc
     if (typeof r === 'string' && !/ENOENT|not found/i.test(r)) return { status: 'pending', note: r.slice(0, 160) }
     const out = typeof r === 'string' ? r : r.stdout + r.stderr
     if (typeof r === 'string' || /not recognized|not found|ENOENT/i.test(out)) {
-      return { status: 'missing', note: a.kind === 'codex-cli' ? 'CLI not installed (npm i -g @openai/codex)' : 'CLI not installed (npm i -g @anthropic-ai/claude-code)' }
+      const said = out.trim().split('\n')[0]!.slice(0, 100)
+      return { status: 'missing', note: `${a.kind === 'codex-cli' ? 'CLI not installed (npm i -g @openai/codex)' : 'CLI not installed (npm i -g @anthropic-ai/claude-code)'}: ${said}` }
     }
     if (a.kind === 'claude-cli') {
       const info = (() => { try { return JSON.parse(r.stdout) as { loggedIn?: boolean; subscriptionType?: string } } catch { return {} } })()
