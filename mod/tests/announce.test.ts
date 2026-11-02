@@ -6,7 +6,7 @@ const acc = (id: string, patch: Partial<Account> = {}): Account =>
   ({ id, preset: 'claude', kind: 'claude-cli', enabled: true, status: 'connected', used: 0, day: '', ...patch })
 const typed = (text: string) => ({ text, wait: false, origin: { kind: 'composer' } }) as const
 
-test('connected accounts are announced to the model once', async ($, on) => {
+test('connected accounts are announced in full once, then as a one-line reminder', async ($, on) => {
   const store: Record<string, unknown> = { accounts: [acc('a'), acc('b', { status: 'pending' })] }
   on('store.get', (_, e) => ({ value: store[e.key] }))
   on('store.set', (_, e) => { store[e.key] = e.value; return { value: undefined } })
@@ -21,5 +21,6 @@ test('connected accounts are announced to the model once', async ($, on) => {
   const first = await $.prompt.submit(typed('hola'))
   expect(first.context?.join()).toContain('1 secondary account is connected (a)')
   const second = await $.prompt.submit(typed('hola'))
-  expect(second.context).toBeUndefined()
+  expect(first.context?.join()).toContain('haiku and low')
+  expect(second.context).toEqual(['frugal-mod: delegate bounded work to a with mcp__frugal-mod__delegate, picking model and effort per task.'])
 })

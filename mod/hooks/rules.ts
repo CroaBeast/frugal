@@ -98,14 +98,16 @@ export const registerRules = (on: On) => {
     lastText = e.text
     const ids = (await read($, accounts)).filter(a => a.enabled && a.status === 'connected').map(a => a.id)
     let hint = ''
-    if (ids.join() !== announced && (await isOn($, 'delegate'))) {
-      announced = ids.join()
-      if (ids.length) {
-        hint = `frugal-mod: ${ids.length} secondary ${ids.length === 1 ? 'account is' : 'accounts are'} connected (${ids.join(', ')}). ` +
-          'Hand them every bounded task with mcp__frugal-mod__delegate: repo searches, reading or summarizing files, running tests or builds, mechanical edits with a clear brief. ' +
-          'Put independent pieces in "tasks" so all accounts work in parallel. Keep design, judgment and the final check here.'
-      }
+    // The full rule when the connected accounts change, then a one-line reminder on every prompt so it is not forgotten.
+    if (ids.length && (await isOn($, 'delegate'))) {
+      hint = ids.join() !== announced
+        ? `frugal-mod: ${ids.length} secondary ${ids.length === 1 ? 'account is' : 'accounts are'} connected (${ids.join(', ')}). ` +
+          'Delegate as much as you can with mcp__frugal-mod__delegate so this account\'s limits last: every repo search, file reading or summary, test or build run, and edit you can brief exactly. ' +
+          'Pick model and effort per task: haiku and low for searches and summaries, sonnet and medium for edits and test runs, opus and high only for hard multi-file work. ' +
+          'Put independent pieces in "tasks" so all accounts work in parallel. Keep here only design, judgment calls and the final check of what comes back.'
+        : `frugal-mod: delegate bounded work to ${ids.join(', ')} with mcp__frugal-mod__delegate, picking model and effort per task.`
     }
+    announced = ids.join()
     const dir = await read($, skillDir)
     if (!dir) return hint ? next({ ...e, context: [...(e.context ?? []), hint] }) : next(e)
     if (CORRECTION.test(e.text.trim()) && !e.command && (await isOn($, 'reflect'))) {
