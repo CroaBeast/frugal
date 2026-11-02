@@ -136,7 +136,7 @@ const run = async ($: EngineInterface, a: Account, kind: Kind, prompt: string, c
       // codex 0.166 dropped --full-auto: the workspace-write sandbox lets an edit write files.
       : ['codex', 'exec', '--skip-git-repo-check', ...(c.model ? ['-m', c.model] : []), '-c', `model_reasoning_effort=${c.effort}`,
           ...(kind === 'edit' || kind === 'run' ? ['-s', 'workspace-write'] : []), '-']
-    const env: Record<string, string> = a.configDir ? { CLAUDE_CONFIG_DIR: a.configDir } : {}
+    const env: Record<string, string> = { FRUGAL_MOD_DELEGATED: '1', ...(a.configDir ? { CLAUDE_CONFIG_DIR: a.configDir } : {}) }
     // Windows resolves npm's .cmd shims only through cmd.
     const win = (await $.env.get('OS')) === 'Windows_NT'
     const r = await $.process.run(win ? ['cmd', '/c', ...argv] : argv, { cwd, env, stdin: prompt, timeoutMs: 10 * 60_000 })

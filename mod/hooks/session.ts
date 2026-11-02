@@ -172,6 +172,8 @@ export const registerSession = (on: On) => {
     const p = (await $.store.get('providers')) as Record<string, string[]> | undefined
     if (a) await update($, accounts, () => a)
     if (m) await update($, modules, () => m)
+    // A session frugal-mod started on a secondary account does the work itself: delegating again would loop.
+    if ((await $.env.get('FRUGAL_MOD_DELEGATED')) === '1') await update($, modules, x => ({ ...x, delegate: false }))
     if (p) await update($, providers, () => p)
     const r = await next(e)
 

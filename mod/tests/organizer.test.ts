@@ -23,6 +23,7 @@ const engine = (on: On, calls: Call[], messages: unknown[] = []) => {
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('session.messages', () => ({ value: messages as never }))
   on('command.register', () => ({ value: {} as never }))
+  on('env.get', () => ({ value: undefined }))
   on('mcp.call', (_, e) => {
     calls.push({ tool: e.tool, args: e.args })
     const data = e.tool === 'list_groups' ? groups : e.tool === 'list_sessions' ? rows : e.tool === 'create_group' ? { id: 'new' } : 'ok'
