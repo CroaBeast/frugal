@@ -1,9 +1,10 @@
 import { expect, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { groupFor, projectName } from '../hooks/session'
+import { groupFor, projectName, tagGroups } from '../hooks/session'
 
 const REPO = 'C:\\Users\\me\\Documents\\frugal-plugin'
+const WORKSPACE = 'D:\\IdeaProjects'
 const START = { cwd: REPO, surface: 'desktop', isInteractive: true } as const
 const groups = [{ id: 'g1', name: 'Archived' }, { id: 'g2', name: 'DevStand' }]
 const rows = [
@@ -11,6 +12,8 @@ const rows = [
   { sessionId: 'b', title: 'Fix the parser', cwd: REPO, group: null },
   { sessionId: 'c', title: 'Old notes', cwd: 'C:\\Users\\me', group: null },
   { sessionId: 'd', title: 'Pinned work', cwd: REPO, group: { id: 'g2', name: 'DevStand' } },
+  { sessionId: 'e', title: 'PAL boot bugs', cwd: WORKSPACE, group: null },
+  { sessionId: 'f', title: 'Update the PAL README', cwd: WORKSPACE, group: null },
 ]
 
 type Call = { tool: string; args: Record<string, unknown> }
@@ -32,6 +35,9 @@ test('a project is a folder deeper than home; scratch folders and drive roots ar
   expect(projectName('C:')).toBeNull()
   expect(projectName('C:\\Users\\me')).toBeNull()
   expect(projectName('C:\\Users\\me\\AppData\\Roaming\\Claude\\scratch-workspaces\\x\\y')).toBeNull()
+  expect(projectName('C:\\Users\\me\\Downloads')).toBeNull()
+  expect(projectName(WORKSPACE)).toBeNull()
+  expect(projectName('D:\\Projects\\mc-leads')).toBe('mc-leads')
 })
 
 test('the group the folder is already filed under wins, then a group the title names', () => {
@@ -39,6 +45,21 @@ test('the group the folder is already filed under wins, then a group the title n
   expect(groupFor('C:', 'DevStand outreach', rows, groups)).toBe('DevStand')
   expect(groupFor('C:', 'Archived notes', rows, groups)).toBeNull()
   expect(groupFor('C:\\Users\\me\\code\\api', 'x', rows, groups)).toBe('api')
+})
+
+test('a drive root does not pull other sessions into the group of one of its sessions', () => {
+  const filed = [...rows, { sessionId: 'g', title: 'DevStand outreach', cwd: 'C:', group: { id: 'g2', name: 'DevStand' } }]
+  expect(groupFor('C:', 'Water report', filed, groups)).toBeNull()
+})
+
+test('a group name matches whole words only', () => {
+  expect(groupFor(WORKSPACE, 'Palette colors', rows, [{ id: 'g3', name: 'PAL' }])).toBeNull()
+  expect(groupFor(WORKSPACE, 'PAL Forge support', rows, [{ id: 'g3', name: 'PAL' }])).toBe('PAL')
+})
+
+test('leftover titles that share a project word are grouped by it', () => {
+  expect(tagGroups(['PAL boot bugs', 'SIR+ nick errors', 'Update the PAL README', 'SIR tab', 'Old notes', 'XenoLevels perks']))
+    .toEqual(['PAL', 'SIR', 'PAL', 'SIR', null, null])
 })
 
 test('a new session is filed with "self"; a resumed one is left alone', async ($, on) => {
@@ -60,6 +81,6 @@ test('/frugal-organize files ungrouped sessions and skips the rest', async ($, o
   engine(on, calls)
   const r = await $.command.run({ command: 'frugal-organize', args: '' } as never)
   const moves = calls.filter(c => c.tool === 'move_sessions').map(c => c.args)
-  expect(moves).toEqual([{ session_ids: ['a', 'b'], group_id: 'g2' }])
-  expect(r.text).toContain('Filed 2 sessions into 1 groups; 1 left ungrouped')
+  expect(moves).toEqual([{ session_ids: ['a', 'b'], group_id: 'g2' }, { session_ids: ['e', 'f'], group_id: 'new' }])
+  expect(r.text).toContain('Filed 4 sessions into 2 groups; 1 left ungrouped')
 })

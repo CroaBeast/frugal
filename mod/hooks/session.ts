@@ -30,19 +30,39 @@ export const MODULES: { id: string; name: string; tokens: TokenClass; lock?: Loc
 type Group = { id: string; name: string }
 type Row = { sessionId: string; title: string; cwd: string; group?: Group | null }
 
-// A folder deep enough to be a project; drive roots, home and scratch folders are not.
+// A folder that holds one project. Not a drive root, home or a folder right under it (Downloads),
+// a top-level workspace that holds many projects (D:\IdeaProjects), or a scratch folder.
 export const projectName = (cwd: string) => {
   const parts = cwd.split(/[\\/]/).filter(Boolean)
-  return parts.length > 3 && !cwd.includes('scratch-workspaces') ? parts[parts.length - 1]! : null
+  const root = /:$/.test(parts[0] ?? '') ? 1 : 0
+  const home = parts.findIndex(p => /^(users|home)$/i.test(p)) === root
+  return parts.length >= root + (home ? 4 : 2) && !cwd.includes('scratch-workspaces') ? parts[parts.length - 1]! : null
 }
 
-// The group the user already files this folder under, then a group the title names, then the folder's name.
+// Whole words only: group "PAL" is not in "Palette".
+const says = (title: string, name: string) =>
+  new RegExp(`(^|[^\\p{L}\\p{N}])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}\\p{N}])`, 'iu').test(title)
+
+// The group the user already files this project folder under, then a group the title names, then the folder's name.
 export const groupFor = (cwd: string, title: string, rows: Row[], groups: Group[]) => {
+  const project = projectName(cwd)
   const votes = new Map<string, number>()
-  for (const r of rows) if (r.cwd === cwd && r.group) votes.set(r.group.name, (votes.get(r.group.name) ?? 0) + 1)
+  if (project) for (const r of rows) if (r.cwd === cwd && r.group && r.group.name !== 'Archived') votes.set(r.group.name, (votes.get(r.group.name) ?? 0) + 1)
   const usual = [...votes].sort((a, b) => b[1] - a[1])[0]?.[0]
-  const named = groups.find(g => g.name !== 'Archived' && title.toLowerCase().includes(g.name.toLowerCase()))?.name
-  return usual ?? named ?? projectName(cwd)
+  const named = groups.find(g => g.name !== 'Archived' && says(title, g.name))?.name
+  return usual ?? named ?? project
+}
+
+// An acronym (PAL, SIR+, L4D2) or a CamelCase name (XenoLevels): a word that names a project.
+const tagsOf = (title: string) => [...new Set((title.match(/[\p{L}\p{N}+]+/gu) ?? [])
+  .filter(w => /^\p{Lu}[\p{Lu}\p{N}]+\+?$/u.test(w) || /^\p{Lu}\p{Ll}+\p{Lu}/u.test(w))
+  .map(w => w.replace(/\+$/, '')))]
+
+// For titles no folder or group places: the most common project word they share with another title.
+export const tagGroups = (titles: string[]) => {
+  const counts = new Map<string, number>()
+  for (const t of titles) for (const w of tagsOf(t)) counts.set(w, (counts.get(w) ?? 0) + 1)
+  return titles.map(t => tagsOf(t).filter(w => counts.get(w)! > 1).sort((a, b) => counts.get(b)! - counts.get(a)!)[0] ?? null)
 }
 
 const isOn = async ($: EngineInterface, id: string) => (await read($, modules))[id] ?? true
@@ -167,7 +187,7 @@ export const registerSession = (on: On) => {
     if ((await isOn($, 'organizer')) && (await $.session.messages()).length === 0) {
       try {
         const groups: Group[] = await sidebar($, 'ccd_sidebar', 'list_groups')
-        const rows: Row[] = await sidebar($, 'ccd_session_mgmt', 'list_sessions', { limit: 100 })
+        const rows: Row[] = await sidebar($, 'ccd_session_mgmt', 'list_sessions', { limit: 1000 })
         const name = groupFor(e.cwd, '', rows, groups)
         if (name) await sidebar($, 'ccd_sidebar', 'move_sessions', { session_ids: ['self'], group_id: await groupId($, name, groups) })
       } catch {
@@ -180,19 +200,24 @@ export const registerSession = (on: On) => {
   on('command.run', { command: 'frugal-organize' }, async $ => {
     try {
       const groups: Group[] = await sidebar($, 'ccd_sidebar', 'list_groups')
-      const rows: Row[] = await sidebar($, 'ccd_session_mgmt', 'list_sessions', { limit: 100 })
+      const rows: Row[] = await sidebar($, 'ccd_session_mgmt', 'list_sessions', { limit: 1000 })
+      const loose = rows.filter(r => r.group === null)
       const moves = new Map<string, string[]>()
-      let left = 0
-      for (const r of rows.filter(r => r.group === null)) {
+      const file = (name: string, id: string) => moves.set(name, [...(moves.get(name) ?? []), id])
+      const rest: Row[] = []
+      for (const r of loose) {
         const name = groupFor(r.cwd, r.title, rows, groups)
-        if (!name) { left++; continue }
-        moves.set(name, [...(moves.get(name) ?? []), r.sessionId])
+        if (name) file(name, r.sessionId)
+        else rest.push(r)
       }
+      tagGroups(rest.map(r => r.title)).forEach((name, i) => { if (name) file(name, rest[i]!.sessionId) })
+      // move_sessions takes at most 100 ids.
       for (const [name, ids] of moves) {
-        await sidebar($, 'ccd_sidebar', 'move_sessions', { session_ids: ids, group_id: await groupId($, name, groups) })
+        const id = await groupId($, name, groups)
+        for (let i = 0; i < ids.length; i += 100) await sidebar($, 'ccd_sidebar', 'move_sessions', { session_ids: ids.slice(i, i + 100), group_id: id })
       }
       const moved = [...moves.values()].reduce((n, ids) => n + ids.length, 0)
-      return { text: `Filed ${moved} sessions into ${moves.size} groups; ${left} left ungrouped (no project folder or group name in the title).` }
+      return { text: `Filed ${moved} sessions into ${moves.size} groups; ${loose.length - moved} left ungrouped (no project folder, group or project name in the title).` }
     } catch (err) {
       return { text: `The sidebar tools are not available here (${String(err).slice(0, 120)}). Run this in the desktop app.` }
     }
