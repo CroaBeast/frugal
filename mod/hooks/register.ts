@@ -24,10 +24,30 @@ const COMPACT_INSTRUCTIONS = 'Summarize as a frugal handoff: Goal; Done (file pa
 const LIMITS: Record<string, string> = { five_hour: '5-hour', seven_day: 'weekly' }
 
 const MAX_LINES = 1000
-const gate = (path: string, before: string | null, after: string) => {
+const SLASH = /\.(jsx?|tsx?|mjs|cjs|java|kts?|go|rs|c|h|cc|cpp|hpp|cs|swift|php|scala|dart)$/i
+const HASH = /\.(py|sh|bash|rb|pl|r|ya?ml|toml|ps1|exs?)$/i
+const DASH = /\.(sql|lua|hs)$/i
+// Comments that narrate the edit, restate the next line, or label structure.
+const NARRATE = /^(added|changed|updated|fixed|removed|modified)[ :]/i
+const RESTATE = /^(increment|decrement|initiali[sz]e|declare|define|import|return|call|instantiate|loop (through|over)|iterate (through|over))\b/i
+const LABEL = /^(end (of )?(if|for|while|function|class|loop)|constructor|getters?( and setters?)?|setters?|main( function)?|imports?|variables?|helpers?( functions)?)\.?$/i
+
+const isFiller = (t: string) => NARRATE.test(t) || LABEL.test(t) || (RESTATE.test(t) && t.split(/\s+/).length <= 6)
+
+const fillers = (path: string, lines: string[]) => {
+  const m = SLASH.test(path) ? '//' : HASH.test(path) ? '#' : DASH.test(path) ? '--' : null
+  if (!m) return []
+  return lines.map(l => l.trim()).filter(l => l.startsWith(m) && !l.startsWith('#!') && isFiller(l.slice(m.length).trim()))
+}
+
+const gate = (path: string, before: string | null, after: string, added: string[]) => {
   const n = after.split('\n').length
   if (n > MAX_LINES && n > (before?.split('\n').length ?? 0)) {
     return `frugal: ${path} would be ${n} lines (limit ${MAX_LINES}). Split it into smaller files.`
+  }
+  const bad = fillers(path, added)
+  if (bad.length) {
+    return `frugal: remove comments that narrate the edit or restate the code: ${bad.slice(0, 3).join(' | ')}. Keep only comments that say why.`
   }
 }
 
@@ -126,14 +146,16 @@ export const register: Register = on => {
     if (!(await $.fs.exists(e.file_path))) return next(e)
     const before = await $.fs.read(e.file_path)
     const after = e.replace_all ? before.split(e.old_string).join(e.new_string) : before.replace(e.old_string, () => e.new_string)
-    const deny = gate(e.file_path, before, after)
+    const removed = new Set(e.old_string.split('\n'))
+    const deny = gate(e.file_path, before, after, e.new_string.split('\n').filter(l => !removed.has(l)))
     return deny ? { deny } : next(e)
   })
 
   on('tool.call', { tool: 'Write' }, async ($, e, next) => {
     if (!(await read($, skillDir))) return next(e)
     const before = (await $.fs.exists(e.file_path)) ? await $.fs.read(e.file_path) : null
-    const deny = gate(e.file_path, before, e.content)
+    const kept = new Set(before?.split('\n'))
+    const deny = gate(e.file_path, before, e.content, e.content.split('\n').filter(l => !kept.has(l)))
     return deny ? { deny } : next(e)
   })
 
