@@ -26,7 +26,8 @@ export const PRESETS: Record<string, { kind: AccountKind; label: string; baseUrl
 }
 
 // frugal picks the model: the cheapest-looking one an HTTP provider lists, never one for embeddings, audio or images.
-const CHEAP = /flash|mini|small|lite|haiku|nano|instant|8b/i
+// Whole name parts only: "mini" is in "gemini".
+const CHEAP = /(^|[-_./:])(flash|mini|small|lite|haiku|nano|instant|8b)/i
 const NOT_CHAT = /embed|whisper|tts|audio|image|vision|guard|moderation|rerank/i
 export const pickModel = (models: string[] = []) => {
   const chat = models.filter(m => !NOT_CHAT.test(m))
