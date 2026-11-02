@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "accounts": {
+      "command": "python",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/accounts/server.py"]
+    }
+  }
+}
