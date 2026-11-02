@@ -26,7 +26,7 @@ RULES = {
     "codex": {"efforts": ["low", "medium", "high", "xhigh", "max", "ultra"],
               "levels": {"light": ("gpt-6-luna", "low"), "standard": ("gpt-6.1-sol", "medium"), "heavy": ("gpt-6.1-sol", "high"), "max": ("gpt-6-astra", "xhigh")}},
 }
-DEFAULT_LEVEL = {"search": "light", "run": "light", "edit": "standard"}
+DEFAULT_LEVEL = {"search": "standard", "run": "standard", "edit": "standard"}  # light (haiku, low) missed most of a 5-question lookup; pass level "light" only for trivial greps
 LIMIT = re.compile(r"usage limit|rate limit|limit reached|session limit|quota|too many requests|\b429\b", re.I)
 HEAVY_RUN = re.compile(r"\b(npm|pnpm|yarn|bun)\s+(run\s+)?(test|build|lint|typecheck)\b|\b(pytest|jest|vitest|tsc|gradlew?|mvn|bench\.py)\b"
                        r"|\b(cargo|go|dotnet)\s+(test|build)\b|\bclaude\s+plugin\s+test\b", re.I)
@@ -317,10 +317,10 @@ def cli(args):
 def selftest():
     claude = {"id": "c", "kind": "claude"}
     codex = {"id": "x", "kind": "codex", "models": ["gpt-6-luna", "gpt-6.1-sol"]}
-    assert choose(claude, "search") == ("haiku", "low")
+    assert choose(claude, "search") == ("sonnet", "medium")
     assert choose(claude, "edit", "heavy") == ("opus", "high")
-    assert choose(claude, "search", effort="minimal") == ("haiku", "low")
-    assert choose(codex, "search") == ("gpt-6-luna", "low")
+    assert choose(claude, "search", effort="minimal") == ("sonnet", "low")
+    assert choose(codex, "search", "light") == ("gpt-6-luna", "low")
     assert choose(codex, "edit", "max") == (None, "xhigh")
     now = time.time()
     pool = [{"id": "a", "used": 5, "day": today()}, {"id": "b", "used": 1, "day": today()}, {"id": "off", "enabled": False},
