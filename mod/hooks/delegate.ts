@@ -132,7 +132,8 @@ const run = async ($: EngineInterface, a: Account, kind: Kind, prompt: string, c
   if (a.kind === 'claude-cli' || a.kind === 'codex-cli') {
     const argv = a.kind === 'claude-cli'
       ? ['claude', '-p', '--model', c.model!, '--effort', c.effort!, ...(kind === 'edit' ? ['--permission-mode', 'acceptEdits'] : []),
-          ...(kind === 'run' ? ['--allowedTools', 'Bash Read Grep Glob'] : [])]
+          // A search may run read-only scripts; claude -p refuses Bash unless it is allowed.
+          ...(kind === 'run' || kind === 'search' ? ['--allowedTools', 'Bash Read Grep Glob'] : [])]
       // codex 0.166 dropped --full-auto: the workspace-write sandbox lets an edit write files.
       : ['codex', 'exec', '--skip-git-repo-check', ...(c.model ? ['-m', c.model] : []), '-c', `model_reasoning_effort=${c.effort}`,
           ...(kind === 'edit' || kind === 'run' ? ['-s', 'workspace-write'] : []), '-']
