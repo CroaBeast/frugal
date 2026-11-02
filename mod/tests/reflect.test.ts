@@ -56,7 +56,7 @@ test('with nobody to ask, /frugal-reflect saves nothing and clears the queue', a
 })
 
 test('a secondary account rewrites the correction as a rule before the user saves it', async ($, on) => {
-  const acc: Account = { id: 'claude-b', preset: 'claude', kind: 'claude-cli', paid: true, enabled: true, model: 'sonnet', used: 0, day: '' }
+  const acc: Account = { id: 'claude-b', preset: 'claude', kind: 'claude-cli', enabled: true, status: 'connected', used: 0, day: '' }
   const store: Record<string, unknown> = { [KEY]: ['no, use pnpm'], accounts: [acc] }
   const files: Record<string, string> = {}
   engine(on, store, files, 'Save')
