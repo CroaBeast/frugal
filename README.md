@@ -20,7 +20,7 @@ frugal is built around one fact about agent sessions: most of the bill is input,
 | `modules/compress.md` | on request | Rewrites CLAUDE.md or another memory file to fewer bytes with a backup, keeping every instruction; saved on every call after |
 | `scripts/usage.sh` | before a handoff in the CLI, or when you ask about usage | Context size and token totals from the session transcript, where `get_usage` is not available |
 | `modules/agents.md` | pipelines, subagent prompts, machine-read output | Structured, parseable output; no narration; never invents paths, endpoints, or field names |
-| `hooks/session-count.sh` | every prompt, prints nothing until the 10th | Counts messages per session and, when `/frugal` is active, tells the model to read `core.md` and `session.md` at the 10th message and every 15th after. A skill cannot count messages reliably; the hook can. Needs `sh` (Git Bash on Windows) |
+| `plugin/hooks/session-count.sh` | every prompt, prints nothing until the 10th | Counts messages per session and, when `/frugal` is active, tells the model to read `core.md` and `session.md` at the 10th message and every 15th after. A skill cannot count messages reliably; the hook can. Needs `sh` (Git Bash on Windows) |
 | `humanizer` | only if you say yes | Rewrites AI-sounding text. Based on [blader/humanizer](https://github.com/blader/humanizer), MIT |
 
 The read instruction is the first line of the core and names both files at once. Haiku skipped a chain of reads ("read core, then the module it points to") in every run, and follows a single direct instruction in every run. You can force modules yourself: `/frugal analysis coding`.
@@ -50,8 +50,8 @@ Paste this into Claude Code (CLI, desktop, or IDE), Claude Cowork, Codex, Cursor
 Install the frugal plugin from https://github.com/CroaBeast/frugal for me.
 
 1. If you are Claude Code: run `claude plugin marketplace add CroaBeast/frugal`, then `claude plugin install frugal@frugal`. Tell me to start a new session and type /frugal.
-2. Otherwise, if you support Agent Skills (folders containing a SKILL.md): clone the repo to a temporary folder and copy every folder under skills/ into your user skills directory. Tell me how to invoke the frugal skill.
-3. Otherwise: add the text of skills/frugal/SKILL.md without its front matter, then skills/frugal/core.md and skills/frugal/code.md, to your persistent instructions file (for example AGENTS.md) and tell me which file you changed.
+2. Otherwise, if you support Agent Skills (folders containing a SKILL.md): clone the repo to a temporary folder and copy every folder under plugin/skills/ into your user skills directory. Tell me how to invoke the frugal skill.
+3. Otherwise: add the text of plugin/skills/frugal/SKILL.md without its front matter, then plugin/skills/frugal/core.md and plugin/skills/frugal/code.md, to your persistent instructions file (for example AGENTS.md) and tell me which file you changed.
 
 Change nothing else. If the caveman or ponytail plugins are enabled, tell me, but do not disable them yourself.
 ```
@@ -168,7 +168,7 @@ python bench.py run --conds AEFGB --tasks t1_bug,t2_analysis,t3_email,t5_heavy,t
 python bench.py report --out tasks_opus
 
 cd ponytail_agentic
-FRUGAL_PLUGIN_DIR=<path to this repo> python run.py --all --arms baseline,frugal,ponytail,caveman,ponytail+caveman --models haiku --runs 2 --max-runs 3
+FRUGAL_PLUGIN_DIR=<path to this repo>/plugin python run.py --all --arms baseline,frugal,ponytail,caveman,ponytail+caveman --models haiku --runs 2 --max-runs 3
 python run.py --task core8 --arms baseline,frugal,ponytail,caveman,ponytail+caveman --models opus --runs 2 --max-runs 3
 python run.py --all --arms frugal --models haiku --runs 2 --max-runs 3 --reuse runs/<earlier batch>   # new frugal, other arms reused
 python run.py ... --resume <run dir>      # finish a batch cut by a usage limit
