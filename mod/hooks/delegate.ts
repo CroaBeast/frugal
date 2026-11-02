@@ -169,7 +169,8 @@ const waived = new Set<string>()
 const gateRun = async ($: EngineInterface, command: string) => {
   // A heredoc body is data (a script, a test file), not a command this session runs.
   const head = command.split(/<<-?\s*['"]?\w+/)[0]!
-  if (!HEAVY_RUN.test(head) || waived.has(command) || !(await connected($, 'run'))) return undefined
+  // CLAUDE_CONFIG_DIR= already sends the run to another account.
+  if (!HEAVY_RUN.test(head) || /\bCLAUDE_CONFIG_DIR=/.test(head) || waived.has(command) || !(await connected($, 'run'))) return undefined
   waived.add(command)
   return `frugal-mod: a secondary account runs this, not the main one. Call ${DELEGATE_TOOL} with kind "run" and a brief like "Run \`${command.slice(0, 200)}\` and report the pass and fail counts and each failure with its message." If it answers "do it here", run the same command again and it goes through.`
 }
