@@ -29,18 +29,42 @@ export const PRESETS: Record<string, { kind: AccountKind; label: string; baseUrl
 // Whole name parts only: "mini" is in "gemini".
 const CHEAP = /(^|[-_./:])(flash|mini|small|lite|haiku|nano|instant|8b)/i
 const NOT_CHAT = /embed|whisper|tts|audio|image|vision|guard|moderation|rerank/i
-export const pickModel = (models: string[] = []) => {
+export const pickModel = (models: string[] = [], strong = false) => {
   const chat = models.filter(m => !NOT_CHAT.test(m))
-  return chat.find(m => CHEAP.test(m)) ?? chat[0] ?? ''
+  return chat.find(m => CHEAP.test(m) !== strong) ?? chat[0] ?? ''
 }
 
-// Claude CLI model and Codex effort per kind of task; HTTP providers use the account's model.
-const CLAUDE_MODEL: Record<Kind, string> = { search: 'haiku', edit: 'sonnet', review: 'haiku', classify: 'haiku' }
-const CODEX_EFFORT: Record<Kind, string> = { search: 'low', edit: 'medium', review: 'low', classify: 'low' }
-// A Claude model the main session picked, as Codex reasoning effort when no effort was given.
-const TIER_EFFORT: Record<string, string> = { haiku: 'low', sonnet: 'medium', opus: 'high' }
-// What the main session picked for one call; left out, the kind decides.
-export type Pick = { model?: string; effort?: string }
+export type Level = 'light' | 'standard' | 'heavy' | 'max'
+// What the main session picked for one call; left out, the kind sets the level and the level the effort.
+export type Pick = { level?: Level; effort?: string }
+const LEVEL: Record<Kind, Level> = { search: 'light', edit: 'standard', review: 'light', classify: 'light' }
+const EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']
+
+// Per provider: the model and effort each level runs as, and the efforts it takes (claude --help, ~/.codex/models_cache.json).
+// Codex keeps the model set in its config.toml; HTTP providers take no effort.
+export const RULES: Partial<Record<AccountKind, { efforts: string[]; levels: Record<Level, { model?: string; effort: string }> }>> = {
+  'claude-cli': {
+    efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+    levels: { light: { model: 'haiku', effort: 'low' }, standard: { model: 'sonnet', effort: 'medium' }, heavy: { model: 'opus', effort: 'high' }, max: { model: 'opus', effort: 'max' } },
+  },
+  'codex-cli': {
+    efforts: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+    levels: { light: { effort: 'low' }, standard: { effort: 'medium' }, heavy: { effort: 'high' }, max: { effort: 'xhigh' } },
+  },
+}
+
+// An effort the provider does not take becomes the closest one below it, else its lowest.
+const fit = (effort: string, efforts: string[]) =>
+  [...efforts].reverse().find(e => EFFORTS.indexOf(e) <= EFFORTS.indexOf(effort)) ?? efforts[0]!
+
+// The model and effort one account runs a task with; on an HTTP provider light and standard take a cheap model, heavier levels a strong one.
+export const choose = (a: Account, kind: Kind, pick: Pick = {}) => {
+  const level = pick.level ?? LEVEL[kind]
+  const rule = RULES[a.kind]
+  if (!rule) return { model: pickModel(a.models, level === 'heavy' || level === 'max'), effort: undefined }
+  const base = rule.levels[level]
+  return { model: base.model, effort: fit(pick.effort ?? base.effort, rule.efforts) }
+}
 const LIMIT = /usage limit|rate limit|limit reached|quota|too many requests|\b429\b/i
 const HOUR = 3_600_000
 const MAX_TRIES = 3
@@ -55,8 +79,8 @@ export const DELEGATE_SPEC = {
       tasks: { type: 'array', items: { type: 'string' }, description: 'Several independent briefs, run in parallel across accounts.' },
       kind: { type: 'string', enum: ['search', 'edit'] },
       check: { type: 'string', description: 'Shell command that exits 0 when the work is done right.' },
-      model: { type: 'string', enum: ['haiku', 'sonnet', 'opus'], description: 'Claude accounts: haiku for searches and summaries, sonnet for edits and test runs, opus only for hard multi-file work. Left out: haiku for search, sonnet for edit.' },
-      effort: { type: 'string', enum: ['low', 'medium', 'high'], description: 'Reasoning effort on Claude and Codex accounts. Left out: follows the model, else low for search and medium for edit.' },
+      level: { type: 'string', enum: ['light', 'standard', 'heavy', 'max'], description: 'How hard the task is; frugal-mod maps it to the model and effort of each provider. light: searches, reads, summaries. standard: edits and test runs. heavy: hard multi-file work. max: only after heavy failed. Left out: light for search, standard for edit.' },
+      effort: { type: 'string', enum: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'], description: 'Overrides the effort of the level when this task needs more or less thinking than its level; fitted to what the provider takes.' },
     },
     required: ['kind'],
   },
@@ -66,11 +90,10 @@ export const DELEGATE_SPEC = {
 // HTTP providers see only the prompt, so they cannot search or edit the repo.
 export const serves = (a: Account, kind: Kind) => a.kind === 'claude-cli' || a.kind === 'codex-cli' || kind === 'review' || kind === 'classify'
 
-const codexEffort = (kind: Kind, pick: Pick) => pick.effort ?? (pick.model ? TIER_EFFORT[pick.model] : undefined) ?? CODEX_EFFORT[kind]
-
-export const modelFor = (a: Account, kind: Kind, pick: Pick = {}) => a.kind === 'claude-cli'
-  ? `${pick.model ?? CLAUDE_MODEL[kind]}${pick.effort ? ` ${pick.effort}` : ''}`
-  : a.kind === 'codex-cli' ? `${codexEffort(kind, pick)} effort` : pickModel(a.models)
+export const modelFor = (a: Account, kind: Kind, pick: Pick = {}) => {
+  const c = choose(a, kind, pick)
+  return [c.model, c.effort && `${c.effort} effort`].filter(Boolean).join(', ')
+}
 
 // An ordered provider list is a preference; with none, the least busy account goes first, then the least used today.
 export const candidates = (list: Account[], kind: Kind, order: string[], now: number, day: string, busy: Record<string, number> = {}) => {
@@ -99,11 +122,11 @@ const keyFor = async ($: EngineInterface, preset: string) => {
 }
 
 const run = async ($: EngineInterface, a: Account, kind: Kind, prompt: string, cwd: string, pick: Pick) => {
+  const c = choose(a, kind, pick)
   if (a.kind === 'claude-cli' || a.kind === 'codex-cli') {
     const argv = a.kind === 'claude-cli'
-      ? ['claude', '-p', '--model', pick.model ?? CLAUDE_MODEL[kind], ...(pick.effort ? ['--effort', pick.effort] : []),
-          ...(kind === 'edit' ? ['--permission-mode', 'acceptEdits'] : [])]
-      : ['codex', 'exec', '--skip-git-repo-check', '-c', `model_reasoning_effort="${codexEffort(kind, pick)}"`,
+      ? ['claude', '-p', '--model', c.model!, '--effort', c.effort!, ...(kind === 'edit' ? ['--permission-mode', 'acceptEdits'] : [])]
+      : ['codex', 'exec', '--skip-git-repo-check', '-c', `model_reasoning_effort="${c.effort}"`,
           ...(kind === 'edit' ? ['--full-auto'] : []), '-']
     const env: Record<string, string> = a.configDir ? { CLAUDE_CONFIG_DIR: a.configDir } : {}
     const r = await $.process.run(argv, { cwd, env, stdin: prompt, timeoutMs: 10 * 60_000 })
@@ -118,7 +141,7 @@ const run = async ($: EngineInterface, a: Account, kind: Kind, prompt: string, c
     headers: isAnthropic
       ? { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' }
       : { 'content-type': 'application/json', authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model: pickModel(a.models), max_tokens: 800, messages: [{ role: 'user', content: prompt }] }),
+    body: JSON.stringify({ model: c.model, max_tokens: 800, messages: [{ role: 'user', content: prompt }] }),
   })
   if (!r.ok) return { ok: false, text: `HTTP ${r.status}`, limited: r.status === 429 }
   const body = JSON.parse(r.text)
@@ -190,13 +213,13 @@ const runBrief = async ($: EngineInterface, id: string, brief: string, kind: Kin
 
 export const registerDelegate = (on: On) => {
   on('tool.call', { tool: DELEGATE_TOOL }, async ($, e) => {
-    const input = e as unknown as { task?: string; tasks?: string[]; kind: Kind; check?: string; model?: string; effort?: string }
+    const input = e as unknown as { task?: string; tasks?: string[]; kind: Kind; check?: string; level?: Level; effort?: string }
     const briefs = [...(input.tasks ?? []), ...(input.task ? [input.task] : [])]
     if (!briefs.length) return { result: 'frugal-mod: give a task or tasks.', text: 'frugal-mod: give a task or tasks.' }
     const cwd = (await $.session.cwd()) ?? '.'
     const verify = await isOn($, 'verify')
     const results = await Promise.all(briefs.map((brief, i) =>
-      runBrief($, `${e.tool_use_id}${briefs.length > 1 ? `-${i + 1}` : ''}`, brief, input.kind, input.check, cwd, verify, { model: input.model, effort: input.effort })))
+      runBrief($, `${e.tool_use_id}${briefs.length > 1 ? `-${i + 1}` : ''}`, brief, input.kind, input.check, cwd, verify, { level: input.level, effort: input.effort })))
     const text = results.length === 1 ? results[0]! : results.map((r, i) => `## Task ${i + 1}\n${r}`).join('\n\n')
     return { result: text, text }
   })

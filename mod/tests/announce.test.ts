@@ -21,6 +21,6 @@ test('connected accounts are announced in full once, then as a one-line reminder
   const first = await $.prompt.submit(typed('hola'))
   expect(first.context?.join()).toContain('1 secondary account is connected (a)')
   const second = await $.prompt.submit(typed('hola'))
-  expect(first.context?.join()).toContain('haiku and low')
-  expect(second.context).toEqual(['frugal-mod: delegate bounded work to a with mcp__frugal-mod__delegate, picking model and effort per task.'])
+  expect(first.context?.join()).toContain('heavy: hard multi-file work')
+  expect(second.context).toEqual(['frugal-mod: delegate bounded work to a with mcp__frugal-mod__delegate, setting level and effort per task.'])
 })

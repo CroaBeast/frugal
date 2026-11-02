@@ -103,9 +103,9 @@ export const registerRules = (on: On) => {
       hint = ids.join() !== announced
         ? `frugal-mod: ${ids.length} secondary ${ids.length === 1 ? 'account is' : 'accounts are'} connected (${ids.join(', ')}). ` +
           'Delegate as much as you can with mcp__frugal-mod__delegate so this account\'s limits last: every repo search, file reading or summary, test or build run, and edit you can brief exactly. ' +
-          'Pick model and effort per task: haiku and low for searches and summaries, sonnet and medium for edits and test runs, opus and high only for hard multi-file work. ' +
+          'Set "level" per task (light: searches, reads, summaries; standard: edits and test runs; heavy: hard multi-file work; max: only after heavy failed) and "effort" when a task needs more or less thinking than its level; frugal-mod maps both to the models and efforts of each provider. ' +
           'Put independent pieces in "tasks" so all accounts work in parallel. Keep here only design, judgment calls and the final check of what comes back.'
-        : `frugal-mod: delegate bounded work to ${ids.join(', ')} with mcp__frugal-mod__delegate, picking model and effort per task.`
+        : `frugal-mod: delegate bounded work to ${ids.join(', ')} with mcp__frugal-mod__delegate, setting level and effort per task.`
     }
     announced = ids.join()
     const dir = await read($, skillDir)

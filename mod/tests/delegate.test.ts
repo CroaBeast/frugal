@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { candidates } from '../hooks/delegate'
+import { candidates, choose } from '../hooks/delegate'
 import type { Account } from '../types'
 
 const DAY = '2026-11-01'
@@ -50,7 +50,7 @@ test('a search runs on a secondary Claude login and comes back short', async ($,
   engine(on, (argv, env) => { seen.push(env); return ok(`found in a.ts (${argv[0]})`) }, store)
   await $.session.start(START)
   const r = await $.tool.call({ tool: 'mcp__frugal-mod__delegate', task: 'find the parser', kind: 'search' })
-  expect(r.text).toContain('Done by claude-b (haiku)')
+  expect(r.text).toContain('Done by claude-b (haiku, low effort)')
   expect(r.text).toContain('found in a.ts (claude)')
   expect(seen[0]?.CLAUDE_CONFIG_DIR).toBe('/home/me/.claude-b')
   expect((store.accounts as Account[])[0]?.used).toBe(1)
@@ -99,14 +99,22 @@ test('several briefs run in parallel, one per account', async ($, on) => {
   expect([...new Set(seen)].sort()).toEqual(['/a', '/b'])
 })
 
-test('the model and effort the main session picks reach the CLI', async ($, on) => {
+test('a level maps to each provider; an effort the provider lacks is fitted', async ($, on) => {
   const store: Record<string, unknown> = { accounts: [acc('claude-b'), acc('codex', { preset: 'codex', kind: 'codex-cli', used: 1 })] }
   const argvs: string[][] = []
   engine(on, argv => { argvs.push([...argv]); return ok('done') }, store)
   await $.session.start(START)
-  const r = await $.tool.call({ tool: 'mcp__frugal-mod__delegate', task: 'split the parser module', kind: 'edit', model: 'opus', effort: 'high' })
-  expect(r.text).toContain('Done by claude-b (opus high)')
+  const r = await $.tool.call({ tool: 'mcp__frugal-mod__delegate', task: 'split the parser module', kind: 'edit', level: 'heavy' })
+  expect(r.text).toContain('Done by claude-b (opus, high effort)')
   expect(argvs[0]).toEqual(expect.arrayContaining(['--model', 'opus', '--effort', 'high']))
-  await $.tool.call({ tool: 'mcp__frugal-mod__delegate', tasks: ['find x', 'find y'], kind: 'search', model: 'sonnet' })
-  expect(argvs.find(a => a[0] === 'codex')).toContain('model_reasoning_effort="medium"')
+  await $.tool.call({ tool: 'mcp__frugal-mod__delegate', tasks: ['find x', 'find y'], kind: 'search', level: 'max' })
+  expect(argvs.find(a => a[0] === 'codex')).toContain('model_reasoning_effort="xhigh"')
+})
+
+test('per-provider rules: Claude has no minimal effort, HTTP providers pick a strong model for heavy work', () => {
+  expect(choose(acc('c'), 'search', { effort: 'minimal' })).toEqual({ model: 'haiku', effort: 'low' })
+  expect(choose(acc('c'), 'edit', { effort: 'xhigh' })).toEqual({ model: 'sonnet', effort: 'xhigh' })
+  const gem = acc('g', { preset: 'gemini', kind: 'openai-compatible', models: ['gemini-pro', 'gemini-flash', 'text-embedding'] })
+  expect(choose(gem, 'review')).toEqual({ model: 'gemini-flash', effort: undefined })
+  expect(choose(gem, 'review', { level: 'heavy' })).toEqual({ model: 'gemini-pro', effort: undefined })
 })
