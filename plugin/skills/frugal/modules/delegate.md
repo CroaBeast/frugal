@@ -2,7 +2,9 @@
 
 The main thread keeps judgment: architecture, ambiguous bugs, cross-file design, synthesis, the final answer. A subagent starts cold and re-pays its own system prompt, and its result still has to be read here. Reading ~30k tokens directly in one batched call is cheaper than any delegation.
 
-**Delegate only when** one holds, else read it yourself:
+**With secondary accounts set up** (the frugal hook names them, and `mcp__plugin_frugal_accounts__delegate` is available): send every bounded task to that tool, whatever its size and in any project: searches, reads and summaries of files, threads or pages, code or doc lookups, scripts and command runs, drafts, edits from a clear spec. Keep here only judgment, design, the final answer, and what needs this session's own tools or state (its browser or a single-session login, MCP servers the delegate lacks, files outside its `cwd`). Pass `level` per task (default `standard`; `light` only for a trivial grep) and `cwd` when the work is outside the project dir. The rest of this file is for subagents on the main account.
+
+**Without secondary accounts, delegate only when** one holds, else read it yourself:
 - The raw material is too big for this context (roughly 100k+ tokens: huge logs, a whole-codebase sweep, many web pages) and only a short result is needed back.
 - More than ~30k tokens of raw material, and the session continues for many turns after this step, so reading it here would re-bill it every later turn.
 - Independent parts each need heavy reading and can run in parallel.
