@@ -4,5 +4,6 @@
   "description": "Hooks layer for frugal: rule injection, context handoff, verify and escalate, zero-token quality gates.",
   "author": {
     "name": "CroaBeast"
-  }
+  },
+  "types": "./types/index.d.ts"
 }
