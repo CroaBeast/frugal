@@ -10,6 +10,7 @@ Conditions (caveman and ponytail at the level in %APPDATA%/<plugin>/config.json,
   G  ponytail alone
   R  /frugal delegate (delegation module forced on)
   T  /frugal tight (experimental in 0.4, removed in 1.0; E is plain /frugal on the plugin from 0.4 on)
+  M  /frugal with frugal-mod on (off in every other arm). Work it delegates to secondary accounts is not in the main stream.
 
 Usage:
   python bench.py run [--reps 2] [--workers 3] [--model claude-opus-5-5]
@@ -99,14 +100,14 @@ assert [r.allow(10) for _ in range(4)] == [True, True, True, False]
 """
 # humanizer is opt-in and interactive, so it stays out of the bench; AskUserQuestion has no user in -p
 PLUGINS = {"A": (0, 0, 0), "B": (1, 1, 0), "C": (1, 1, 0), "D": (1, 1, 0), "E": (0, 0, 1), "F": (1, 0, 0), "G": (0, 1, 0),
-           "T": (0, 0, 1), "R": (0, 0, 1), "P": (0, 0, 1), "V": (0, 0, 0)}  # (caveman, ponytail, frugal plugin); P: plugin on, not invoked
-PREFIX = {"C": "/frugal ", "D": "/frugal ", "E": "/frugal:frugal ", "T": "/frugal:frugal tight ", "R": "/frugal:frugal delegate ", "V": "/frugal:frugal "}  # V: a frugal variant from FRUGAL_VARIANT_DIR via --plugin-dir  # C, D: loose-skill era
+           "T": (0, 0, 1), "R": (0, 0, 1), "P": (0, 0, 1), "V": (0, 0, 0), "M": (0, 0, 1)}  # (caveman, ponytail, frugal plugin); P: plugin on, not invoked; M: /frugal with frugal-mod
+PREFIX = {"C": "/frugal ", "D": "/frugal ", "E": "/frugal:frugal ", "T": "/frugal:frugal tight ", "R": "/frugal:frugal delegate ", "V": "/frugal:frugal ", "M": "/frugal:frugal "}  # V: a frugal variant from FRUGAL_VARIANT_DIR via --plugin-dir  # C, D: loose-skill era
 
 
 def cond_settings(cond):
     cav, pony, fru = PLUGINS[cond]
     return json.dumps({"enabledPlugins": {"caveman@caveman": bool(cav), "ponytail@ponytail": bool(pony),
-                                          "frugal@frugal": bool(fru)},
+                                          "frugal@frugal": bool(fru), "frugal-mod@frugal": cond == "M"},
                        "skillOverrides": {"humanizer": "off", "frugal:humanizer": "off"}})
 
 
@@ -297,7 +298,7 @@ if __name__ == "__main__":
     ap.add_argument("--reps", type=int, default=2)
     ap.add_argument("--workers", type=int, default=3)
     ap.add_argument("--model", default="claude-opus-5-5")
-    ap.add_argument("--conds", default="ABC", help="D = C after swapping in a new frugal version; E = plugins off + /frugal")
+    ap.add_argument("--conds", default="ABC", help="D = C after swapping in a new frugal version; E = plugins off + /frugal; M = E with frugal-mod")
     ap.add_argument("--tasks", default=",".join(TASKS), help="comma-separated task names")
     ap.add_argument("--out", default="results", help="results folder under bench/")
     a = ap.parse_args()
