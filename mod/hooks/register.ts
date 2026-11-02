@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { Register, SessionUsage } from 'claude-code'
+import type { EngineInterface, Register, SessionUsage } from 'claude-code'
 
 // Set once /frugal runs in this session; null means frugal is off.
 const skillDir = atom({ plugin: 'frugal-mod', key: 'skillDir' } as const, null)
@@ -14,8 +14,10 @@ const USER = new Set(['composer', 'bridge', 'sdk'])
 const MARKS = [25, 45, 65, 85]
 // Context % at which the model is told to offer a handoff.
 const HANDOFF_MARKS = [40, 60]
+const COMPACT_AT = 80
 // What the plugin's session-count.sh prints; the mod injects the same rules itself.
 const SH = /(frugal code rules \(loaded by a hook|frugal: this is the user's message \d+)[\s\S]*/
+const COMPACT_INSTRUCTIONS = 'Summarize as a frugal handoff: Goal; Done (file paths, settings changed, decisions and why); Pending (in order); Key context (versions, constraints, user preferences); Next step. Facts only, under 250 words.'
 const LIMITS: Record<string, string> = { five_hour: '5-hour', seven_day: 'weekly' }
 
 const step = (marks: number[], pct: number) => marks.filter(m => m <= pct).pop() ?? 0
@@ -26,6 +28,13 @@ const usageLine = (u: SessionUsage) => [
   ...u.rateLimits.map(r => `${LIMITS[r.kind] ?? r.kind} ${Math.round(r.percentUsed)}%` +
     (r.resetsAt ? ` (resets ${new Date(r.resetsAt).toISOString().slice(0, 16).replace('T', ' ')} UTC)` : '')),
 ].join(', ')
+
+// A compaction drops the injected rules: re-inject them on the next prompt.
+const resetAfterCompact = async ($: EngineInterface) => {
+  await update($, mark, () => -1)
+  await update($, codeSent, () => false)
+  await update($, handoffMark, () => 0)
+}
 
 export const register: Register = on => {
   let lastText = ''
@@ -66,6 +75,24 @@ export const register: Register = on => {
       add.push(codeRules(await $.fs.read(`${dir}/code.md`)))
     }
     return add.length ? next({ ...e, context: [...(e.context ?? []), ...add] }) : next(e)
+  })
+
+  // Compacting is only allowed once the turn is over, not from prompt.submit.
+  on('turn.complete', async ($, e, next) => {
+    if (e.agentId) return next(e)
+    const r = await next(e)
+    if (!(await read($, skillDir)) || ((await $.session.usage()).context.percent ?? 0) < COMPACT_AT) return r
+    const c = await $.session.compact({ instructions: COMPACT_INSTRUCTIONS }).catch(() => ({ skip: 'refused' }))
+    if (!c.skip) await resetAfterCompact($)
+    return r
+  })
+
+  // /compact and the engine's auto-compaction also get the handoff format.
+  on('session.compact', async ($, e, next) => {
+    if (e.agentId || !(await read($, skillDir))) return next(e)
+    const r = await next({ ...e, instructions: e.instructions ?? COMPACT_INSTRUCTIONS })
+    if (!r.skip) await resetAfterCompact($)
+    return r
   })
 
   on('session.append', { door: 'hook-context' }, ($, e, next) => {
