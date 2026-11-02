@@ -23,6 +23,14 @@ const SH = /(frugal code rules \(loaded by a hook|frugal: this is the user's mes
 const COMPACT_INSTRUCTIONS = 'Summarize as a frugal handoff: Goal; Done (file paths, settings changed, decisions and why); Pending (in order); Key context (versions, constraints, user preferences); Next step. Facts only, under 250 words.'
 const LIMITS: Record<string, string> = { five_hour: '5-hour', seven_day: 'weekly' }
 
+const MAX_LINES = 1000
+const gate = (path: string, before: string | null, after: string) => {
+  const n = after.split('\n').length
+  if (n > MAX_LINES && n > (before?.split('\n').length ?? 0)) {
+    return `frugal: ${path} would be ${n} lines (limit ${MAX_LINES}). Split it into smaller files.`
+  }
+}
+
 const step = (marks: number[], pct: number) => marks.filter(m => m <= pct).pop() ?? 0
 const codeRules = (text: string) => `frugal code rules (loaded by frugal-mod; do not Read code.md):\n${text}`
 
@@ -111,6 +119,22 @@ export const register: Register = on => {
     const r = await next({ ...e, instructions: e.instructions ?? COMPACT_INSTRUCTIONS })
     if (!r.skip) await resetAfterCompact($)
     return r
+  })
+
+  on('tool.call', { tool: 'Edit' }, async ($, e, next) => {
+    if (!(await read($, skillDir))) return next(e)
+    if (!(await $.fs.exists(e.file_path))) return next(e)
+    const before = await $.fs.read(e.file_path)
+    const after = e.replace_all ? before.split(e.old_string).join(e.new_string) : before.replace(e.old_string, () => e.new_string)
+    const deny = gate(e.file_path, before, after)
+    return deny ? { deny } : next(e)
+  })
+
+  on('tool.call', { tool: 'Write' }, async ($, e, next) => {
+    if (!(await read($, skillDir))) return next(e)
+    const before = (await $.fs.exists(e.file_path)) ? await $.fs.read(e.file_path) : null
+    const deny = gate(e.file_path, before, e.content)
+    return deny ? { deny } : next(e)
   })
 
   on('session.append', { door: 'hook-context' }, ($, e, next) => {
