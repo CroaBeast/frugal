@@ -1,5 +1,5 @@
-import { atom, update } from 'claude-code'
-import type { On } from 'claude-code'
+import { atom, read, update } from 'claude-code'
+import type { EngineInterface, On } from 'claude-code'
 
 import type { Account } from '../types'
 
@@ -23,8 +23,10 @@ export const MODULES: { id: string; name: string; tokens: TokenClass; lock?: Loc
   { id: 'panel', name: 'Panel and band', tokens: 'none', lock: 'fixed', why: 'this menu' },
 ]
 
-// Accounts, module switches and provider lists outlive the session in $.store.
-export const registerShared = (on: On) => {
+const isOn = async ($: EngineInterface, id: string) => (await read($, modules))[id] ?? true
+
+export const registerSession = (on: On) => {
+  // Accounts, module switches and provider lists outlive the session in $.store.
   on('session.start', async ($, e, next) => {
     const a = (await $.store.get('accounts')) as Account[] | undefined
     const m = (await $.store.get('modules')) as Record<string, boolean> | undefined
@@ -32,6 +34,25 @@ export const registerShared = (on: On) => {
     if (a) await update($, accounts, () => a)
     if (m) await update($, modules, () => m)
     if (p) await update($, providers, () => p)
-    return next(e)
+    const r = await next(e)
+
+    if ((await isOn($, 'delegate')) && (a ?? []).some(x => x.enabled)) {
+      await $.tool.register({
+        name: 'delegate',
+        description: 'Run a bounded task on one of the user\'s secondary accounts (another Claude login, Codex, or a free model) so this session spends fewer tokens. Use for repo searches and mechanical edits with a clear brief; pass a shell check when one exists. Not for design or judgment calls. If it answers "do it here", do the task yourself.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task: { type: 'string', description: 'The full brief: goal, exact paths, done-when.' },
+            kind: { type: 'string', enum: ['search', 'edit'] },
+            check: { type: 'string', description: 'Shell command that exits 0 when the task is done right.' },
+          },
+          required: ['task', 'kind'],
+        },
+        isDeferred: false,
+      })
+    }
+
+    return r
   })
 }
