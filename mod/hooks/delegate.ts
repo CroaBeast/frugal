@@ -165,4 +165,44 @@ export const registerDelegate = (on: On) => {
     const failed = `frugal-mod: no secondary account finished this${failure ? ` (${failure})` : ''}. Do it here.`
     return { result: failed, text: failed }
   })
+
+  // Rules are classified on a secondary or free account; with none, the user judges the raw text.
+  on('command.run', { command: 'frugal-reflect' }, async $ => {
+    const cwd = (await $.session.cwd()) ?? '.'
+    const key = `reflect:${cwd}`
+    const queue = ((await $.store.get(key)) as string[] | undefined) ?? []
+    if (!queue.length) return { text: 'Nothing queued: frugal-mod saves corrections and "remember:" notes while /frugal is on.' }
+    const saved: string[] = []
+    for (const item of queue) {
+      const c = await ask($, 'reflect', 'classify', `${REFLECT_PROMPT}\n\n${item}`, cwd)
+      const rule = c?.ok ? c.text.split('\n')[0]!.trim() : item
+      if (/^\W*SKIP\b/i.test(rule)) continue
+      const pick = await $.ui.ask(`Save this rule to CLAUDE.local.md? ${rule}`, ['Save', 'Skip']).catch(() => 'Skip')
+      if (pick === 'Save') saved.push(rule)
+    }
+    await $.store.set(key, [])
+    if (!saved.length) return { text: `Reviewed ${queue.length}; nothing saved.` }
+    const path = `${cwd}/CLAUDE.local.md`
+    const before = (await $.fs.exists(path)) ? await $.fs.read(path) : ''
+    await $.fs.write(path, mergeRules(before, saved))
+    return { text: `Saved ${saved.length} of ${queue.length} to CLAUDE.local.md.` }
+  })
+}
+
+const REFLECT_PROMPT = 'The user said this to a coding agent. If it states a preference or rule that should hold in future sessions of this project, rewrite it as one imperative rule under 20 words. If it only applies to the task at hand, answer SKIP. Answer with the rule or SKIP only.'
+const OPEN = '<!-- frugal-reflect -->'
+const CLOSE = '<!-- /frugal-reflect -->'
+const MAX_RULES = 30
+
+// Rules live in one marked section, deduplicated, newest kept when over the cap.
+export const mergeRules = (file: string, rules: string[]) => {
+  const start = file.indexOf(OPEN)
+  const end = file.indexOf(CLOSE)
+  const has = start >= 0 && end > start
+  const old = has ? file.slice(start + OPEN.length, end).split('\n').map(l => l.replace(/^- /, '').trim()).filter(Boolean) : []
+  const seen = new Set<string>()
+  const all = [...old, ...rules].reverse().filter(r => !seen.has(r.toLowerCase()) && seen.add(r.toLowerCase())).reverse().slice(-MAX_RULES)
+  const section = `${OPEN}\n${all.map(r => `- ${r}`).join('\n')}\n${CLOSE}`
+  if (has) return file.slice(0, start) + section + file.slice(end + CLOSE.length)
+  return `${file}${file && !file.endsWith('\n') ? '\n' : ''}${file ? '\n' : ''}${section}\n`
 }

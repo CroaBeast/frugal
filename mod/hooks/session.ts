@@ -73,6 +73,7 @@ export const registerSession = (on: On) => {
 
     await $.command.register({ name: 'frugal-panel', description: 'Open the frugal-mod panel: accounts, modules, tasks' })
     await $.command.register({ name: 'frugal-organize', description: 'File ungrouped sessions into sidebar groups' })
+    await $.command.register({ name: 'frugal-reflect', description: 'Review the corrections frugal-mod queued for this project' })
 
     if ((await isOn($, 'delegate')) && (a ?? []).some(x => x.enabled)) {
       await $.tool.register(DELEGATE_SPEC)
