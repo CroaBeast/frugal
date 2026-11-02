@@ -175,6 +175,7 @@ SPEC = {
         "tasks": {"type": "array", "items": {"type": "string"}, "description": "Independent briefs, run in parallel."},
         "kind": {"type": "string", "enum": ["search", "edit", "run"], "description": "search: read-only. edit: changes files. run: runs commands and reports."},
         "check": {"type": "string", "description": "Shell command that exits 0 when done right."},
+        "cwd": {"type": "string", "description": "Directory the work happens in (sandbox root, check runs there). Default: the session's project dir."},
         "level": {"type": "string", "enum": LEVELS, "description": "light: searches, reads. standard: edits, test runs. heavy: hard multi-file work. max: after heavy failed."},
         "effort": {"type": "string", "enum": EFFORTS[:-1], "description": "Overrides the effort of the level."},
     }},
@@ -185,7 +186,7 @@ def delegate(args):
     briefs = [*(args.get("tasks") or []), *([args["task"]] if args.get("task") else [])]
     if not briefs:
         return "frugal: give a task or tasks."
-    cwd = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+    cwd = args.get("cwd") or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
     with concurrent.futures.ThreadPoolExecutor(len(briefs)) as ex:
         out = list(ex.map(lambda b: brief(b, args.get("kind", "search"), args.get("check"), args.get("level"), args.get("effort"), cwd), briefs))
     return out[0] if len(out) == 1 else "\n\n".join(f"## Task {i}\n{r}" for i, r in enumerate(out, 1))
