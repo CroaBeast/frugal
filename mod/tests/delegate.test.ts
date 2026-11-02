@@ -118,3 +118,18 @@ test('per-provider rules: Claude has no minimal effort, HTTP providers pick a st
   expect(choose(gem, 'review')).toEqual({ model: 'gemini-flash', effort: undefined })
   expect(choose(gem, 'review', { level: 'heavy' })).toEqual({ model: 'gemini-pro', effort: undefined })
 })
+
+test('Codex runs the model of the level when its login lists it, else the one in config.toml', async ($, on) => {
+  const models = ['gpt-6-luna', 'gpt-6.1-sol']
+  const store: Record<string, unknown> = { accounts: [acc('codex', { preset: 'codex', kind: 'codex-cli', models })] }
+  const argvs: string[][] = []
+  engine(on, argv => { argvs.push([...argv]); return ok('done') }, store)
+  await $.session.start(START)
+  const r = await $.tool.call({ tool: 'mcp__frugal-mod__delegate', task: 'find x', kind: 'search' })
+  expect(r.text).toContain('Done by codex (gpt-6-luna, low effort)')
+  expect(argvs[0]).toEqual(expect.arrayContaining(['-m', 'gpt-6-luna']))
+  await $.tool.call({ tool: 'mcp__frugal-mod__delegate', task: 'fix y', kind: 'edit', level: 'max' })
+  expect(argvs[1]).not.toContain('-m')
+  expect(argvs[1]).toEqual(expect.arrayContaining(['-s', 'workspace-write', 'model_reasoning_effort="xhigh"']))
+})
+

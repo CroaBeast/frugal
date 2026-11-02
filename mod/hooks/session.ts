@@ -122,7 +122,13 @@ const checkAccount = async ($: EngineInterface, a: Account): Promise<Partial<Acc
     }
     if (!/logged in/i.test(out)) return { status: 'pending', note: 'Waiting for login' }
     const chatgpt = /chatgpt/i.test(out)
-    return { status: 'connected', plan: chatgpt ? 'ChatGPT' : 'API key', paid: chatgpt ? true : undefined, note: undefined }
+    // Codex keeps the models this login can use in its own cache; delegation picks among them per level.
+    const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
+    const cache = await $.fs.read(`${home}/.codex/models_cache.json`).catch(() => '')
+    const models = (() => {
+      try { return (JSON.parse(cache) as { models?: { slug: string; visibility?: string }[] }).models?.filter(m => m.visibility !== 'hide').map(m => m.slug) } catch { return undefined }
+    })()
+    return { status: 'connected', plan: chatgpt ? 'ChatGPT' : 'API key', paid: chatgpt ? true : undefined, models, note: undefined }
   }
   const p = PRESETS[a.preset]
   const key = a.preset === 'ollama' ? 'ollama' : await keyFor($, a.preset)

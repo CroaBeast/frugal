@@ -41,7 +41,7 @@ const LEVEL: Record<Kind, Level> = { search: 'light', edit: 'standard', review: 
 const EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']
 
 // Per provider: the model and effort each level runs as, and the efforts it takes (claude --help, ~/.codex/models_cache.json).
-// Codex keeps the model set in its config.toml; HTTP providers take no effort.
+// A Codex model the account does not list falls back to the one in its config.toml; HTTP providers take no effort.
 export const RULES: Partial<Record<AccountKind, { efforts: string[]; levels: Record<Level, { model?: string; effort: string }> }>> = {
   'claude-cli': {
     efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
@@ -49,7 +49,12 @@ export const RULES: Partial<Record<AccountKind, { efforts: string[]; levels: Rec
   },
   'codex-cli': {
     efforts: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
-    levels: { light: { effort: 'low' }, standard: { effort: 'medium' }, heavy: { effort: 'high' }, max: { effort: 'xhigh' } },
+    levels: {
+      light: { model: 'gpt-6-luna', effort: 'low' },
+      standard: { model: 'gpt-6.1-sol', effort: 'medium' },
+      heavy: { model: 'gpt-6.1-sol', effort: 'high' },
+      max: { model: 'gpt-6-astra', effort: 'xhigh' },
+    },
   },
 }
 
@@ -63,7 +68,8 @@ export const choose = (a: Account, kind: Kind, pick: Pick = {}) => {
   const rule = RULES[a.kind]
   if (!rule) return { model: pickModel(a.models, level === 'heavy' || level === 'max'), effort: undefined }
   const base = rule.levels[level]
-  return { model: base.model, effort: fit(pick.effort ?? base.effort, rule.efforts) }
+  const listed = a.kind !== 'codex-cli' || (a.models ?? []).includes(base.model ?? '')
+  return { model: listed ? base.model : undefined, effort: fit(pick.effort ?? base.effort, rule.efforts) }
 }
 const LIMIT = /usage limit|rate limit|limit reached|quota|too many requests|\b429\b/i
 const HOUR = 3_600_000
@@ -127,7 +133,7 @@ const run = async ($: EngineInterface, a: Account, kind: Kind, prompt: string, c
     const argv = a.kind === 'claude-cli'
       ? ['claude', '-p', '--model', c.model!, '--effort', c.effort!, ...(kind === 'edit' ? ['--permission-mode', 'acceptEdits'] : [])]
       // codex 0.166 dropped --full-auto: the workspace-write sandbox lets an edit write files.
-      : ['codex', 'exec', '--skip-git-repo-check', '-c', `model_reasoning_effort="${c.effort}"`,
+      : ['codex', 'exec', '--skip-git-repo-check', ...(c.model ? ['-m', c.model] : []), '-c', `model_reasoning_effort="${c.effort}"`,
           ...(kind === 'edit' ? ['-s', 'workspace-write'] : []), '-']
     const env: Record<string, string> = a.configDir ? { CLAUDE_CONFIG_DIR: a.configDir } : {}
     const r = await $.process.run(argv, { cwd, env, stdin: prompt, timeoutMs: 10 * 60_000 })
