@@ -98,3 +98,15 @@ test('several briefs run in parallel, one per account', async ($, on) => {
   expect(r.text).toContain('## Task 2')
   expect([...new Set(seen)].sort()).toEqual(['/a', '/b'])
 })
+
+test('the model and effort the main session picks reach the CLI', async ($, on) => {
+  const store: Record<string, unknown> = { accounts: [acc('claude-b'), acc('codex', { preset: 'codex', kind: 'codex-cli', used: 1 })] }
+  const argvs: string[][] = []
+  engine(on, argv => { argvs.push([...argv]); return ok('done') }, store)
+  await $.session.start(START)
+  const r = await $.tool.call({ tool: 'mcp__frugal-mod__delegate', task: 'split the parser module', kind: 'edit', model: 'opus', effort: 'high' })
+  expect(r.text).toContain('Done by claude-b (opus high)')
+  expect(argvs[0]).toEqual(expect.arrayContaining(['--model', 'opus', '--effort', 'high']))
+  await $.tool.call({ tool: 'mcp__frugal-mod__delegate', tasks: ['find x', 'find y'], kind: 'search', model: 'sonnet' })
+  expect(argvs.find(a => a[0] === 'codex')).toContain('model_reasoning_effort="medium"')
+})

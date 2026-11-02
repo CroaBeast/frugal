@@ -36,6 +36,10 @@ export const pickModel = (models: string[] = []) => {
 // Claude CLI model and Codex effort per kind of task; HTTP providers use the account's model.
 const CLAUDE_MODEL: Record<Kind, string> = { search: 'haiku', edit: 'sonnet', review: 'haiku', classify: 'haiku' }
 const CODEX_EFFORT: Record<Kind, string> = { search: 'low', edit: 'medium', review: 'low', classify: 'low' }
+// A Claude model the main session picked, as Codex reasoning effort when no effort was given.
+const TIER_EFFORT: Record<string, string> = { haiku: 'low', sonnet: 'medium', opus: 'high' }
+// What the main session picked for one call; left out, the kind decides.
+export type Pick = { model?: string; effort?: string }
 const LIMIT = /usage limit|rate limit|limit reached|quota|too many requests|\b429\b/i
 const HOUR = 3_600_000
 const MAX_TRIES = 3
@@ -50,6 +54,8 @@ export const DELEGATE_SPEC = {
       tasks: { type: 'array', items: { type: 'string' }, description: 'Several independent briefs, run in parallel across accounts.' },
       kind: { type: 'string', enum: ['search', 'edit'] },
       check: { type: 'string', description: 'Shell command that exits 0 when the work is done right.' },
+      model: { type: 'string', enum: ['haiku', 'sonnet', 'opus'], description: 'Claude accounts: haiku for searches and summaries, sonnet for edits and test runs, opus only for hard multi-file work. Left out: haiku for search, sonnet for edit.' },
+      effort: { type: 'string', enum: ['low', 'medium', 'high'], description: 'Reasoning effort on Claude and Codex accounts. Left out: follows the model, else low for search and medium for edit.' },
     },
     required: ['kind'],
   },
@@ -59,7 +65,11 @@ export const DELEGATE_SPEC = {
 // HTTP providers see only the prompt, so they cannot search or edit the repo.
 export const serves = (a: Account, kind: Kind) => a.kind === 'claude-cli' || a.kind === 'codex-cli' || kind === 'review' || kind === 'classify'
 
-export const modelFor = (a: Account, kind: Kind) => a.kind === 'claude-cli' ? CLAUDE_MODEL[kind] : a.kind === 'codex-cli' ? `${CODEX_EFFORT[kind]} effort` : pickModel(a.models)
+const codexEffort = (kind: Kind, pick: Pick) => pick.effort ?? (pick.model ? TIER_EFFORT[pick.model] : undefined) ?? CODEX_EFFORT[kind]
+
+export const modelFor = (a: Account, kind: Kind, pick: Pick = {}) => a.kind === 'claude-cli'
+  ? `${pick.model ?? CLAUDE_MODEL[kind]}${pick.effort ? ` ${pick.effort}` : ''}`
+  : a.kind === 'codex-cli' ? `${codexEffort(kind, pick)} effort` : pickModel(a.models)
 
 // An ordered provider list is a preference; with none, the least busy account goes first, then the least used today.
 export const candidates = (list: Account[], kind: Kind, order: string[], now: number, day: string, busy: Record<string, number> = {}) => {
@@ -87,11 +97,12 @@ const keyFor = async ($: EngineInterface, preset: string) => {
   }
 }
 
-const run = async ($: EngineInterface, a: Account, kind: Kind, prompt: string, cwd: string) => {
+const run = async ($: EngineInterface, a: Account, kind: Kind, prompt: string, cwd: string, pick: Pick) => {
   if (a.kind === 'claude-cli' || a.kind === 'codex-cli') {
     const argv = a.kind === 'claude-cli'
-      ? ['claude', '-p', '--model', CLAUDE_MODEL[kind], ...(kind === 'edit' ? ['--permission-mode', 'acceptEdits'] : [])]
-      : ['codex', 'exec', '--skip-git-repo-check', '-c', `model_reasoning_effort="${CODEX_EFFORT[kind]}"`,
+      ? ['claude', '-p', '--model', pick.model ?? CLAUDE_MODEL[kind], ...(pick.effort ? ['--effort', pick.effort] : []),
+          ...(kind === 'edit' ? ['--permission-mode', 'acceptEdits'] : [])]
+      : ['codex', 'exec', '--skip-git-repo-check', '-c', `model_reasoning_effort="${codexEffort(kind, pick)}"`,
           ...(kind === 'edit' ? ['--full-auto'] : []), '-']
     const env: Record<string, string> = a.configDir ? { CLAUDE_CONFIG_DIR: a.configDir } : {}
     const r = await $.process.run(argv, { cwd, env, stdin: prompt, timeoutMs: 10 * 60_000 })
@@ -121,13 +132,13 @@ const setTask = async ($: EngineInterface, id: string, patch: Partial<Task>) =>
 const busy: Record<string, number> = {}
 
 // Runs one prompt on the first account that answers, marking accounts that hit a limit.
-const ask = async ($: EngineInterface, module: string, kind: Kind, prompt: string, cwd: string, skip: string[] = []) => {
+const ask = async ($: EngineInterface, module: string, kind: Kind, prompt: string, cwd: string, skip: string[] = [], pick: Pick = {}) => {
   const now = await $.clock.now()
   const day = new Date(now).toISOString().slice(0, 10)
   const order = (await read($, providers))[module] ?? []
   for (const a of candidates(await read($, accounts), kind, order, now, day, busy).filter(a => !skip.includes(a.id))) {
     busy[a.id] = (busy[a.id] ?? 0) + 1
-    const r = await run($, a, kind, prompt, cwd).finally(() => { busy[a.id] = (busy[a.id] ?? 1) - 1 })
+    const r = await run($, a, kind, prompt, cwd, pick).finally(() => { busy[a.id] = (busy[a.id] ?? 1) - 1 })
     await update($, accounts, list => list.map(x => x.id !== a.id ? x : r.limited
       ? { ...x, exhaustedUntil: now + HOUR }
       : { ...x, day, used: (x.day === day ? x.used : 0) + 1 }))
@@ -137,17 +148,17 @@ const ask = async ($: EngineInterface, module: string, kind: Kind, prompt: strin
 }
 
 // One brief through the ladder: run, its check, the inspector for edits, up to MAX_TRIES accounts.
-const runBrief = async ($: EngineInterface, id: string, brief: string, kind: Kind, check: string | undefined, cwd: string, verify: boolean) => {
+const runBrief = async ($: EngineInterface, id: string, brief: string, kind: Kind, check: string | undefined, cwd: string, verify: boolean, pick: Pick) => {
   await update($, tasks, list => [...list, { id, title: brief.split('\n')[0]!.slice(0, 60), account: '', model: '', status: 'running' as TaskStatus, tries: 0 }].slice(-20))
   let failure = ''
   const tried: string[] = []
   for (let n = 1; n <= MAX_TRIES; n++) {
     const diff = failure && kind === 'edit' ? (await $.process.run(['git', 'diff', '--stat'], { cwd })).stdout : ''
     const prompt = `${brief}${failure ? `\n\nA previous attempt failed: ${failure}${diff ? `\nCurrent git diff --stat:\n${diff}` : ''}` : ''}\n\nReply in under 150 words: what you found or changed, with file paths.`
-    const r = await ask($, 'delegate', kind, prompt, cwd, tried)
+    const r = await ask($, 'delegate', kind, prompt, cwd, tried, pick)
     if (!r) break
     tried.push(r.account.id)
-    await setTask($, id, { account: r.account.id, model: modelFor(r.account, kind), tries: n, status: 'running' })
+    await setTask($, id, { account: r.account.id, model: modelFor(r.account, kind, pick), tries: n, status: 'running' })
     if (!r.ok) { failure = r.text.slice(-400); continue }
     if (check) {
       await setTask($, id, { status: 'checking' })
@@ -170,7 +181,7 @@ const runBrief = async ($: EngineInterface, id: string, brief: string, kind: Kin
       }
     }
     await setTask($, id, { status: 'accepted' })
-    return `Done by ${r.account.id} (${modelFor(r.account, kind)})${check ? ', check passed' : ''}.\n${r.text.slice(0, 2000)}`
+    return `Done by ${r.account.id} (${modelFor(r.account, kind, pick)})${check ? ', check passed' : ''}.\n${r.text.slice(0, 2000)}`
   }
   await setTask($, id, { status: 'escalated' })
   return `frugal-mod: no secondary account finished this${failure ? ` (${failure})` : ''}. Do it here.`
@@ -178,13 +189,13 @@ const runBrief = async ($: EngineInterface, id: string, brief: string, kind: Kin
 
 export const registerDelegate = (on: On) => {
   on('tool.call', { tool: DELEGATE_TOOL }, async ($, e) => {
-    const input = e as unknown as { task?: string; tasks?: string[]; kind: Kind; check?: string }
+    const input = e as unknown as { task?: string; tasks?: string[]; kind: Kind; check?: string; model?: string; effort?: string }
     const briefs = [...(input.tasks ?? []), ...(input.task ? [input.task] : [])]
     if (!briefs.length) return { result: 'frugal-mod: give a task or tasks.', text: 'frugal-mod: give a task or tasks.' }
     const cwd = (await $.session.cwd()) ?? '.'
     const verify = await isOn($, 'verify')
     const results = await Promise.all(briefs.map((brief, i) =>
-      runBrief($, `${e.tool_use_id}${briefs.length > 1 ? `-${i + 1}` : ''}`, brief, input.kind, input.check, cwd, verify)))
+      runBrief($, `${e.tool_use_id}${briefs.length > 1 ? `-${i + 1}` : ''}`, brief, input.kind, input.check, cwd, verify, { model: input.model, effort: input.effort })))
     const text = results.length === 1 ? results[0]! : results.map((r, i) => `## Task ${i + 1}\n${r}`).join('\n\n')
     return { result: text, text }
   })

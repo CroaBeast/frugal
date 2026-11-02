@@ -12,7 +12,7 @@ Each phase is benchmarked with `bench/bench.py` against frugal 0.19.0 and droppe
    - Split: an ordered provider list per module is a preference; with none, the least used account today goes first. Optional daily cap per account.
    - An account whose CLI or API reports a limit is skipped for an hour and the task goes to the next one. Usage and limits persist across sessions.
    - Ladder: the task's shell check, then an inspector (Verify module) for edits, then up to 3 tries on different accounts with the failure and `git diff --stat`, then "do it here" back to the main session.
-   - Claude CLI runs haiku for searches and reviews, sonnet for edits; Codex runs low effort for searches and medium for edits.
+   - Claude CLI runs haiku for searches and reviews, sonnet for edits; Codex runs low effort for searches and medium for edits. The main session can pick the model (haiku, sonnet, opus) and effort per call; Codex takes the effort, or one that follows the model.
 5. Panel and band (done): `/frugal:panel` opens a pane with tabs. Accounts: main usage line, each secondary (on/off, paid/free, preset, model, uses today, at its limit), remove, and an add form (provider preset + name, with the login step). Modules: on/off, token class, lock (main only, no provider, fixed) or an ordered, editable provider list. Tasks: delegated tasks with status, account, model and tries. A band above the prompt shows task progress and secondary accounts while /frugal is on. All drawn from mod state, zero tokens.
 
 ## Modules
