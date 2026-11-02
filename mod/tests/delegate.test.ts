@@ -8,7 +8,7 @@ const DAY = '2026-11-01'
 const NOW = Date.parse(`${DAY}T12:00:00Z`)
 const START = { cwd: '/repo', surface: 'desktop', isInteractive: true } as const
 const acc = (id: string, patch: Partial<Account> = {}): Account =>
-  ({ id, preset: 'claude', kind: 'claude-cli', paid: true, enabled: true, model: 'sonnet', used: 0, day: DAY, ...patch })
+  ({ id, preset: 'claude', kind: 'claude-cli', enabled: true, status: 'connected', used: 0, day: DAY, ...patch })
 const ok = (stdout: string) => ({ exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false })
 const fail = (stderr: string) => ({ exitCode: 1, stdout: '', stderr, isStdoutTruncated: false, isStderrTruncated: false })
 
@@ -23,6 +23,8 @@ const engine = (on: On, runs: Run, store: Record<string, unknown>) => {
   on('tool.register', () => ({ value: {} as never }))
   on('mcp.call', () => ({ value: { content: [], isError: true } }))
   on('clock.now', () => ({ value: NOW }))
+  on('clock.every', () => ({ value: (() => undefined) as never }))
+  on('env.get', () => ({ value: undefined }))
   on('session.cwd', () => ({ value: '/repo' }))
   on('process.run', (_, e) => ({ value: runs(e.argv, e.init?.env ?? {}) }))
 }
@@ -34,7 +36,8 @@ test('the least used account goes first; capped, limited, disabled and HTTP-only
     acc('capped', { cap: 2, used: 2 }),
     acc('limited', { exhaustedUntil: NOW + 1 }),
     acc('off', { enabled: false }),
-    acc('gemini', { preset: 'gemini', kind: 'openai-compatible', paid: false }),
+    acc('gemini', { preset: 'gemini', kind: 'openai-compatible' }),
+    acc('waiting', { status: 'pending' }),
   ]
   expect(candidates(list, 'edit', [], NOW, DAY).map(a => a.id)).toEqual(['idle', 'busy'])
   expect(candidates(list, 'review', ['gemini', 'busy'], NOW, DAY).map(a => a.id)).toEqual(['gemini', 'busy'])
@@ -54,7 +57,7 @@ test('a search runs on a secondary Claude login and comes back short', async ($,
 })
 
 test('an account at its limit is marked and the next one takes the task', async ($, on) => {
-  const store: Record<string, unknown> = { accounts: [acc('claude-b'), acc('codex', { preset: 'codex', kind: 'codex-cli', model: '', used: 1 })] }
+  const store: Record<string, unknown> = { accounts: [acc('claude-b'), acc('codex', { preset: 'codex', kind: 'codex-cli', used: 1 })] }
   engine(on, argv => argv[0] === 'claude' ? fail('Claude usage limit reached') : ok('done'), store)
   await $.session.start(START)
   const r = await $.tool.call({ tool: 'mcp__frugal-mod__delegate', task: 'find where x is set', kind: 'search' })
@@ -73,7 +76,7 @@ test('a failing check retries elsewhere, then hands the task back', async ($, on
 
 test('the inspector can reject an edit that passed its check', async ($, on) => {
   const store: Record<string, unknown> = {
-    accounts: [acc('a'), acc('b', { used: 3 }), acc('codex', { preset: 'codex', kind: 'codex-cli', model: '' })],
+    accounts: [acc('a'), acc('b', { used: 3 }), acc('codex', { preset: 'codex', kind: 'codex-cli' })],
     providers: { delegate: ['a', 'b'], verify: ['codex'] },
   }
   const calls: string[] = []
@@ -83,4 +86,15 @@ test('the inspector can reject an edit that passed its check', async ($, on) => 
   expect(r.text).toContain('Do it here')
   expect(r.text).toContain('inspector (codex)')
   expect(calls.filter(c => c === 'codex')).toHaveLength(2)
+})
+
+test('several briefs run in parallel, one per account', async ($, on) => {
+  const store: Record<string, unknown> = { accounts: [acc('a', { configDir: '/a' }), acc('b', { configDir: '/b' })] }
+  const seen: string[] = []
+  engine(on, (_, env) => { seen.push(env.CLAUDE_CONFIG_DIR ?? ''); return ok('done') }, store)
+  await $.session.start(START)
+  const r = await $.tool.call({ tool: 'mcp__frugal-mod__delegate', tasks: ['find x', 'find y'], kind: 'search' })
+  expect(r.text).toContain('## Task 1')
+  expect(r.text).toContain('## Task 2')
+  expect([...new Set(seen)].sort()).toEqual(['/a', '/b'])
 })

@@ -10,17 +10,27 @@ const tasks = atom({ plugin: 'frugal-mod', key: 'tasks' } as const, [])
 
 export type Kind = 'search' | 'edit' | 'review' | 'classify'
 
-export const PRESETS: Record<string, { kind: AccountKind; model: string; paid: boolean; baseUrl?: string; login: string }> = {
-  claude: { kind: 'claude-cli', model: 'sonnet', paid: true, login: 'CLAUDE_CONFIG_DIR=~/.claude-<name> claude, then /login' },
-  codex: { kind: 'codex-cli', model: '', paid: true, login: 'codex login' },
-  anthropic: { kind: 'anthropic-api', model: 'claude-haiku-5-5', paid: true, baseUrl: 'https://api.anthropic.com/v1', login: 'set ANTHROPIC_API_KEY' },
-  gemini: { kind: 'openai-compatible', model: 'gemini-2.5-flash', paid: false, baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', login: 'set GEMINI_API_KEY' },
-  groq: { kind: 'openai-compatible', model: 'llama-3.3-70b-versatile', paid: false, baseUrl: 'https://api.groq.com/openai/v1', login: 'set GROQ_API_KEY' },
-  openrouter: { kind: 'openai-compatible', model: 'meta-llama/llama-3.3-70b-instruct:free', paid: false, baseUrl: 'https://openrouter.ai/api/v1', login: 'set OPENROUTER_API_KEY' },
-  cerebras: { kind: 'openai-compatible', model: 'llama-3.3-70b', paid: false, baseUrl: 'https://api.cerebras.ai/v1', login: 'set CEREBRAS_API_KEY' },
-  mistral: { kind: 'openai-compatible', model: 'mistral-small-latest', paid: false, baseUrl: 'https://api.mistral.ai/v1', login: 'set MISTRAL_API_KEY' },
-  github: { kind: 'openai-compatible', model: 'openai/gpt-4.1-mini', paid: false, baseUrl: 'https://models.github.ai/inference', login: 'set GITHUB_TOKEN' },
-  ollama: { kind: 'openai-compatible', model: 'qwen2.5-coder', paid: false, baseUrl: 'http://localhost:11434/v1', login: 'run ollama serve' },
+// How each provider logs in. Plan, paid or free, and models come from the provider once it answers.
+export const PRESETS: Record<string, { kind: AccountKind; label: string; baseUrl?: string; env?: string; keyUrl?: string }> = {
+  claude: { kind: 'claude-cli', label: 'Claude' },
+  codex: { kind: 'codex-cli', label: 'Codex' },
+  anthropic: { kind: 'anthropic-api', label: 'Anthropic API', baseUrl: 'https://api.anthropic.com/v1', env: 'ANTHROPIC_API_KEY', keyUrl: 'https://console.anthropic.com/settings/keys' },
+  gemini: { kind: 'openai-compatible', label: 'Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', env: 'GEMINI_API_KEY', keyUrl: 'https://aistudio.google.com/apikey' },
+  grok: { kind: 'openai-compatible', label: 'Grok (xAI)', baseUrl: 'https://api.x.ai/v1', env: 'XAI_API_KEY', keyUrl: 'https://console.x.ai' },
+  groq: { kind: 'openai-compatible', label: 'Groq', baseUrl: 'https://api.groq.com/openai/v1', env: 'GROQ_API_KEY', keyUrl: 'https://console.groq.com/keys' },
+  openrouter: { kind: 'openai-compatible', label: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', env: 'OPENROUTER_API_KEY', keyUrl: 'https://openrouter.ai/settings/keys' },
+  cerebras: { kind: 'openai-compatible', label: 'Cerebras', baseUrl: 'https://api.cerebras.ai/v1', env: 'CEREBRAS_API_KEY', keyUrl: 'https://cloud.cerebras.ai' },
+  mistral: { kind: 'openai-compatible', label: 'Mistral', baseUrl: 'https://api.mistral.ai/v1', env: 'MISTRAL_API_KEY', keyUrl: 'https://console.mistral.ai/api-keys' },
+  github: { kind: 'openai-compatible', label: 'GitHub Models', baseUrl: 'https://models.github.ai/inference', env: 'GITHUB_TOKEN', keyUrl: 'https://github.com/settings/tokens' },
+  ollama: { kind: 'openai-compatible', label: 'Ollama (local)', baseUrl: 'http://localhost:11434/v1' },
+}
+
+// frugal picks the model: the cheapest-looking one an HTTP provider lists, never one for embeddings, audio or images.
+const CHEAP = /flash|mini|small|lite|haiku|nano|instant|8b/i
+const NOT_CHAT = /embed|whisper|tts|audio|image|vision|guard|moderation|rerank/i
+export const pickModel = (models: string[] = []) => {
+  const chat = models.filter(m => !NOT_CHAT.test(m))
+  return chat.find(m => CHEAP.test(m)) ?? chat[0] ?? ''
 }
 
 // Claude CLI model and Codex effort per kind of task; HTTP providers use the account's model.
@@ -32,15 +42,16 @@ const MAX_TRIES = 3
 export const DELEGATE_TOOL = 'mcp__frugal-mod__delegate'
 export const DELEGATE_SPEC = {
   name: 'delegate',
-  description: `Run a bounded task on one of the user's secondary accounts (another Claude login, Codex, or a free model) so this session spends fewer tokens. Use for repo searches and mechanical edits with a clear brief; pass a shell check when one exists. Not for design or judgment calls. If it answers "do it here", do the task yourself.`,
+  description: `Run bounded work on the user's secondary accounts (other Claude logins, Codex, free models) instead of this session, which saves the main account's limits. Default to it for repo searches, reading and summarizing files, running tests or builds and reporting, and mechanical edits with a clear brief; pass a shell check when one exists. Put independent pieces in "tasks" so they run in parallel on different accounts. Keep design, judgment and the final verification here. If it answers "do it here", do the task yourself.`,
   inputSchema: {
     type: 'object',
     properties: {
-      task: { type: 'string', description: 'The full brief: goal, exact paths, done-when.' },
+      task: { type: 'string', description: 'One brief: goal, exact paths, done-when.' },
+      tasks: { type: 'array', items: { type: 'string' }, description: 'Several independent briefs, run in parallel across accounts.' },
       kind: { type: 'string', enum: ['search', 'edit'] },
-      check: { type: 'string', description: 'Shell command that exits 0 when the task is done right.' },
+      check: { type: 'string', description: 'Shell command that exits 0 when the work is done right.' },
     },
-    required: ['task', 'kind'],
+    required: ['kind'],
   },
   isDeferred: false,
 }
@@ -48,14 +59,15 @@ export const DELEGATE_SPEC = {
 // HTTP providers see only the prompt, so they cannot search or edit the repo.
 export const serves = (a: Account, kind: Kind) => a.kind === 'claude-cli' || a.kind === 'codex-cli' || kind === 'review' || kind === 'classify'
 
-export const modelFor = (a: Account, kind: Kind) => a.kind === 'claude-cli' ? CLAUDE_MODEL[kind] : a.kind === 'codex-cli' ? a.model || `default, ${CODEX_EFFORT[kind]} effort` : a.model
+export const modelFor = (a: Account, kind: Kind) => a.kind === 'claude-cli' ? CLAUDE_MODEL[kind] : a.kind === 'codex-cli' ? `${CODEX_EFFORT[kind]} effort` : pickModel(a.models)
 
-// An ordered provider list is a preference; with none, the least used account goes first.
-export const candidates = (list: Account[], kind: Kind, order: string[], now: number, day: string) => {
-  const ready = list.filter(a => a.enabled && serves(a, kind) && !((a.exhaustedUntil ?? 0) > now) &&
+// An ordered provider list is a preference; with none, the least busy account goes first, then the least used today.
+export const candidates = (list: Account[], kind: Kind, order: string[], now: number, day: string, busy: Record<string, number> = {}) => {
+  const ready = list.filter(a => a.enabled && a.status === 'connected' && serves(a, kind) && !((a.exhaustedUntil ?? 0) > now) &&
     !(a.cap && a.day === day && a.used >= a.cap))
   if (order.length) return order.map(id => ready.find(a => a.id === id)).filter((a): a is Account => !!a)
-  return [...ready].sort((x, y) => (x.day === day ? x.used : 0) - (y.day === day ? y.used : 0))
+  const load = (a: Account) => (busy[a.id] ?? 0) * 1000 + (a.day === day ? a.used : 0)
+  return [...ready].sort((x, y) => load(x) - load(y))
 }
 
 const isOn = async ($: EngineInterface, id: string) => (await read($, modules))[id] ?? true
@@ -70,6 +82,7 @@ const keyFor = async ($: EngineInterface, preset: string) => {
     case 'cerebras': return $.env.get('CEREBRAS_API_KEY')
     case 'mistral': return $.env.get('MISTRAL_API_KEY')
     case 'github': return $.env.get('GITHUB_TOKEN')
+    case 'grok': return $.env.get('XAI_API_KEY')
     default: return 'none'
   }
 }
@@ -79,7 +92,7 @@ const run = async ($: EngineInterface, a: Account, kind: Kind, prompt: string, c
     const argv = a.kind === 'claude-cli'
       ? ['claude', '-p', '--model', CLAUDE_MODEL[kind], ...(kind === 'edit' ? ['--permission-mode', 'acceptEdits'] : [])]
       : ['codex', 'exec', '--skip-git-repo-check', '-c', `model_reasoning_effort="${CODEX_EFFORT[kind]}"`,
-          ...(a.model ? ['-m', a.model] : []), ...(kind === 'edit' ? ['--full-auto'] : []), '-']
+          ...(kind === 'edit' ? ['--full-auto'] : []), '-']
     const env: Record<string, string> = a.configDir ? { CLAUDE_CONFIG_DIR: a.configDir } : {}
     const r = await $.process.run(argv, { cwd, env, stdin: prompt, timeoutMs: 10 * 60_000 })
     const out = r.stdout.trim()
@@ -93,7 +106,7 @@ const run = async ($: EngineInterface, a: Account, kind: Kind, prompt: string, c
     headers: isAnthropic
       ? { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' }
       : { 'content-type': 'application/json', authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model: a.model, max_tokens: 800, messages: [{ role: 'user', content: prompt }] }),
+    body: JSON.stringify({ model: pickModel(a.models), max_tokens: 800, messages: [{ role: 'user', content: prompt }] }),
   })
   if (!r.ok) return { ok: false, text: `HTTP ${r.status}`, limited: r.status === 429 }
   const body = JSON.parse(r.text)
@@ -104,13 +117,17 @@ const run = async ($: EngineInterface, a: Account, kind: Kind, prompt: string, c
 const setTask = async ($: EngineInterface, id: string, patch: Partial<Task>) =>
   update($, tasks, list => list.map(t => t.id === id ? { ...t, ...patch } : t))
 
+// Tasks in flight per account, so parallel work spreads instead of piling on one account.
+const busy: Record<string, number> = {}
+
 // Runs one prompt on the first account that answers, marking accounts that hit a limit.
 const ask = async ($: EngineInterface, module: string, kind: Kind, prompt: string, cwd: string, skip: string[] = []) => {
   const now = await $.clock.now()
   const day = new Date(now).toISOString().slice(0, 10)
   const order = (await read($, providers))[module] ?? []
-  for (const a of candidates(await read($, accounts), kind, order, now, day).filter(a => !skip.includes(a.id))) {
-    const r = await run($, a, kind, prompt, cwd)
+  for (const a of candidates(await read($, accounts), kind, order, now, day, busy).filter(a => !skip.includes(a.id))) {
+    busy[a.id] = (busy[a.id] ?? 0) + 1
+    const r = await run($, a, kind, prompt, cwd).finally(() => { busy[a.id] = (busy[a.id] ?? 1) - 1 })
     await update($, accounts, list => list.map(x => x.id !== a.id ? x : r.limited
       ? { ...x, exhaustedUntil: now + HOUR }
       : { ...x, day, used: (x.day === day ? x.used : 0) + 1 }))
@@ -119,51 +136,57 @@ const ask = async ($: EngineInterface, module: string, kind: Kind, prompt: strin
   }
 }
 
+// One brief through the ladder: run, its check, the inspector for edits, up to MAX_TRIES accounts.
+const runBrief = async ($: EngineInterface, id: string, brief: string, kind: Kind, check: string | undefined, cwd: string, verify: boolean) => {
+  await update($, tasks, list => [...list, { id, title: brief.split('\n')[0]!.slice(0, 60), account: '', model: '', status: 'running' as TaskStatus, tries: 0 }].slice(-20))
+  let failure = ''
+  const tried: string[] = []
+  for (let n = 1; n <= MAX_TRIES; n++) {
+    const diff = failure && kind === 'edit' ? (await $.process.run(['git', 'diff', '--stat'], { cwd })).stdout : ''
+    const prompt = `${brief}${failure ? `\n\nA previous attempt failed: ${failure}${diff ? `\nCurrent git diff --stat:\n${diff}` : ''}` : ''}\n\nReply in under 150 words: what you found or changed, with file paths.`
+    const r = await ask($, 'delegate', kind, prompt, cwd, tried)
+    if (!r) break
+    tried.push(r.account.id)
+    await setTask($, id, { account: r.account.id, model: modelFor(r.account, kind), tries: n, status: 'running' })
+    if (!r.ok) { failure = r.text.slice(-400); continue }
+    if (check) {
+      await setTask($, id, { status: 'checking' })
+      // The engine finds no sh on Windows; cmd runs the check there.
+      const shell = (await $.env.get('OS')) === 'Windows_NT' ? ['cmd', '/c', check] : ['sh', '-c', check]
+      const c = await $.process.run(shell, { cwd, timeoutMs: 5 * 60_000 })
+      if (c.exitCode !== 0) {
+        failure = `check \`${check}\` failed: ${(c.stdout + c.stderr).slice(-400)}`
+        await setTask($, id, { status: 'retrying' })
+        continue
+      }
+    }
+    if (verify && kind === 'edit') {
+      await setTask($, id, { status: 'inspecting' })
+      const v = await ask($, 'verify', 'review', `Brief:\n${brief}\n\nResult:\n${r.text}\n\nDoes the result satisfy the brief? Answer PASS, or FAIL: <reason>.`, cwd)
+      if (v?.ok && /^\W*FAIL/i.test(v.text)) {
+        failure = `inspector (${v.account.id}): ${v.text.slice(0, 300)}`
+        await setTask($, id, { status: 'retrying' })
+        continue
+      }
+    }
+    await setTask($, id, { status: 'accepted' })
+    return `Done by ${r.account.id} (${modelFor(r.account, kind)})${check ? ', check passed' : ''}.\n${r.text.slice(0, 2000)}`
+  }
+  await setTask($, id, { status: 'escalated' })
+  return `frugal-mod: no secondary account finished this${failure ? ` (${failure})` : ''}. Do it here.`
+}
+
 export const registerDelegate = (on: On) => {
   on('tool.call', { tool: DELEGATE_TOOL }, async ($, e) => {
-    const input = e as unknown as { task: string; kind: Kind; check?: string }
+    const input = e as unknown as { task?: string; tasks?: string[]; kind: Kind; check?: string }
+    const briefs = [...(input.tasks ?? []), ...(input.task ? [input.task] : [])]
+    if (!briefs.length) return { result: 'frugal-mod: give a task or tasks.', text: 'frugal-mod: give a task or tasks.' }
     const cwd = (await $.session.cwd()) ?? '.'
-    const id = e.tool_use_id
-    const title = input.task.split('\n')[0]!.slice(0, 60)
     const verify = await isOn($, 'verify')
-    await update($, tasks, list => [...list, { id, title, account: '', model: '', status: 'running' as TaskStatus, tries: 0 }].slice(-20))
-
-    let failure = ''
-    const tried: string[] = []
-    for (let n = 1; n <= MAX_TRIES; n++) {
-      const diff = failure && input.kind === 'edit' ? (await $.process.run(['git', 'diff', '--stat'], { cwd })).stdout : ''
-      const prompt = `${input.task}${failure ? `\n\nA previous attempt failed: ${failure}${diff ? `\nCurrent git diff --stat:\n${diff}` : ''}` : ''}\n\nReply in under 150 words: what you found or changed, with file paths.`
-      const r = await ask($, 'delegate', input.kind, prompt, cwd, tried)
-      if (!r) break
-      tried.push(r.account.id)
-      await setTask($, id, { account: r.account.id, model: modelFor(r.account, input.kind), tries: n, status: 'running' })
-      if (!r.ok) { failure = r.text.slice(-400); continue }
-
-      if (input.check) {
-        await setTask($, id, { status: 'checking' })
-        const c = await $.process.run(['sh', '-c', input.check], { cwd, timeoutMs: 5 * 60_000 })
-        if (c.exitCode !== 0) {
-          failure = `check \`${input.check}\` failed: ${(c.stdout + c.stderr).slice(-400)}`
-          await setTask($, id, { status: 'retrying' })
-          continue
-        }
-      }
-      if (verify && input.kind === 'edit') {
-        await setTask($, id, { status: 'inspecting' })
-        const v = await ask($, 'verify', 'review', `Brief:\n${input.task}\n\nResult:\n${r.text}\n\nDoes the result satisfy the brief? Answer PASS, or FAIL: <reason>.`, cwd)
-        if (v?.ok && /^\W*FAIL/i.test(v.text)) {
-          failure = `inspector (${v.account.id}): ${v.text.slice(0, 300)}`
-          await setTask($, id, { status: 'retrying' })
-          continue
-        }
-      }
-      await setTask($, id, { status: 'accepted' })
-      const done = `Done by ${r.account.id} (${modelFor(r.account, input.kind)})${input.check ? ', check passed' : ''}.\n${r.text.slice(0, 2000)}`
-      return { result: done, text: done }
-    }
-    await setTask($, id, { status: 'escalated' })
-    const failed = `frugal-mod: no secondary account finished this${failure ? ` (${failure})` : ''}. Do it here.`
-    return { result: failed, text: failed }
+    const results = await Promise.all(briefs.map((brief, i) =>
+      runBrief($, `${e.tool_use_id}${briefs.length > 1 ? `-${i + 1}` : ''}`, brief, input.kind, input.check, cwd, verify)))
+    const text = results.length === 1 ? results[0]! : results.map((r, i) => `## Task ${i + 1}\n${r}`).join('\n\n')
+    return { result: text, text }
   })
 
   // Rules are classified on a secondary or free account; with none, the user judges the raw text.
