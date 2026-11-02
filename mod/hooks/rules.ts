@@ -10,6 +10,8 @@ const mark = atom({ plugin: 'frugal-mod', key: 'mark' } as const, 0)
 const handoffMark = atom({ plugin: 'frugal-mod', key: 'handoffMark' } as const, 0)
 
 const CODE = /\b(implement|fix|bug|refactor|endpoint|component|function|class|method|test|crash|exception|traceback|migrat|review|diff|commit|compile|build|add|api|script|code)|\.(py|ts|tsx|js|jsx|go|rs|java|kt|cs|rb|php|cpp|c|h|sql|css|html|sh)\b/i
+// A correction or an explicit "remember:", queued for /frugal-reflect.
+const CORRECTION = /^(no\b[,.!]?|nope\b|wrong\b|don'?t\b|do not\b|stop\b|never\b|always\b|instead\b|actually\b|no uses\b|siempre\b|nunca\b|deja de\b|en vez de\b)|\b(remember|recuerda)\s*:/i
 // Prompts the user typed (terminal, phone, desktop app); notifications and peers don't count.
 export const USER = new Set(['composer', 'bridge', 'sdk'])
 // Context % at which core.md and session.md are re-injected.
@@ -91,6 +93,12 @@ export const registerRules = (on: On) => {
     lastText = e.text
     const dir = await read($, skillDir)
     if (!dir) return next(e)
+    if (CORRECTION.test(e.text.trim()) && !e.command && (await isOn($, 'reflect'))) {
+      const key = `reflect:${await $.session.cwd()}`
+      const queue = ((await $.store.get(key)) as string[] | undefined) ?? []
+      const item = e.text.trim().slice(0, 300)
+      if (!queue.includes(item)) await $.store.set(key, [...queue, item].slice(-20))
+    }
     const u = await $.session.usage()
 
     // Subscriptions cache for an hour, API keys for 5 minutes.
