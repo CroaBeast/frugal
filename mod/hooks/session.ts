@@ -24,7 +24,41 @@ export const MODULES: { id: string; name: string; tokens: TokenClass; lock?: Loc
   { id: 'panel', name: 'Panel and band', tokens: 'none', lock: 'fixed', why: 'this menu' },
 ]
 
+type Group = { id: string; name: string }
+type Row = { sessionId: string; title: string; cwd: string; group?: Group | null }
+
+// A folder deep enough to be a project; drive roots, home and scratch folders are not.
+export const projectName = (cwd: string) => {
+  const parts = cwd.split(/[\\/]/).filter(Boolean)
+  return parts.length > 3 && !cwd.includes('scratch-workspaces') ? parts[parts.length - 1]! : null
+}
+
+// The group the user already files this folder under, then a group the title names, then the folder's name.
+export const groupFor = (cwd: string, title: string, rows: Row[], groups: Group[]) => {
+  const votes = new Map<string, number>()
+  for (const r of rows) if (r.cwd === cwd && r.group) votes.set(r.group.name, (votes.get(r.group.name) ?? 0) + 1)
+  const usual = [...votes].sort((a, b) => b[1] - a[1])[0]?.[0]
+  const named = groups.find(g => g.name !== 'Archived' && title.toLowerCase().includes(g.name.toLowerCase()))?.name
+  return usual ?? named ?? projectName(cwd)
+}
+
 const isOn = async ($: EngineInterface, id: string) => (await read($, modules))[id] ?? true
+
+const sidebar = async ($: EngineInterface, server: string, tool: string, args: Record<string, unknown> = {}) => {
+  const r = await $.mcp.call(server, tool, args)
+  const text = r.content.find(c => c.type === 'text')?.text ?? ''
+  if (r.isError) throw new Error(text)
+  try { return JSON.parse(text) } catch { return text }
+}
+
+const groupId = async ($: EngineInterface, name: string, groups: Group[]) => {
+  const found = groups.find(g => g.name.toLowerCase() === name.toLowerCase())
+  if (found) return found.id
+  const made = await sidebar($, 'ccd_sidebar', 'create_group', { name })
+  const id: string = typeof made === 'string' ? made : made.id
+  groups.push({ id, name })
+  return id
+}
 
 export const registerSession = (on: On) => {
   // Accounts, module switches and provider lists outlive the session in $.store.
@@ -43,6 +77,17 @@ export const registerSession = (on: On) => {
       await $.tool.register(DELEGATE_SPEC)
     }
 
+    // Only a brand-new session is filed: a resumed one may sit where the user put it.
+    if ((await isOn($, 'organizer')) && (await $.session.messages()).length === 0) {
+      try {
+        const groups: Group[] = await sidebar($, 'ccd_sidebar', 'list_groups')
+        const rows: Row[] = await sidebar($, 'ccd_session_mgmt', 'list_sessions', { limit: 100 })
+        const name = groupFor(e.cwd, '', rows, groups)
+        if (name) await sidebar($, 'ccd_sidebar', 'move_sessions', { session_ids: ['self'], group_id: await groupId($, name, groups) })
+      } catch {
+        // No desktop sidebar here (CLI, -p): nothing to file.
+      }
+    }
     return r
   })
 }
