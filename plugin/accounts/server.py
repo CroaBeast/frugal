@@ -30,7 +30,7 @@ DEFAULT_LEVEL = {"search": "standard", "run": "standard", "edit": "standard"}  #
 LIMIT = re.compile(r"usage limit|rate limit|limit reached|session limit|quota|too many requests|\b429\b", re.I)
 HEAVY_RUN = re.compile(r"\b(npm|pnpm|yarn|bun)\s+(run\s+)?(test|build|lint|typecheck)\b|\b(pytest|jest|vitest|tsc|gradlew?|mvn|bench\.py)\b"
                        r"|\b(cargo|go|dotnet)\s+(test|build)\b|\bclaude\s+plugin\s+test\b", re.I)
-EXPLORE_BUDGET = 4
+EXPLORE_BUDGET = 2
 MAX_TRIES = 3
 HOUR = 3600
 
