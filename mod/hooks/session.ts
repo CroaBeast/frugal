@@ -72,6 +72,7 @@ export const registerSession = (on: On) => {
     const r = await next(e)
 
     await $.command.register({ name: 'frugal-panel', description: 'Open the frugal-mod panel: accounts, modules, tasks' })
+    await $.command.register({ name: 'frugal-organize', description: 'File ungrouped sessions into sidebar groups' })
 
     if ((await isOn($, 'delegate')) && (a ?? []).some(x => x.enabled)) {
       await $.tool.register(DELEGATE_SPEC)
@@ -89,5 +90,26 @@ export const registerSession = (on: On) => {
       }
     }
     return r
+  })
+
+  on('command.run', { command: 'frugal-organize' }, async $ => {
+    try {
+      const groups: Group[] = await sidebar($, 'ccd_sidebar', 'list_groups')
+      const rows: Row[] = await sidebar($, 'ccd_session_mgmt', 'list_sessions', { limit: 100 })
+      const moves = new Map<string, string[]>()
+      let left = 0
+      for (const r of rows.filter(r => r.group === null)) {
+        const name = groupFor(r.cwd, r.title, rows, groups)
+        if (!name) { left++; continue }
+        moves.set(name, [...(moves.get(name) ?? []), r.sessionId])
+      }
+      for (const [name, ids] of moves) {
+        await sidebar($, 'ccd_sidebar', 'move_sessions', { session_ids: ids, group_id: await groupId($, name, groups) })
+      }
+      const moved = [...moves.values()].reduce((n, ids) => n + ids.length, 0)
+      return { text: `Filed ${moved} sessions into ${moves.size} groups; ${left} left ungrouped (no project folder or group name in the title).` }
+    } catch (err) {
+      return { text: `The sidebar tools are not available here (${String(err).slice(0, 120)}). Run this in the desktop app.` }
+    }
   })
 }
