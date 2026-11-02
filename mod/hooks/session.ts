@@ -107,9 +107,11 @@ const checkAccount = async ($: EngineInterface, a: Account): Promise<Partial<Acc
   if (a.kind === 'claude-cli' || a.kind === 'codex-cli') {
     const argv = a.kind === 'claude-cli' ? ['claude', 'auth', 'status', '--json'] : ['codex', 'login', 'status']
     const env: Record<string, string> = a.configDir ? { CLAUDE_CONFIG_DIR: a.configDir } : {}
-    const r = await $.process.run(await cli($, argv), { env, timeoutMs: 20_000 }).catch(() => null)
-    const out = r ? r.stdout + r.stderr : ''
-    if (!r || /not recognized|not found|ENOENT/i.test(out)) {
+    const r = await $.process.run(await cli($, argv), { env, timeoutMs: 20_000 }).catch((err: unknown) => String(err))
+    // A run that could not start or timed out says nothing about the CLI: keep the reason and check again.
+    if (typeof r === 'string' && !/ENOENT|not found/i.test(r)) return { status: 'pending', note: r.slice(0, 160) }
+    const out = typeof r === 'string' ? r : r.stdout + r.stderr
+    if (typeof r === 'string' || /not recognized|not found|ENOENT/i.test(out)) {
       return { status: 'missing', note: a.kind === 'codex-cli' ? 'CLI not installed (npm i -g @openai/codex)' : 'CLI not installed (npm i -g @anthropic-ai/claude-code)' }
     }
     if (a.kind === 'claude-cli') {
