@@ -1,6 +1,6 @@
 # frugal-mod roadmap
 
-Each phase is benchmarked with `bench/bench.py` against frugal 0.19.0 and dropped if it saves nothing. Every feature is a sub-mod the panel can turn on or off.
+Each phase is benchmarked with `bench/bench.py` against frugal 0.19.0 and dropped if it saves nothing. Every feature is a module the panel can turn on or off.
 
 ## Phases
 
@@ -14,9 +14,9 @@ Each phase is benchmarked with `bench/bench.py` against frugal 0.19.0 and droppe
    - Verification ladder: deterministic checks (tests, lint, build), then a cheap inspector, then a strong model only on failure or high risk. Max 2 retries, then main.
    - Model and effort per task type.
    - Free providers are opt-in per provider; no bundled keys.
-5. Panel and band: accounts (add, remove, enable, paid or free, usage when the provider exposes it), tasks, sub-mods (token class, ordered provider list, locks: main only, no provider, fixed). Filled from mod events, zero tokens.
+5. Panel and band: accounts (add, remove, enable, paid or free, usage when the provider exposes it), tasks, modules (token class, ordered provider list, locks: main only, no provider, fixed). Filled from mod events, zero tokens.
 
-## Sub-mods after phase 5
+## Modules after phase 5
 
 - Session organizer: title prefix by repo on session start (zero tokens); batch sweep as a command or scheduled task that moves ungrouped sessions to their group, creating it if missing and skipping sessions that already have one; optional per-session move. Needs the desktop app's sidebar tools; unverified whether a scheduled task has them.
 - Reflect per project: regex capture (zero tokens), classification on a secondary or free model, writes to project memory only on approval, size cap and dedupe. Off when claude-reflect is installed.
