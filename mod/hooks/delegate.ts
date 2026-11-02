@@ -126,8 +126,9 @@ const run = async ($: EngineInterface, a: Account, kind: Kind, prompt: string, c
   if (a.kind === 'claude-cli' || a.kind === 'codex-cli') {
     const argv = a.kind === 'claude-cli'
       ? ['claude', '-p', '--model', c.model!, '--effort', c.effort!, ...(kind === 'edit' ? ['--permission-mode', 'acceptEdits'] : [])]
+      // codex 0.166 dropped --full-auto: the workspace-write sandbox lets an edit write files.
       : ['codex', 'exec', '--skip-git-repo-check', '-c', `model_reasoning_effort="${c.effort}"`,
-          ...(kind === 'edit' ? ['--full-auto'] : []), '-']
+          ...(kind === 'edit' ? ['-s', 'workspace-write'] : []), '-']
     const env: Record<string, string> = a.configDir ? { CLAUDE_CONFIG_DIR: a.configDir } : {}
     const r = await $.process.run(argv, { cwd, env, stdin: prompt, timeoutMs: 10 * 60_000 })
     const out = r.stdout.trim()
