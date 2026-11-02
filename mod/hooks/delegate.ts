@@ -190,7 +190,7 @@ export const registerDelegate = (on: On) => {
   })
 
   // Rules are classified on a secondary or free account; with none, the user judges the raw text.
-  on('command.run', { command: 'frugal-reflect' }, async $ => {
+  on('command.run', { command: 'frugal:reflect' }, async $ => {
     const cwd = (await $.session.cwd()) ?? '.'
     const key = `reflect:${cwd}`
     const queue = ((await $.store.get(key)) as string[] | undefined) ?? []

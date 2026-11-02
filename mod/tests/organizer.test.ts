@@ -76,10 +76,10 @@ test('a resumed session is not moved', async ($, on) => {
   expect(calls).toHaveLength(0)
 })
 
-test('/frugal-organize files ungrouped sessions and skips the rest', async ($, on) => {
+test('/frugal:organize files ungrouped sessions and skips the rest', async ($, on) => {
   const calls: Call[] = []
   engine(on, calls)
-  const r = await $.command.run({ command: 'frugal-organize', args: '' } as never)
+  const r = await $.command.run({ command: 'frugal:organize', args: '' } as never)
   const moves = calls.filter(c => c.tool === 'move_sessions').map(c => c.args)
   expect(moves).toEqual([{ session_ids: ['a', 'b'], group_id: 'g2' }, { session_ids: ['e', 'f'], group_id: 'new' }])
   expect(r.text).toContain('Filed 4 sessions into 2 groups; 1 left ungrouped')

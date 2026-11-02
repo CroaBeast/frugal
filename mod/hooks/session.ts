@@ -175,9 +175,8 @@ export const registerSession = (on: On) => {
       })()
     })
 
-    await $.command.register({ name: 'frugal-panel', description: 'Open the frugal-mod panel: accounts, modules, tasks' })
-    await $.command.register({ name: 'frugal-organize', description: 'File ungrouped sessions into sidebar groups' })
-    await $.command.register({ name: 'frugal-reflect', description: 'Review the corrections frugal-mod queued for this project' })
+    // /frugal:panel, /frugal:organize and /frugal:reflect are the frugal plugin's commands (a registered name
+    // cannot hold ':'); the command.run hooks below answer them in place of their markdown.
 
     if ((await isOn($, 'delegate')) && (a ?? []).some(x => x.enabled)) {
       await $.tool.register(DELEGATE_SPEC)
@@ -197,7 +196,7 @@ export const registerSession = (on: On) => {
     return r
   })
 
-  on('command.run', { command: 'frugal-organize' }, async $ => {
+  on('command.run', { command: 'frugal:organize' }, async $ => {
     try {
       const groups: Group[] = await sidebar($, 'ccd_sidebar', 'list_groups')
       const rows: Row[] = await sidebar($, 'ccd_session_mgmt', 'list_sessions', { limit: 1000 })

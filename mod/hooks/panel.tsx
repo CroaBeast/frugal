@@ -215,7 +215,7 @@ export const registerPanel = (on: On) => {
     return r
   })
 
-  on('command.run', { command: 'frugal-panel' }, async $ => {
+  on('command.run', { command: 'frugal:panel' }, async $ => {
     const { isPlaced } = await $.ui.open({ id: PANE, title: 'frugal-mod' })
     return { text: isPlaced ? 'frugal-mod panel opened.' : 'This surface cannot show the panel.' }
   })

@@ -45,11 +45,11 @@ test('rules merge into one marked section, deduplicated, after what the file had
   expect(twice).toBe('# Notes\nmine\n\n<!-- frugal-reflect -->\n- use pnpm.\n- Tests live in spec/.\n<!-- /frugal-reflect -->\n')
 })
 
-test('with nobody to ask, /frugal-reflect saves nothing and clears the queue', async ($, on) => {
+test('with nobody to ask, /frugal:reflect saves nothing and clears the queue', async ($, on) => {
   const store: Record<string, unknown> = { [KEY]: ['no, use pnpm'] }
   const files: Record<string, string> = {}
   engine(on, store, files)
-  const r = await $.command.run({ command: 'frugal-reflect', args: '' } as never)
+  const r = await $.command.run({ command: 'frugal:reflect', args: '' } as never)
   expect(r.text).toContain('nothing saved')
   expect(store[KEY]).toEqual([])
   expect(Object.keys(files)).toEqual([])
@@ -61,7 +61,7 @@ test('a secondary account rewrites the correction as a rule before the user save
   const files: Record<string, string> = {}
   engine(on, store, files, 'Save')
   await $.session.start({ cwd: '/repo', surface: 'desktop', isInteractive: true })
-  const r = await $.command.run({ command: 'frugal-reflect', args: '' } as never)
+  const r = await $.command.run({ command: 'frugal:reflect', args: '' } as never)
   expect(r.text).toContain('Saved 1 of 1')
   expect(Object.entries(files).find(([k]) => k.endsWith('CLAUDE.local.md'))?.[1]).toContain('- Use pnpm, not npm.')
 })
