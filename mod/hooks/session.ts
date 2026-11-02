@@ -37,6 +37,8 @@ export const registerSession = (on: On) => {
     if (p) await update($, providers, () => p)
     const r = await next(e)
 
+    await $.command.register({ name: 'frugal-panel', description: 'Open the frugal-mod panel: accounts, modules, tasks' })
+
     if ((await isOn($, 'delegate')) && (a ?? []).some(x => x.enabled)) {
       await $.tool.register(DELEGATE_SPEC)
     }
