@@ -153,11 +153,14 @@ const checkAccount = async ($: EngineInterface, a: Account): Promise<Partial<Acc
 
 const checkAll = async ($: EngineInterface, onlyPending: boolean) => {
   const list = (await read($, accounts)).filter(a => !onlyPending || ['pending', 'missing'].includes(a.status ?? 'pending'))
+  // Every open session checks on its own clock and they share one store file: write only what changed.
+  let changed = false
   for (const a of list) {
     const patch = await checkAccount($, a)
+    if (Object.entries(patch).some(([k, v]) => JSON.stringify(a[k as keyof Account]) !== JSON.stringify(v))) changed = true
     await update($, accounts, l => l.map(x => x.id === a.id ? { ...x, ...patch } : x))
   }
-  if (list.length) await $.store.set('accounts', await read($, accounts))
+  if (changed) await $.store.set('accounts', await read($, accounts))
 }
 
 export const registerSession = (on: On) => {
