@@ -92,7 +92,7 @@ def codex_models():
 
 def argv_for(a, kind, model, effort):
     if a["kind"] == "claude":
-        tools = ["--allowedTools", "Bash Read Grep Glob"] if kind in ("search", "run") else ["--permission-mode", "acceptEdits"]
+        tools = ["--allowedTools", "Bash Read Grep Glob"] if kind in ("search", "run") else ["--permission-mode", "acceptEdits", "--allowedTools", "Bash Read Grep Glob Edit Write"]
         return ["claude", "-p", "--model", model, "--effort", effort, *tools]
     sandbox = ["-s", "workspace-write"] if kind in ("edit", "run") else []
     return ["codex", "exec", "--skip-git-repo-check", *(["-m", model] if model else []), "-c", f"model_reasoning_effort={effort}", *sandbox, "-"]
