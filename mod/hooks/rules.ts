@@ -4,6 +4,9 @@ import type { EngineInterface, On, SessionUsage } from 'claude-code'
 // Set once /frugal runs in this session; null means frugal is off.
 const skillDir = atom({ plugin: 'frugal-mod', key: 'skillDir' } as const, null)
 const modules = atom({ plugin: 'frugal-mod', key: 'modules' } as const, {})
+const mainTasks = atom({ plugin: 'frugal-mod', key: 'mainTasks' } as const, [])
+const turn = atom({ plugin: 'frugal-mod', key: 'turn' } as const, null)
+const accounts = atom({ plugin: 'frugal-mod', key: 'accounts' } as const, [])
 
 const codeSent = atom({ plugin: 'frugal-mod', key: 'codeSent' } as const, false)
 const mark = atom({ plugin: 'frugal-mod', key: 'mark' } as const, 0)
@@ -73,6 +76,8 @@ const resetAfterCompact = async ($: EngineInterface) => {
 }
 
 export const registerRules = (on: On) => {
+  // The connected accounts the model was last told about: told again only when they change.
+  let announced = ''
   let lastText = ''
   let lastTurn = 0
 
@@ -91,8 +96,18 @@ export const registerRules = (on: On) => {
   on('prompt.submit', async ($, e, next) => {
     if (!USER.has(e.origin.kind) || e.isMeta) return next(e)
     lastText = e.text
+    const ids = (await read($, accounts)).filter(a => a.enabled && a.status === 'connected').map(a => a.id)
+    let hint = ''
+    if (ids.join() !== announced && (await isOn($, 'delegate'))) {
+      announced = ids.join()
+      if (ids.length) {
+        hint = `frugal-mod: ${ids.length} secondary ${ids.length === 1 ? 'account is' : 'accounts are'} connected (${ids.join(', ')}). ` +
+          'Hand them every bounded task with mcp__frugal-mod__delegate: repo searches, reading or summarizing files, running tests or builds, mechanical edits with a clear brief. ' +
+          'Put independent pieces in "tasks" so all accounts work in parallel. Keep design, judgment and the final check here.'
+      }
+    }
     const dir = await read($, skillDir)
-    if (!dir) return next(e)
+    if (!dir) return hint ? next({ ...e, context: [...(e.context ?? []), hint] }) : next(e)
     if (CORRECTION.test(e.text.trim()) && !e.command && (await isOn($, 'reflect'))) {
       const key = `reflect:${await $.session.cwd()}`
       const queue = ((await $.store.get(key)) as string[] | undefined) ?? []
@@ -115,7 +130,7 @@ export const registerRules = (on: On) => {
     }
 
     const pct = u.context.percent ?? 0
-    const add: string[] = []
+    const add: string[] = hint ? [hint] : []
     const rules = await isOn($, 'rules')
     if (rules && step(MARKS, pct) > (await read($, mark))) {
       await update($, mark, () => step(MARKS, pct))
@@ -136,9 +151,18 @@ export const registerRules = (on: On) => {
 
   // Compacting is only allowed once the turn is over, not from prompt.submit.
   on('turn.complete', async ($, e, next) => {
-    if (e.agentId) return next(e)
+    if (e.agentId) {
+      // A subagent finished: the panel's task list stops its clock.
+      const r = await next(e)
+      const at = await $.clock.now()
+      const status = e.reason === 'answer' ? 'done' as const : 'failed' as const
+      await update($, mainTasks, list => list.map(t => t.id === e.agentId ? { ...t, status, endedAt: at } : t))
+      return r
+    }
     const r = await next(e)
     lastTurn = await $.clock.now()
+    const ended = lastTurn
+    await update($, turn, t => t ? { ...t, running: false, endedAt: ended } : t)
     if (!(await read($, skillDir)) || !(await isOn($, 'handoff'))) return r
     if (((await $.session.usage()).context.percent ?? 0) < COMPACT_AT) return r
     const c = await $.session.compact({ instructions: COMPACT_INSTRUCTIONS }).catch(() => ({ skip: 'refused' }))
