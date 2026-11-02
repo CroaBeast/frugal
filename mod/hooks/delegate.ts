@@ -134,10 +134,12 @@ const run = async ($: EngineInterface, a: Account, kind: Kind, prompt: string, c
       ? ['claude', '-p', '--model', c.model!, '--effort', c.effort!, ...(kind === 'edit' ? ['--permission-mode', 'acceptEdits'] : []),
           ...(kind === 'run' ? ['--allowedTools', 'Bash Read Grep Glob'] : [])]
       // codex 0.166 dropped --full-auto: the workspace-write sandbox lets an edit write files.
-      : ['codex', 'exec', '--skip-git-repo-check', ...(c.model ? ['-m', c.model] : []), '-c', `model_reasoning_effort="${c.effort}"`,
+      : ['codex', 'exec', '--skip-git-repo-check', ...(c.model ? ['-m', c.model] : []), '-c', `model_reasoning_effort=${c.effort}`,
           ...(kind === 'edit' || kind === 'run' ? ['-s', 'workspace-write'] : []), '-']
     const env: Record<string, string> = a.configDir ? { CLAUDE_CONFIG_DIR: a.configDir } : {}
-    const r = await $.process.run(argv, { cwd, env, stdin: prompt, timeoutMs: 10 * 60_000 })
+    // Windows resolves npm's .cmd shims only through cmd.
+    const win = (await $.env.get('OS')) === 'Windows_NT'
+    const r = await $.process.run(win ? ['cmd', '/c', ...argv] : argv, { cwd, env, stdin: prompt, timeoutMs: 10 * 60_000 })
     const out = r.stdout.trim()
     return { ok: r.exitCode === 0 && out !== '', text: out || r.stderr.trim(), limited: r.exitCode !== 0 && LIMIT.test(r.stderr + r.stdout) }
   }

@@ -108,7 +108,7 @@ test('a level maps to each provider; an effort the provider lacks is fitted', as
   expect(r.text).toContain('Done by claude-b (opus, high effort)')
   expect(argvs[0]).toEqual(expect.arrayContaining(['--model', 'opus', '--effort', 'high']))
   await $.tool.call({ tool: 'mcp__frugal-mod__delegate', tasks: ['find x', 'find y'], kind: 'search', level: 'max' })
-  expect(argvs.find(a => a[0] === 'codex')).toContain('model_reasoning_effort="xhigh"')
+  expect(argvs.find(a => a[0] === 'codex')).toContain('model_reasoning_effort=xhigh')
 })
 
 test('per-provider rules: Claude has no minimal effort, HTTP providers pick a strong model for heavy work', () => {
@@ -130,7 +130,7 @@ test('Codex runs the model of the level when its login lists it, else the one in
   expect(argvs[0]).toEqual(expect.arrayContaining(['-m', 'gpt-6-luna']))
   await $.tool.call({ tool: 'mcp__frugal-mod__delegate', task: 'fix y', kind: 'edit', level: 'max' })
   expect(argvs[1]).not.toContain('-m')
-  expect(argvs[1]).toEqual(expect.arrayContaining(['-s', 'workspace-write', 'model_reasoning_effort="xhigh"']))
+  expect(argvs[1]).toEqual(expect.arrayContaining(['-s', 'workspace-write', 'model_reasoning_effort=xhigh']))
 })
 
 test('a test run in this session is sent to delegate once, then goes through', async ($, on) => {

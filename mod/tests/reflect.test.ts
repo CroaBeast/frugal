@@ -18,6 +18,7 @@ const engine = (on: On, store: Record<string, unknown>, files: Record<string, st
   on('session.cwd', () => ({ value: '/repo' }))
   on('session.usage', () => ({ value: { startedAt: 0, context: { percent: 5, window: 1 }, rateLimits: [] } }))
   on('clock.now', () => ({ value: 0 }))
+  on('env.get', () => ({ value: undefined }))
   on('fs.read', (_, e) => ({ value: files[e.path] ?? '' }))
   on('fs.exists', (_, e) => ({ value: e.path in files }))
   on('fs.write', (_, e) => { files[e.path] = e.text; return { value: undefined } })
