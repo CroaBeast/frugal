@@ -160,6 +160,7 @@ def brief(text, kind, check, level, effort, cwd):
                         x["used"] = (x.get("used", 0) if x.get("day") == today() else 0) + 1
                         x["day"] = today()
             save(data)
+        notice = relogin(relog)
         label = f"{a['id']} ({', '.join(filter(None, [model, f'{eff} effort']))})"
         if code != 0 or not out:
             failure = (err or out or f"exit {code}")[-400:]
@@ -167,12 +168,12 @@ def brief(text, kind, check, level, effort, cwd):
         if check:
             c, tail = run_check(check, cwd)
             if c != 0 and kind == "run":
-                return f"Run by {label}; check `{check}` exited {c}:\n{tail}\n\n{out[:2000]}"
+                return f"{notice}Run by {label}; check `{check}` exited {c}:\n{tail}\n\n{out[:2000]}"
             if c != 0:
                 failure = f"check `{check}` failed: {tail}"
                 continue
-        return f"Done by {label}{', check passed' if check else ''}.\n{out[:2000]}"
-    return f"frugal: no secondary account finished this{f' ({failure})' if failure else ''}. Do it here."
+        return f"{notice}Done by {label}{', check passed' if check else ''}.\n{out[:2000]}"
+    return f"{relogin(relog)}frugal: no secondary account finished this{f' ({failure})' if failure else ''}. Do it here."
 
 
 SPEC = {
