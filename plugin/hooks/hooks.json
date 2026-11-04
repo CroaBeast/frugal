@@ -16,6 +16,18 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Read|Grep|Glob|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c '[ -f \"$HOME/.frugal/accounts.json\" ] || exit 0; exec python \"$1\" hook-pretool' sh \"${CLAUDE_PLUGIN_ROOT}/accounts/server.py\"",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }
