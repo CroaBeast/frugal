@@ -157,6 +157,18 @@ const run = async ($: EngineInterface, a: Account, kind: Kind, prompt: string, c
   return { ok: text !== '', text: text.trim(), limited: false }
 }
 
+// Test, build and lint runs fill this session's context; while an account is connected they go to delegate.
+const HEAVY_RUN = /\b(npm|pnpm|yarn|bun)\s+(run\s+)?(test|build|lint|typecheck)\b|\b(pytest|jest|vitest|tsc|gradlew?|mvn|bench\.py)\b|\b(cargo|go|dotnet)\s+(test|build)\b|\bclaude\s+plugin\s+test\b/i
+// A command delegate already refused once goes through when asked again ("do it here").
+const waived = new Set<string>()
+
+const gateRun = async ($: EngineInterface, command: string) => {
+  if (!HEAVY_RUN.test(command) || waived.has(command) || !(await isOn($, 'delegate'))) return undefined
+  if (!(await read($, accounts)).some(a => a.enabled && a.status === 'connected' && serves(a, 'run'))) return undefined
+  waived.add(command)
+  return `frugal-mod: a secondary account runs this, not the main one. Call ${DELEGATE_TOOL} with kind "run" and a brief like "Run \`${command.slice(0, 200)}\` and report the pass and fail counts and each failure with its message." If it answers "do it here", run the same command again and it goes through.`
+}
+
 const setTask = async ($: EngineInterface, id: string, patch: Partial<Task>) =>
   update($, tasks, list => list.map(t => t.id === id ? { ...t, ...patch } : t))
 
@@ -220,6 +232,15 @@ const runBrief = async ($: EngineInterface, id: string, brief: string, kind: Kin
 }
 
 export const registerDelegate = (on: On) => {
+  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    const deny = await gateRun($, e.command)
+    return deny ? { deny } : next(e)
+  })
+  on('tool.call', { tool: 'PowerShell' }, async ($, e, next) => {
+    const deny = await gateRun($, (e as unknown as { command: string }).command)
+    return deny ? { deny } : next(e)
+  })
+
   on('tool.call', { tool: DELEGATE_TOOL }, async ($, e) => {
     const input = e as unknown as { task?: string; tasks?: string[]; kind: Kind; check?: string; level?: Level; effort?: string }
     const briefs = [...(input.tasks ?? []), ...(input.task ? [input.task] : [])]

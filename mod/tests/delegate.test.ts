@@ -132,3 +132,16 @@ test('Codex runs the model of the level when its login lists it, else the one in
   expect(argvs[1]).not.toContain('-m')
   expect(argvs[1]).toEqual(expect.arrayContaining(['-s', 'workspace-write', 'model_reasoning_effort="xhigh"']))
 })
+
+test('a test run in this session is sent to delegate once, then goes through', async ($, on) => {
+  const store: Record<string, unknown> = { accounts: [acc('claude-b')] }
+  engine(on, () => ok('done'), store)
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ran', text: 'ran' }))
+  await $.session.start(START)
+  const first = await $.tool.call({ tool: 'Bash', command: 'npm test -- parser' } as never)
+  expect(first.deny).toContain('kind "run"')
+  const again = await $.tool.call({ tool: 'Bash', command: 'npm test -- parser' } as never)
+  expect(again.deny).toBeUndefined()
+  const ls = await $.tool.call({ tool: 'Bash', command: 'ls src' } as never)
+  expect(ls.deny).toBeUndefined()
+})
