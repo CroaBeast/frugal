@@ -7,6 +7,7 @@ const accounts = atom({ plugin: 'frugal-mod', key: 'accounts' } as const, [])
 const modules = atom({ plugin: 'frugal-mod', key: 'modules' } as const, {})
 const providers = atom({ plugin: 'frugal-mod', key: 'providers' } as const, {})
 const tasks = atom({ plugin: 'frugal-mod', key: 'tasks' } as const, [])
+const turn = atom({ plugin: 'frugal-mod', key: 'turn' } as const, null)
 
 export type Kind = 'search' | 'edit' | 'run' | 'review' | 'classify'
 
@@ -172,6 +173,26 @@ const gateRun = async ($: EngineInterface, command: string) => {
   return `frugal-mod: a secondary account runs this, not the main one. Call ${DELEGATE_TOOL} with kind "run" and a brief like "Run \`${command.slice(0, 200)}\` and report the pass and fail counts and each failure with its message." If it answers "do it here", run the same command again and it goes through.`
 }
 
+const connected = async ($: EngineInterface, kind: Kind) =>
+  (await isOn($, 'delegate')) && (await read($, accounts)).some(a => a.enabled && a.status === 'connected' && serves(a, kind))
+
+// Reads and searches the main session made this turn; past the budget the rest of the exploration goes to delegate, asked once.
+const EXPLORE_BUDGET = 4
+let explored = { turn: -1, calls: 0, agent: false, nudged: false }
+const thisTurn = async ($: EngineInterface) => {
+  const t = (await read($, turn))?.startedAt ?? 0
+  if (explored.turn !== t) explored = { turn: t, calls: 0, agent: false, nudged: false }
+  return explored
+}
+
+const gateExplore = async ($: EngineInterface, agentId?: string) => {
+  if (agentId) return undefined
+  const x = await thisTurn($)
+  if (++x.calls <= EXPLORE_BUDGET || x.nudged || !(await connected($, 'search'))) return undefined
+  x.nudged = true
+  return `frugal-mod: ${EXPLORE_BUDGET} reads and searches this turn already. Hand the rest of this exploration to ${DELEGATE_TOOL} (kind "search", pieces in "tasks") and work from its summary. If you need the raw text here, call again and it goes through.`
+}
+
 const setTask = async ($: EngineInterface, id: string, patch: Partial<Task>) =>
   update($, tasks, list => list.map(t => t.id === id ? { ...t, ...patch } : t))
 
@@ -249,6 +270,12 @@ export const registerDelegate = (on: On) => {
     return deny ? { deny } : next(e)
   })
 
+  for (const tool of ['Read', 'Grep', 'Glob'] as const) {
+    on('tool.call', { tool }, async ($, e, next) => {
+      const deny = await gateExplore($, e.agentId)
+      return deny ? { deny } : next(e)
+    })
+  }
   on('tool.call', { tool: DELEGATE_TOOL }, async ($, e) => {
     const input = e as unknown as { task?: string; tasks?: string[]; kind: Kind; check?: string; level?: Level; effort?: string }
     const briefs = [...(input.tasks ?? []), ...(input.task ? [input.task] : [])]

@@ -145,3 +145,23 @@ test('a test run in this session is sent to delegate once, then goes through', a
   const ls = await $.tool.call({ tool: 'Bash', command: 'ls src' } as never)
   expect(ls.deny).toBeUndefined()
 })
+
+test('past four reads and searches in a turn, the next one is sent to delegate once', async ($, on) => {
+  const store: Record<string, unknown> = { accounts: [acc('claude-b')] }
+  engine(on, () => ok('done'), store)
+  on('tool.call', { tool: 'Read' }, () => ({ result: 'text', text: 'text' }))
+  await $.session.start(START)
+  const reads = []
+  for (let i = 0; i < 6; i++) reads.push(await $.tool.call({ tool: 'Read', file_path: `/repo/f${i}.ts` } as never))
+  expect(reads.map(r => r.deny === undefined)).toEqual([true, true, true, true, false, true])
+  expect(reads[4]!.deny).toContain('kind "search"')
+})
+
+test('with no secondary account connected nothing is gated', async ($, on) => {
+  engine(on, () => ok('done'), { accounts: [acc('claude-b', { status: 'pending' })] })
+  on('tool.call', { tool: 'Read' }, () => ({ result: 'text', text: 'text' }))
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ran', text: 'ran' }))
+  await $.session.start(START)
+  for (let i = 0; i < 6; i++) expect((await $.tool.call({ tool: 'Read', file_path: `/repo/f${i}.ts` } as never)).deny).toBeUndefined()
+  expect((await $.tool.call({ tool: 'Bash', command: 'npm test' } as never)).deny).toBeUndefined()
+})
