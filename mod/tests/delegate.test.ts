@@ -144,6 +144,8 @@ test('a test run in this session is sent to delegate once, then goes through', a
   expect(again.deny).toBeUndefined()
   const ls = await $.tool.call({ tool: 'Bash', command: 'ls src' } as never)
   expect(ls.deny).toBeUndefined()
+  const script = await $.tool.call({ tool: 'Bash', command: "python - <<'EOF'\nprint('npm test')\nEOF" } as never)
+  expect(script.deny).toBeUndefined()
 })
 
 test('past four reads and searches in a turn, the next one is sent to delegate once', async ($, on) => {

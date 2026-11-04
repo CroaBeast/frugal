@@ -167,8 +167,9 @@ const HEAVY_RUN = /\b(npm|pnpm|yarn|bun)\s+(run\s+)?(test|build|lint|typecheck)\
 const waived = new Set<string>()
 
 const gateRun = async ($: EngineInterface, command: string) => {
-  if (!HEAVY_RUN.test(command) || waived.has(command) || !(await isOn($, 'delegate'))) return undefined
-  if (!(await read($, accounts)).some(a => a.enabled && a.status === 'connected' && serves(a, 'run'))) return undefined
+  // A heredoc body is data (a script, a test file), not a command this session runs.
+  const head = command.split(/<<-?\s*['"]?\w+/)[0]!
+  if (!HEAVY_RUN.test(head) || waived.has(command) || !(await connected($, 'run'))) return undefined
   waived.add(command)
   return `frugal-mod: a secondary account runs this, not the main one. Call ${DELEGATE_TOOL} with kind "run" and a brief like "Run \`${command.slice(0, 200)}\` and report the pass and fail counts and each failure with its message." If it answers "do it here", run the same command again and it goes through.`
 }
