@@ -330,7 +330,11 @@ def cli(args):
         return f"Removed {args[1]}."
     if args[0] == "login" and len(args) == 2:
         a = next((a for a in data["accounts"] if a["id"] == args[1]), None)
-        return login(a) if a else f"No account {args[1]}."
+        if not a:
+            return f"No account {args[1]}."
+        a.pop("needs_login", None)  # back in the pool; a login that still fails flags it again on the next task
+        save(data)
+        return login(a)
     return __doc__
 
 
