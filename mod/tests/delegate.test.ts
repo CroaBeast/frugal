@@ -157,6 +157,17 @@ test('past four reads and searches in a turn, the next one is sent to delegate o
   expect(reads[4]!.deny).toContain('kind "search"')
 })
 
+test('a subagent of the main session is sent to delegate once', async ($, on) => {
+  const store: Record<string, unknown> = { accounts: [acc('claude-b')] }
+  engine(on, () => ok('done'), store)
+  on('tool.call', { tool: 'Agent' }, () => ({ result: 'done', text: 'done' }))
+  await $.session.start(START)
+  const first = await $.tool.call({ tool: 'Agent', description: 'x', prompt: 'find x', subagent_type: 'Explore' } as never)
+  expect(first.deny).toContain('runs on the main account')
+  const again = await $.tool.call({ tool: 'Agent', description: 'x', prompt: 'find x', subagent_type: 'Explore' } as never)
+  expect(again.deny).toBeUndefined()
+})
+
 test('with no secondary account connected nothing is gated', async ($, on) => {
   engine(on, () => ok('done'), { accounts: [acc('claude-b', { status: 'pending' })] })
   on('tool.call', { tool: 'Read' }, () => ({ result: 'text', text: 'text' }))

@@ -193,6 +193,15 @@ const gateExplore = async ($: EngineInterface, agentId?: string) => {
   return `frugal-mod: ${EXPLORE_BUDGET} reads and searches this turn already. Hand the rest of this exploration to ${DELEGATE_TOOL} (kind "search", pieces in "tasks") and work from its summary. If you need the raw text here, call again and it goes through.`
 }
 
+// A subagent of this session runs on the main account; a secondary account can take the same brief.
+const gateAgent = async ($: EngineInterface, agentId?: string) => {
+  if (agentId) return undefined
+  const x = await thisTurn($)
+  if (x.agent || !(await connected($, 'search'))) return undefined
+  x.agent = true
+  return `frugal-mod: a subagent here runs on the main account. Give this to ${DELEGATE_TOOL} instead (kind "search", "edit" or "run", one brief per piece in "tasks"). If it needs this session's own tools, call again and it goes through.`
+}
+
 const setTask = async ($: EngineInterface, id: string, patch: Partial<Task>) =>
   update($, tasks, list => list.map(t => t.id === id ? { ...t, ...patch } : t))
 
@@ -276,6 +285,11 @@ export const registerDelegate = (on: On) => {
       return deny ? { deny } : next(e)
     })
   }
+  on('tool.call', { tool: 'Agent' }, async ($, e, next) => {
+    const deny = await gateAgent($, e.agentId)
+    return deny ? { deny } : next(e)
+  })
+
   on('tool.call', { tool: DELEGATE_TOOL }, async ($, e) => {
     const input = e as unknown as { task?: string; tasks?: string[]; kind: Kind; check?: string; level?: Level; effort?: string }
     const briefs = [...(input.tasks ?? []), ...(input.task ? [input.task] : [])]
