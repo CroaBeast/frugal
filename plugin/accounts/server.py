@@ -33,7 +33,7 @@ AUTH = re.compile(r"\b401\b|not logged in|run /login|failed to authenticate|oaut
                   r"|invalid (api|x-api) key|authentication_error|not authenticated|login required", re.I)
 HEAVY_RUN = re.compile(r"\b(npm|pnpm|yarn|bun)\s+(run\s+)?(test|build|lint|typecheck)\b|\b(pytest|jest|vitest|tsc|gradlew?|mvn|bench\.py)\b"
                        r"|\b(cargo|go|dotnet)\s+(test|build)\b|\bclaude\s+plugin\s+test\b", re.I)
-EXPLORE_BUDGET = 2
+EXPLORE_BUDGET = 3
 MAX_TRIES = 3
 HOUR = 3600
 
