@@ -14,7 +14,8 @@ dir="${CLAUDE_PLUGIN_DATA:-${TMPDIR:-/tmp}}"
 mkdir -p "$dir" 2>/dev/null
 n=$(( $(cat "$dir/count-$sid" 2>/dev/null || echo 0) + 1 ))
 echo "$n" > "$dir/count-$sid"
-prompt=$(field prompt)
+# Whole prompt, escaped quotes included (field stops at the first one).
+prompt=$(printf '%s' "$input" | sed -nE 's/.*"prompt" *: *"(([^"\\]|\\.)*)".*/\1/p')
 transcript=$(field transcript_path | sed 's/\\\\/\//g')
 loaded() { grep -qE 'command-name>/frugal|"skill":"frugal' "$transcript" 2>/dev/null; }
 # A pasted handoff counts too: "/frugal" starting a line (a JSON-escaped newline) in the prompt or the transcript.
