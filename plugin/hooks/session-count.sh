@@ -12,11 +12,14 @@ sid=$(field session_id)
 printf '%s' "$input" | grep -q '<task-notification>' && exit 0
 dir="${CLAUDE_PLUGIN_DATA:-${TMPDIR:-/tmp}}"
 mkdir -p "$dir" 2>/dev/null
-n=$(( $(cat "$dir/count-$sid" 2>/dev/null || echo 0) + 1 ))
-echo "$n" > "$dir/count-$sid"
 # Whole prompt, escaped quotes included (field stops at the first one).
 prompt=$(printf '%s' "$input" | sed -nE 's/.*"prompt" *: *"(([^"\\]|\\.)*)".*/\1/p')
 transcript=$(field transcript_path | sed 's/\\\\/\//g')
+# A plugin reinstall wipes CLAUDE_PLUGIN_DATA, so never count below the typed prompts in the transcript.
+typed=$(grep '"type":"user"' "$transcript" 2>/dev/null | grep '"origin":{"kind":"human"}' | grep -v '"isMeta":true' | grep -cvE '"(content|text)":"<(command-name|local-command)')
+n=$(( $(cat "$dir/count-$sid" 2>/dev/null || echo 0) + 1 ))
+[ "${typed:-0}" -gt "$n" ] && n=$typed
+echo "$n" > "$dir/count-$sid"
 loaded() { grep -qE 'command-name>/frugal|"skill":"frugal' "$transcript" 2>/dev/null; }
 # A pasted handoff counts too: "/frugal" starting a line (a JSON-escaped newline) in the prompt or the transcript.
 pasted() { printf '%s' "$prompt" | grep -q '\\n/frugal' || grep -q '\\n/frugal' "$transcript" 2>/dev/null; }
