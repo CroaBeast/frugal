@@ -28,6 +28,9 @@ RULES = {
 }
 DEFAULT_LEVEL = {"search": "standard", "run": "standard", "edit": "standard"}  # light (haiku, low) missed most of a 5-question lookup; pass level "light" only for trivial greps
 LIMIT = re.compile(r"usage limit|rate limit|limit reached|session limit|quota|too many requests|\b429\b", re.I)
+# A logged-out account fails every task until the user signs in again, so it leaves the pool and the user is told.
+AUTH = re.compile(r"\b401\b|not logged in|run /login|failed to authenticate|oauth token (has )?(expired|been revoked)"
+                  r"|invalid (api|x-api) key|authentication_error|not authenticated|login required", re.I)
 HEAVY_RUN = re.compile(r"\b(npm|pnpm|yarn|bun)\s+(run\s+)?(test|build|lint|typecheck)\b|\b(pytest|jest|vitest|tsc|gradlew?|mvn|bench\.py)\b"
                        r"|\b(cargo|go|dotnet)\s+(test|build)\b|\bclaude\s+plugin\s+test\b", re.I)
 EXPLORE_BUDGET = 2
@@ -55,7 +58,7 @@ def today():
 
 def ready(accounts, now=None):
     now = time.time() if now is None else now
-    return [a for a in accounts if a.get("enabled", True) and a.get("exhausted_until", 0) <= now]
+    return [a for a in accounts if a.get("enabled", True) and not a.get("needs_login") and a.get("exhausted_until", 0) <= now]
 
 
 def active():
@@ -120,8 +123,12 @@ def run_check(check, cwd):
 BUSY = {}
 
 
+def relogin(ids):
+    return "".join(f"frugal: secondary account {i} is logged out; tell the user to run `/frugal:accounts login {i}`.\n" for i in ids)
+
+
 def brief(text, kind, check, level, effort, cwd):
-    failure, tried = "", []
+    failure, tried, relog = "", [], []
     for n in range(1, MAX_TRIES + 1):
         with LOCK:
             data = load()
@@ -144,7 +151,10 @@ def brief(text, kind, check, level, effort, cwd):
             data = load()
             for x in data["accounts"]:
                 if x["id"] == a["id"]:
-                    if code != 0 and LIMIT.search(out + err):
+                    if code != 0 and AUTH.search(out + err):
+                        x["needs_login"] = True
+                        relog.append(a["id"])
+                    elif code != 0 and LIMIT.search(out + err):
                         x["exhausted_until"] = time.time() + HOUR
                     else:
                         x["used"] = (x.get("used", 0) if x.get("day") == today() else 0) + 1
@@ -327,6 +337,8 @@ def selftest():
     pool = [{"id": "a", "used": 5, "day": today()}, {"id": "b", "used": 1, "day": today()}, {"id": "off", "enabled": False},
             {"id": "lim", "exhausted_until": now + 60}, {"id": "old", "used": 9, "day": "2000-01-01"}]
     assert [a["id"] for a in order(pool, {})] == ["old", "b", "a"]
+    assert [a["id"] for a in ready([{"id": "out", "needs_login": True}, {"id": "in"}])] == ["in"]
+    assert AUTH.search("API Error: 401 OAuth token has expired") and AUTH.search("Please run /login") and not AUTH.search("ok")
     assert [a["id"] for a in order(pool, {"old": 1})] == ["b", "a", "old"]
     assert "--effort" in argv_for(claude, "search", "haiku", "low") and "Bash Read Grep Glob" in argv_for(claude, "search", "haiku", "low")
     assert argv_for(codex, "run", None, "low")[-3:] == ["-s", "workspace-write", "-"]
