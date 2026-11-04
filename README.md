@@ -45,7 +45,7 @@ It delegates only when the raw material is too big to read directly, or more tha
 - A logged-out account leaves the pool, and each prompt names the command to sign it in again (`/frugal:accounts login <id>`).
 - Delegated Claude runs load frugal (`/frugal`), and Codex runs get its core rules in the brief.
 - A delegated run never delegates again, and with no account set up none of this loads.
-- Heads-up, in Claude Desktop only (Claude Code's own "You should know" never runs there): after a turn with 6 or more tool calls, a side agent on a secondary account (no tools, standard level) reads the end of the transcript and names one thing you might miss, such as an exposed secret, an unverified claim, or something asked and not done. A note wakes Claude, which shows it as one `Heads up:` line. At most 4 per session, never the same note twice. `/frugal:heads-up off` turns it off for the session, `off all` everywhere, `on` / `on all` back on. The transcript excerpt goes to that account.
+- Heads-up, in Claude Desktop only (Claude Code's own "You should know" never runs there): after a turn with 6 or more tool calls, a side agent on a secondary account (no tools, light level: `haiku` or `gpt-6-luna`) reads the end of the transcript and names one thing you might miss, such as an exposed secret, an unverified claim, or something asked and not done. A note wakes Claude, which shows it as one `Heads up:` line. At most 8 checks and 4 notes per session, so it never drains the account delegate needs; never the same note twice. `/frugal:heads-up off` turns it off for the session, `off all` everywhere, `on` / `on all` back on. The transcript excerpt goes to that account.
 
 **Humanizer is opt-in.** The first time frugal is about to write text for people (a customer email, a ticket reply, docs, a post), it asks once: Yes, No, Always this session, or Never this session. It never runs for code, commits, or internal notes.
 
@@ -189,6 +189,7 @@ A: no plugins, E: frugal, F: caveman, G: ponytail, B: caveman + ponytail. `bench
 
 ## Versions
 
+- **0.25.1**: heads-up checks use the light level and stop after 8 per session, so they do not spend the account delegate needs.
 - **0.25.0**: heads-up notes in Claude Desktop from a side agent on a secondary account, with `/frugal:heads-up` to turn them off.
 - **0.24.1**: a delegated run or check that times out kills its whole process tree, so it no longer hangs on Windows.
 - **0.24.0**: the handoff comes from context size (every 150k tokens) instead of message count; a pasted handoff loads frugal; the session hook reads the whole prompt and survives a plugin reinstall.
