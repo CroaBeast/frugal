@@ -26,7 +26,7 @@ Context: <facts the new chat cannot derive>
 Done when: <check>
 ```
 
-**Handoff.** Every message re-sends the whole history. Between the user's 10th and 20th message (count from the summary after a compaction), if work remains, end the reply at the first natural breakpoint (subtask done, phase change) with a handoff block to paste into a new chat; offer again 10 messages later if the user stays. Also offer one when a task finishes and the user moves to an unrelated one. No work left: no handoff.
+**Handoff.** Every message re-sends the whole history. When a frugal hook says the context passed a size, if work remains, end that reply or the next at the first natural breakpoint (subtask done, phase change) with a handoff block to paste into a new chat. No such hook message (no `sh`): offer one between the user's 10th and 20th message, again 10 messages later if the user stays. Also offer one when a task finishes and the user moves to an unrelated one. No work left: no handoff.
 
 Before any handoff block, including one the user asks for, call `get_usage` (`mcp__ccd_session_mgmt__get_usage`, load via ToolSearch if deferred) for the `Usage` line; unavailable (CLI): run `sh <base directory>/scripts/usage.sh` (context and token totals; no plan limits). Do not call either on other turns unless the user asks about usage.
 
