@@ -43,6 +43,7 @@ It delegates only when the raw material is too big to read directly, or more tha
 - Each provider gets its own model and effort per level: Claude `haiku`/`sonnet`/`opus` with low to max effort, Codex `gpt-6-luna`/`gpt-6.1-sol`/`gpt-6-astra` (only models the login lists) with low to xhigh. Work defaults to the standard level (`sonnet`, medium).
 - A hook adds the delegation rule to each prompt. Another sends test and build runs, a fourth read or search in one prompt, and subagents to `delegate` once; asking again runs them here.
 - A logged-out account leaves the pool, and each prompt names the command to sign it in again (`/frugal:accounts login <id>`).
+- Delegated Claude runs load frugal (`/frugal`), and Codex runs get its core rules in the brief.
 - A delegated run never delegates again, and with no account set up none of this loads.
 
 **Humanizer is opt-in.** The first time frugal is about to write text for people (a customer email, a ticket reply, docs, a post), it asks once: Yes, No, Always this session, or Never this session. It never runs for code, commits, or internal notes.
@@ -187,6 +188,7 @@ A: no plugins, E: frugal, F: caveman, G: ponytail, B: caveman + ponytail. `bench
 
 ## Versions
 
+- **0.23.0**: delegated Claude runs load frugal, and Codex runs get its core rules.
 - **0.22.2**: explorations hand off after three reads, so the main session can read what an edit needs.
 - **0.22.1**: a logged-out secondary account leaves the pool, and every prompt names the command to sign it in again.
 - **0.22.0**: with secondary accounts, every bounded task goes to them; delegated work defaults to the standard level; explorations hand off after two reads; delegated Claude edits can run commands; `delegate` takes a working directory.
