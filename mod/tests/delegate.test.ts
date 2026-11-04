@@ -178,3 +178,22 @@ test('with no secondary account connected nothing is gated', async ($, on) => {
   for (let i = 0; i < 6; i++) expect((await $.tool.call({ tool: 'Read', file_path: `/repo/f${i}.ts` } as never)).deny).toBeUndefined()
   expect((await $.tool.call({ tool: 'Bash', command: 'npm test' } as never)).deny).toBeUndefined()
 })
+
+test('a session started by delegate does not delegate again', async ($, on) => {
+  const registered: string[] = []
+  const store: Record<string, unknown> = { accounts: [acc('claude-b')] }
+  on('store.get', (_, e) => ({ value: store[e.key] }))
+  on('store.set', (_, e) => { store[e.key] = e.value; return { value: undefined } })
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('session.messages', () => ({ value: [] as never }))
+  on('command.register', () => ({ value: {} as never }))
+  on('mcp.call', () => ({ value: { content: [], isError: true } }))
+  on('clock.now', () => ({ value: NOW }))
+  on('clock.every', () => ({ value: (() => undefined) as never }))
+  on('env.get', (_, e) => ({ value: e.name === 'FRUGAL_MOD_DELEGATED' ? '1' : undefined }))
+  on('tool.register', (_, e) => { registered.push(e.name); return { value: {} as never } })
+  on('tool.call', { tool: 'Bash' }, () => ({ result: 'ran', text: 'ran' }))
+  await $.session.start(START)
+  expect(registered).not.toContain('delegate')
+  expect((await $.tool.call({ tool: 'Bash', command: 'npm test' } as never)).deny).toBeUndefined()
+})
