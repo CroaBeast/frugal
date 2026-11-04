@@ -309,7 +309,8 @@ def cli(args):
     data = load()
     if args[:1] == ["list"] or not args:
         rows = [f"{a['id']}: {a['kind']}{' (off)' if not a.get('enabled', True) else ''}, used today {a.get('used', 0) if a.get('day') == today() else 0}"
-                + (", at its limit" if a.get("exhausted_until", 0) > time.time() else "") for a in data["accounts"]]
+                + (", at its limit" if a.get("exhausted_until", 0) > time.time() else "")
+                + (f", logged out (run: login {a['id']})" if a.get("needs_login") else "") for a in data["accounts"]]
         return "\n".join(rows) or "No secondary accounts. Add one with: add claude <id> | add codex <id>"
     if args[0] == "add" and len(args) == 3 and args[1] in RULES:
         kind, aid = args[1], args[2]
