@@ -20,7 +20,7 @@ frugal is built around one fact about agent sessions: most of the bill is input,
 | `modules/compress.md` | on request | Rewrites CLAUDE.md or another memory file to fewer bytes with a backup, keeping every instruction; saved on every call after |
 | `scripts/usage.sh` | before a handoff in the CLI, or when you ask about usage | Context size and token totals from the session transcript, where `get_usage` is not available |
 | `modules/agents.md` | pipelines, subagent prompts, machine-read output | Structured, parseable output; no narration; never invents paths, endpoints, or field names |
-| `plugin/hooks/session-count.sh` | every prompt, prints nothing until the 10th | Counts messages per session and, when `/frugal` is active, tells the model to read `core.md` and `session.md` at the 10th message and every 15th after. A skill cannot count messages reliably; the hook can. Needs `sh` (Git Bash on Windows) |
+| `plugin/hooks/session-count.sh` | every prompt, prints nothing until needed | When `/frugal` is active (typed, or in a pasted handoff), injects `core.md` and `session.md` at the 10th message and every 15th after, and the handoff rule each time the context passes another 150k tokens. Counts from the transcript, so a plugin reinstall does not reset it. Tells the model to load the skill when `/frugal` only came in pasted text. Needs `sh` (Git Bash on Windows) |
 | `accounts/server.py`, `skills/accounts` | only while `~/.frugal/accounts.json` lists an account | Secondary Claude and Codex logins that take delegated work: the `delegate` tool, the delegation rule, and the gates below. Needs `python` on the PATH |
 | `humanizer` | only if you say yes | Rewrites AI-sounding text. Based on [blader/humanizer](https://github.com/blader/humanizer), MIT |
 
@@ -188,6 +188,7 @@ A: no plugins, E: frugal, F: caveman, G: ponytail, B: caveman + ponytail. `bench
 
 ## Versions
 
+- **0.24.0**: the handoff comes from context size (every 150k tokens) instead of message count; a pasted handoff loads frugal; the session hook reads the whole prompt and survives a plugin reinstall.
 - **0.23.0**: delegated Claude runs load frugal, and Codex runs get its core rules.
 - **0.22.2**: explorations hand off after three reads, so the main session can read what an edit needs.
 - **0.22.1**: a logged-out secondary account leaves the pool, and every prompt names the command to sign it in again.
