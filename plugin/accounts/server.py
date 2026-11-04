@@ -246,8 +246,15 @@ def read_state(sid):
 
 
 def hook_prompt(event):
-    if not active():
+    if os.environ.get(DELEGATED):
         return ""
+    warn = relogin(a["id"] for a in load()["accounts"] if a.get("needs_login")).strip()
+    if not active():
+        return warn
+    return f"{rule(event)} {warn}".strip()
+
+
+def rule(event):
     sid = event.get("session_id", "")
     s = read_state(sid)
     ids = ", ".join(a["id"] for a in ready(load()["accounts"]))
