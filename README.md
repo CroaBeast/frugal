@@ -188,6 +188,7 @@ A: no plugins, E: frugal, F: caveman, G: ponytail, B: caveman + ponytail. `bench
 
 ## Versions
 
+- **0.24.1**: a delegated run or check that times out kills its whole process tree, so it no longer hangs on Windows.
 - **0.24.0**: the handoff comes from context size (every 150k tokens) instead of message count; a pasted handoff loads frugal; the session hook reads the whole prompt and survives a plugin reinstall.
 - **0.23.0**: delegated Claude runs load frugal, and Codex runs get its core rules.
 - **0.22.2**: explorations hand off after three reads, so the main session can read what an edit needs.
