@@ -132,4 +132,3 @@ test('Codex runs the model of the level when its login lists it, else the one in
   expect(argvs[1]).not.toContain('-m')
   expect(argvs[1]).toEqual(expect.arrayContaining(['-s', 'workspace-write', 'model_reasoning_effort="xhigh"']))
 })
-

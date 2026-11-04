@@ -8,7 +8,7 @@ const modules = atom({ plugin: 'frugal-mod', key: 'modules' } as const, {})
 const providers = atom({ plugin: 'frugal-mod', key: 'providers' } as const, {})
 const tasks = atom({ plugin: 'frugal-mod', key: 'tasks' } as const, [])
 
-export type Kind = 'search' | 'edit' | 'review' | 'classify'
+export type Kind = 'search' | 'edit' | 'run' | 'review' | 'classify'
 
 // How each provider logs in. Plan, paid or free, and models come from the provider once it answers.
 export const PRESETS: Record<string, { kind: AccountKind; label: string; baseUrl?: string; env?: string; keyUrl?: string }> = {
@@ -37,7 +37,7 @@ export const pickModel = (models: string[] = [], strong = false) => {
 export type Level = 'light' | 'standard' | 'heavy' | 'max'
 // What the main session picked for one call; left out, the kind sets the level and the level the effort.
 export type Pick = { level?: Level; effort?: string }
-const LEVEL: Record<Kind, Level> = { search: 'light', edit: 'standard', review: 'light', classify: 'light' }
+const LEVEL: Record<Kind, Level> = { search: 'light', edit: 'standard', run: 'light', review: 'light', classify: 'light' }
 const EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']
 
 // Per provider: the model and effort each level runs as, and the efforts it takes (claude --help, ~/.codex/models_cache.json).
@@ -77,15 +77,15 @@ const MAX_TRIES = 3
 export const DELEGATE_TOOL = 'mcp__frugal-mod__delegate'
 export const DELEGATE_SPEC = {
   name: 'delegate',
-  description: `Run bounded work on the user's secondary accounts (other Claude logins, Codex, free models) instead of this session, which saves the main account's limits. Default to it for repo searches, reading and summarizing files, running tests or builds and reporting, and mechanical edits with a clear brief; pass a shell check when one exists. Put independent pieces in "tasks" so they run in parallel on different accounts. Keep design, judgment and the final verification here. If it answers "do it here", do the task yourself.`,
+  description: `Run bounded work on the user's secondary accounts (other Claude logins, Codex, free models) instead of this session, which saves the main account's limits. Default to it for repo searches, reading and summarizing files, running tests or builds and reporting (kind "run"), and mechanical edits with a clear brief; pass a shell check when one exists. Put independent pieces in "tasks" so they run in parallel on different accounts. Keep design, judgment and the final verification here. If it answers "do it here", do the task yourself.`,
   inputSchema: {
     type: 'object',
     properties: {
       task: { type: 'string', description: 'One brief: goal, exact paths, done-when.' },
       tasks: { type: 'array', items: { type: 'string' }, description: 'Several independent briefs, run in parallel across accounts.' },
-      kind: { type: 'string', enum: ['search', 'edit'] },
+      kind: { type: 'string', enum: ['search', 'edit', 'run'], description: 'search: read-only. edit: changes files. run: runs commands (tests, builds) and reports.' },
       check: { type: 'string', description: 'Shell command that exits 0 when the work is done right.' },
-      level: { type: 'string', enum: ['light', 'standard', 'heavy', 'max'], description: 'How hard the task is; frugal-mod maps it to the model and effort of each provider. light: searches, reads, summaries. standard: edits and test runs. heavy: hard multi-file work. max: only after heavy failed. Left out: light for search, standard for edit.' },
+      level: { type: 'string', enum: ['light', 'standard', 'heavy', 'max'], description: 'How hard the task is; frugal-mod maps it to the model and effort of each provider. light: searches, reads, summaries. standard: edits and test runs. heavy: hard multi-file work. max: only after heavy failed. Left out: light for search and run, standard for edit.' },
       effort: { type: 'string', enum: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'], description: 'Overrides the effort of the level when this task needs more or less thinking than its level; fitted to what the provider takes.' },
     },
     required: ['kind'],
@@ -131,10 +131,11 @@ const run = async ($: EngineInterface, a: Account, kind: Kind, prompt: string, c
   const c = choose(a, kind, pick)
   if (a.kind === 'claude-cli' || a.kind === 'codex-cli') {
     const argv = a.kind === 'claude-cli'
-      ? ['claude', '-p', '--model', c.model!, '--effort', c.effort!, ...(kind === 'edit' ? ['--permission-mode', 'acceptEdits'] : [])]
+      ? ['claude', '-p', '--model', c.model!, '--effort', c.effort!, ...(kind === 'edit' ? ['--permission-mode', 'acceptEdits'] : []),
+          ...(kind === 'run' ? ['--allowedTools', 'Bash Read Grep Glob'] : [])]
       // codex 0.166 dropped --full-auto: the workspace-write sandbox lets an edit write files.
       : ['codex', 'exec', '--skip-git-repo-check', ...(c.model ? ['-m', c.model] : []), '-c', `model_reasoning_effort="${c.effort}"`,
-          ...(kind === 'edit' ? ['-s', 'workspace-write'] : []), '-']
+          ...(kind === 'edit' || kind === 'run' ? ['-s', 'workspace-write'] : []), '-']
     const env: Record<string, string> = a.configDir ? { CLAUDE_CONFIG_DIR: a.configDir } : {}
     const r = await $.process.run(argv, { cwd, env, stdin: prompt, timeoutMs: 10 * 60_000 })
     const out = r.stdout.trim()
