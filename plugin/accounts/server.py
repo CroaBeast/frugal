@@ -27,7 +27,7 @@ RULES = {
     "codex": {"efforts": ["low", "medium", "high", "xhigh", "max", "ultra"],
               "levels": {"light": ("gpt-6-luna", "low"), "standard": ("gpt-6.1-sol", "medium"), "heavy": ("gpt-6.1-sol", "high"), "max": ("gpt-6-astra", "xhigh")}},
 }
-DEFAULT_LEVEL = {"search": "standard", "run": "standard", "edit": "standard", "note": "standard"}  # light (haiku, low) missed most of a 5-question lookup; pass level "light" only for trivial greps
+DEFAULT_LEVEL = {"search": "standard", "run": "standard", "edit": "standard", "note": "light"}  # light (haiku, low) missed most of a 5-question lookup; pass level "light" only for trivial greps. A heads-up note is one judgment, which haiku makes as well as sonnet
 LIMIT = re.compile(r"usage limit|rate limit|limit reached|session limit|quota|too many requests|\b429\b", re.I)
 # A logged-out account fails every task until the user signs in again, so it leaves the pool and the user is told.
 AUTH = re.compile(r"\b401\b|not logged in|run /login|failed to authenticate|oauth token (has )?(expired|been revoked)"
@@ -45,6 +45,7 @@ EXPLORE_BUDGET = 3
 HEADS_UP = DIR / "heads-up.json"
 HEADS_UP_CALLS = 6  # tool calls in a turn before the side agent looks; shorter turns are not worth a check
 HEADS_UP_MAX = 4  # notes per session, as in Claude Code's own "You should know"
+HEADS_UP_CHECKS = 8  # checks per session: each one costs the secondary account, and a spent account leaves delegate for an hour
 HEADS_UP_ASK = (
     "You watch a Claude Code session on the user's behalf. Below is the end of its transcript. Name the one thing the user most "
     "needs to know but could miss: a risk Claude took or left (a secret exposed, data that can be lost, a destructive or "
@@ -405,7 +406,7 @@ def transcript(path):
                     c = b.get("content")
                     text = c if isinstance(c, str) else " ".join(x.get("text", "") for x in c or [] if isinstance(x, dict))
                     lines.append(f"Result: {text[:300]}")
-    return "\n".join(lines)[-40000:], calls
+    return "\n".join(lines)[-24000:], calls
 
 
 def hook_stop(event):
@@ -414,11 +415,13 @@ def hook_stop(event):
         return None
     sid, g = event.get("session_id", ""), heads_up()
     s = read_state(sid)
-    if s.get("heads_up_off", g.get("off", False)) or s.get("heads_up_shown", 0) >= HEADS_UP_MAX:
+    if s.get("heads_up_off", g.get("off", False)) or s.get("heads_up_shown", 0) >= HEADS_UP_MAX or s.get("heads_up_checks", 0) >= HEADS_UP_CHECKS:
         return None
     text, calls = transcript(event.get("transcript_path"))
     if calls < HEADS_UP_CALLS:
         return None
+    s["heads_up_checks"] = s.get("heads_up_checks", 0) + 1
+    state(sid).write_text(json.dumps(s), encoding="utf-8")
     seen = g.get("seen", [])
     ask = HEADS_UP_ASK + ("\n\nAlready shown, do not repeat:" + "".join(f"\n- {n}" for n in seen[-10:]) if seen else "")
     note = brief(f"{ask}\n\nTranscript:\n{text}", "note", None, None, None, event.get("cwd") or os.getcwd()).strip()
