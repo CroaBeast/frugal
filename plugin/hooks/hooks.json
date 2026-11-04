@@ -1,5 +1,5 @@
 {
-  "description": "frugal: load the session rules at the 10th user message, then every 15th, and the handoff rule every 150k tokens of context; with secondary accounts set up, steer bounded work to them",
+  "description": "frugal: load the session rules at the 10th user message, then every 15th, and the handoff rule every 150k tokens of context; with secondary accounts set up, steer bounded work to them; in Claude Desktop, a side agent on a secondary account reads longer turns and wakes Claude with a heads-up",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -25,6 +25,18 @@
             "type": "command",
             "command": "sh -c '[ -f \"$HOME/.frugal/accounts.json\" ] || exit 0; exec python \"$1\" hook-pretool' sh \"${CLAUDE_PLUGIN_ROOT}/accounts/server.py\"",
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c '[ -f \"$HOME/.frugal/accounts.json\" ] || exit 0; exec python \"$1\" hook-stop' sh \"${CLAUDE_PLUGIN_ROOT}/accounts/server.py\"",
+            "timeout": 300,
+            "asyncRewake": true
           }
         ]
       }

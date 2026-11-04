@@ -4,6 +4,7 @@ One file, stdlib only, four roles:
   server.py                 MCP server (stdio) exposing `delegate` while an account is set up
   server.py hook-prompt     UserPromptSubmit hook: the delegation rule, then a one-line reminder
   server.py hook-pretool    PreToolUse hook: sends test runs, long explorations and subagents to delegate
+  server.py hook-stop       Stop hook (Claude Desktop only): a side agent reads the session and may wake Claude with a heads-up
   server.py list | add <claude|codex> <id> | remove <id> | login <id> | selftest
 Nothing happens while ~/.frugal/accounts.json lists no account, so frugal without accounts is unchanged.
 """
@@ -26,7 +27,7 @@ RULES = {
     "codex": {"efforts": ["low", "medium", "high", "xhigh", "max", "ultra"],
               "levels": {"light": ("gpt-6-luna", "low"), "standard": ("gpt-6.1-sol", "medium"), "heavy": ("gpt-6.1-sol", "high"), "max": ("gpt-6-astra", "xhigh")}},
 }
-DEFAULT_LEVEL = {"search": "standard", "run": "standard", "edit": "standard"}  # light (haiku, low) missed most of a 5-question lookup; pass level "light" only for trivial greps
+DEFAULT_LEVEL = {"search": "standard", "run": "standard", "edit": "standard", "note": "standard"}  # light (haiku, low) missed most of a 5-question lookup; pass level "light" only for trivial greps
 LIMIT = re.compile(r"usage limit|rate limit|limit reached|session limit|quota|too many requests|\b429\b", re.I)
 # A logged-out account fails every task until the user signs in again, so it leaves the pool and the user is told.
 AUTH = re.compile(r"\b401\b|not logged in|run /login|failed to authenticate|oauth token (has )?(expired|been revoked)"
@@ -41,6 +42,16 @@ CODEX_RULES = (
     "security or error handling that prevents data loss."
 )
 EXPLORE_BUDGET = 3
+HEADS_UP = DIR / "heads-up.json"
+HEADS_UP_CALLS = 6  # tool calls in a turn before the side agent looks; shorter turns are not worth a check
+HEADS_UP_MAX = 4  # notes per session, as in Claude Code's own "You should know"
+HEADS_UP_ASK = (
+    "You watch a Claude Code session on the user's behalf. Below is the end of its transcript. Name the one thing the user most "
+    "needs to know but could miss: a risk Claude took or left (a secret exposed, data that can be lost, a destructive or "
+    "outward-facing step), a claim Claude made without verifying it, something asked that was not done, or a side effect the "
+    "user would not expect. Skip anything Claude already told the user plainly, style points and guesses. If nothing clears "
+    "that bar, reply exactly: none. Otherwise reply with one plain sentence under 40 words, in the user's language, no preamble."
+)
 MAX_TRIES = 3
 HOUR = 3600
 
@@ -101,6 +112,8 @@ def codex_models():
 
 
 def argv_for(a, kind, model, effort):
+    if a["kind"] == "claude" and kind == "note":
+        return ["claude", "-p", "--model", model, "--effort", effort, "--tools", "", "--strict-mcp-config"]  # no tools: it only reads the brief
     if a["kind"] == "claude":
         tools = ["--allowedTools", "Bash Read Grep Glob"] if kind in ("search", "run") else ["--permission-mode", "acceptEdits", "--allowedTools", "Bash Read Grep Glob Edit Write"]
         return ["claude", "-p", "--model", model, "--effort", effort, *tools]
@@ -156,6 +169,7 @@ def relogin(ids):
 
 
 def brief(text, kind, check, level, effort, cwd):
+    raw = kind == "note"  # a heads-up check wants the bare answer, or "" when no account answered
     failure, tried, relog = "", [], []
     for n in range(1, MAX_TRIES + 1):
         with LOCK:
@@ -168,8 +182,10 @@ def brief(text, kind, check, level, effort, cwd):
         tried.append(a["id"])
         model, eff = choose(a, kind, level, effort)
         prompt = (f"{text}\n\nA previous attempt failed: {failure}" if failure else text) + \
-            "\n\nReply in under 150 words: what you found or changed, with file paths."
-        if a["kind"] == "claude":
+            ("" if raw else "\n\nReply in under 150 words: what you found or changed, with file paths.")
+        if raw:
+            pass  # the side agent gets only the brief
+        elif a["kind"] == "claude":
             prompt = "/frugal:frugal " + prompt  # loads frugal's rules in the delegated session
         else:
             prompt = f"{CODEX_RULES}\n\n{prompt}"  # Codex cannot load the skill, so it gets the essentials
@@ -204,7 +220,11 @@ def brief(text, kind, check, level, effort, cwd):
             if c != 0:
                 failure = f"check `{check}` failed: {tail}"
                 continue
+        if raw:
+            return out
         return f"{notice}Done by {label}{', check passed' if check else ''}.\n{out[:2000]}"
+    if raw:
+        return ""
     return f"{relogin(relog)}frugal: no secondary account finished this{f' ({failure})' if failure else ''}. Do it here."
 
 
@@ -280,6 +300,8 @@ def read_state(sid):
 def hook_prompt(event):
     if os.environ.get(DELEGATED):
         return ""
+    if (m := re.match(r"\s*/frugal:heads-up\b(.*)", event.get("prompt", ""), re.S)):
+        return heads_up_set(event.get("session_id", ""), m.group(1))
     warn = relogin(a["id"] for a in load()["accounts"] if a.get("needs_login")).strip()
     if not active():
         return warn
@@ -325,6 +347,88 @@ def gate(event):
     DIR.mkdir(exist_ok=True)
     state(sid).write_text(json.dumps(s), encoding="utf-8")
     return reason
+
+
+def heads_up():
+    try:
+        return json.loads(HEADS_UP.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def save_heads_up(g):
+    DIR.mkdir(exist_ok=True)
+    HEADS_UP.write_text(json.dumps(g, indent=2), encoding="utf-8")
+
+
+def heads_up_set(sid, arg):
+    words = arg.lower().split()
+    if words not in (["on"], ["off"], ["on", "all"], ["off", "all"]):
+        return "frugal: /frugal:heads-up takes on, off, on all or off all. Tell the user that in one line."
+    off = words[0] == "off"
+    if words[1:]:
+        save_heads_up({**heads_up(), "off": off})
+    s = read_state(sid)
+    s["heads_up_off"] = off
+    DIR.mkdir(exist_ok=True)
+    state(sid).write_text(json.dumps(s), encoding="utf-8")
+    return (f"frugal: heads-up notes are now {'off' if off else 'on'} {'in every session' if words[1:] else 'for this session'}. "
+            "Confirm that to the user in one line.")
+
+
+def transcript(path):
+    """The session as plain lines, and the tool calls since the user's last prompt."""
+    lines, calls = [], 0
+    try:
+        f = open(path, encoding="utf-8", errors="replace")
+    except (OSError, TypeError):
+        return "", 0
+    with f:
+        for raw in f:
+            try:
+                e = json.loads(raw)
+            except ValueError:
+                continue
+            if e.get("isMeta") or e.get("type") not in ("user", "assistant") or not isinstance(e.get("message"), dict):
+                continue
+            content = e["message"].get("content")
+            for b in [{"type": "text", "text": content}] if isinstance(content, str) else content or []:
+                t = b.get("type") if isinstance(b, dict) else None
+                if t == "text":
+                    if e["type"] == "user":
+                        calls = 0
+                    lines.append(f"{'User' if e['type'] == 'user' else 'Claude'}: {b.get('text', '')[:2000]}")
+                elif t == "tool_use":
+                    calls += 1
+                    lines.append(f"Tool {b.get('name')}: {json.dumps(b.get('input'), ensure_ascii=False)[:300]}")
+                elif t == "tool_result":
+                    c = b.get("content")
+                    text = c if isinstance(c, str) else " ".join(x.get("text", "") for x in c or [] if isinstance(x, dict))
+                    lines.append(f"Result: {text[:300]}")
+    return "\n".join(lines)[-40000:], calls
+
+
+def hook_stop(event):
+    """The note to wake Claude with, or None. Claude Code's own "You should know" never runs in Claude Desktop, so only there."""
+    if os.environ.get(DELEGATED) or os.environ.get("CLAUDE_CODE_ENTRYPOINT") != "claude-desktop" or not active():
+        return None
+    sid, g = event.get("session_id", ""), heads_up()
+    s = read_state(sid)
+    if s.get("heads_up_off", g.get("off", False)) or s.get("heads_up_shown", 0) >= HEADS_UP_MAX:
+        return None
+    text, calls = transcript(event.get("transcript_path"))
+    if calls < HEADS_UP_CALLS:
+        return None
+    seen = g.get("seen", [])
+    ask = HEADS_UP_ASK + ("\n\nAlready shown, do not repeat:" + "".join(f"\n- {n}" for n in seen[-10:]) if seen else "")
+    note = brief(f"{ask}\n\nTranscript:\n{text}", "note", None, None, None, event.get("cwd") or os.getcwd()).strip()
+    if not note or re.match(r"none\b", note, re.I) or note in seen:
+        return None
+    s = read_state(sid)  # the check took a while; keep what other hooks wrote meanwhile
+    s["heads_up_shown"] = s.get("heads_up_shown", 0) + 1
+    state(sid).write_text(json.dumps(s), encoding="utf-8")
+    save_heads_up({**heads_up(), "seen": [*seen, note][-30:]})
+    return note
 
 
 def login(a):
@@ -387,6 +491,20 @@ def selftest():
     assert [a["id"] for a in order(pool, {"old": 1})] == ["b", "a", "old"]
     assert "--effort" in argv_for(claude, "search", "haiku", "low") and "Bash Read Grep Glob" in argv_for(claude, "search", "haiku", "low")
     assert argv_for(codex, "run", None, "low")[-3:] == ["-s", "workspace-write", "-"]
+    assert argv_for(claude, "note", "sonnet", "medium")[-3:] == ["--tools", "", "--strict-mcp-config"]
+    tmp = DIR / "selftest-transcript.jsonl"
+    DIR.mkdir(exist_ok=True)
+    tmp.write_text("\n".join(json.dumps(e) for e in [
+        {"type": "user", "message": {"content": "old prompt"}},
+        {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {"command": "ls"}}]}},
+        {"type": "user", "message": {"content": "fix it"}},
+        {"type": "assistant", "message": {"content": [{"type": "text", "text": "ok"}, {"type": "tool_use", "name": "Read", "input": {}}]}},
+        {"type": "user", "message": {"content": [{"type": "tool_result", "content": [{"type": "text", "text": "file body"}]}]}},
+        {"type": "user", "isMeta": True, "message": {"content": "hook text"}}]) + "\nnot json", encoding="utf-8")
+    text, calls = transcript(tmp)
+    tmp.unlink()
+    assert calls == 1 and "User: fix it" in text and "Result: file body" in text and "hook text" not in text
+    assert transcript(None) == ("", 0)
     assert HEAVY_RUN.search("cd x && npm test") and not HEAVY_RUN.search(re.split(r"<<-?\s*['\"]?\w+", "python - <<'EOF'\nnpm test\nEOF")[0])
     return "selftest ok"
 
@@ -395,6 +513,13 @@ if __name__ == "__main__":
     cmd = sys.argv[1:]
     if not cmd:
         serve()
+    elif cmd[0] == "hook-stop":
+        if (note := hook_stop(json.loads(sys.stdin.read() or "{}"))):
+            # asyncRewake: exit 2 wakes Claude with stderr, so the note reaches the user while the session is idle
+            sys.stderr.reconfigure(encoding="utf-8")  # Windows pipes default to the ANSI code page
+            print("frugal heads-up, from a side agent that read this session. Show it to the user as one line starting with "
+                  f"\"Heads up:\" in their language, then stop; do not act on it unless they ask.\nNote: {note}", file=sys.stderr)
+            sys.exit(2)
     elif cmd[0] in ("hook-prompt", "hook-pretool"):
         event = json.loads(sys.stdin.read() or "{}")
         if cmd[0] == "hook-prompt":
