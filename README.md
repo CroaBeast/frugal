@@ -189,6 +189,7 @@ A: no plugins, E: frugal, F: caveman, G: ponytail, B: caveman + ponytail. `bench
 
 ## Versions
 
+- **0.25.2**: delegated commands no longer inherit the MCP server's stdin; parallel sessions lock frugal's files before writing them; session state older than a week is removed.
 - **0.25.1**: heads-up checks use the light level and stop after 8 per session, so they do not spend the account delegate needs.
 - **0.25.0**: heads-up notes in Claude Desktop from a side agent on a secondary account, with `/frugal:heads-up` to turn them off.
 - **0.24.1**: a delegated run or check that times out kills its whole process tree, so it no longer hangs on Windows.
