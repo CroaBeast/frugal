@@ -2,6 +2,7 @@
 # Runs on every user prompt; prints nothing unless /frugal is active in this session.
 # - First code-looking prompt: injects code.md, so the model has the code rules without spending a turn on Read.
 # - 10th prompt, then every 15th: injects core.md and session.md (a skill cannot count messages reliably; a hook can).
+# - Pasted handoff: a /frugal line inside pasted text is not run as a command, so tell the model to load the skill until it does.
 # Keeps small per-session marker files in CLAUDE_PLUGIN_DATA; prune by age if that ever matters.
 input=$(cat)
 field() { printf '%s' "$input" | sed -n "s/.*\"$1\" *: *\"\([^\"]*\)\".*/\1/p"; }
@@ -15,9 +16,16 @@ n=$(( $(cat "$dir/count-$sid" 2>/dev/null || echo 0) + 1 ))
 echo "$n" > "$dir/count-$sid"
 prompt=$(field prompt)
 transcript=$(field transcript_path | sed 's/\\\\/\//g')
-active() { printf '%s' "$prompt" | grep -q '/frugal' || grep -qE 'command-name>/frugal|"skill":"frugal' "$transcript" 2>/dev/null; }
+loaded() { grep -qE 'command-name>/frugal|"skill":"frugal' "$transcript" 2>/dev/null; }
+# A pasted handoff counts too: "/frugal" starting a line (a JSON-escaped newline) in the prompt or the transcript.
+pasted() { printf '%s' "$prompt" | grep -q '\\n/frugal' || grep -q '\\n/frugal' "$transcript" 2>/dev/null; }
+active() { printf '%s' "$prompt" | grep -q '/frugal' || loaded || pasted; }
 root=$(printf '%s' "$CLAUDE_PLUGIN_ROOT" | sed 's/\\/\//g')
 skill="$root/skills/frugal"
+if pasted && ! loaded; then
+  args=$({ printf '%s\n' "$prompt"; cat "$transcript" 2>/dev/null; } | sed -n 's/.*\\n\/frugal\([^\\"]*\).*/\1/p' | head -1 | sed 's/^:frugal//; s/^ *//; s/ *$//')
+  echo "frugal: the pasted text has a /frugal line, which does not run as a command. Before anything else, call Skill frugal:frugal with args \"$args\", then answer the user."
+fi
 case $n in 10|25|40|55|70|85|100)
   active || exit 0
   echo "frugal: this is the user's message $n. The session rules below are loaded; apply them."
