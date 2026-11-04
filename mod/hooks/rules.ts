@@ -98,14 +98,11 @@ export const registerRules = (on: On) => {
     lastText = e.text
     const ids = (await read($, accounts)).filter(a => a.enabled && a.status === 'connected').map(a => a.id)
     let hint = ''
-    // The full rule when the connected accounts change, then a one-line reminder on every prompt so it is not forgotten.
+    // The rule when the connected accounts change, then a one-line reminder on every prompt so it is not forgotten.
     if (ids.length && (await isOn($, 'delegate'))) {
       hint = ids.join() !== announced
-        ? `frugal-mod: ${ids.length} secondary ${ids.length === 1 ? 'account is' : 'accounts are'} connected (${ids.join(', ')}). ` +
-          'Delegate as much as you can with mcp__frugal-mod__delegate so this account\'s limits last: every repo search, file reading or summary, test or build run (kind "run"), and edit you can brief exactly. ' +
-          'Set "level" per task (light: searches, reads, summaries; standard: edits and test runs; heavy: hard multi-file work; max: only after heavy failed) and "effort" when a task needs more or less thinking than its level; frugal-mod maps both to the models and efforts of each provider. ' +
-          'Put independent pieces in "tasks" so all accounts work in parallel. Keep here only design, judgment calls and the final check of what comes back.'
-        : `frugal-mod: delegate bounded work to ${ids.join(', ')} with mcp__frugal-mod__delegate, setting level and effort per task.`
+        ? `frugal-mod: secondary accounts ${ids.join(', ')} are connected. Delegate every bounded task with mcp__frugal-mod__delegate, level per task; keep here only design, judgment calls and the final check.`
+        : `frugal-mod: delegate bounded work to ${ids.join(', ')}; keep here only design and the final check.`
     }
     announced = ids.join()
     const dir = await read($, skillDir)
