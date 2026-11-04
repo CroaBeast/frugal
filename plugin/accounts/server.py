@@ -33,6 +33,13 @@ AUTH = re.compile(r"\b401\b|not logged in|run /login|failed to authenticate|oaut
                   r"|invalid (api|x-api) key|authentication_error|not authenticated|login required", re.I)
 HEAVY_RUN = re.compile(r"\b(npm|pnpm|yarn|bun)\s+(run\s+)?(test|build|lint|typecheck)\b|\b(pytest|jest|vitest|tsc|gradlew?|mvn|bench\.py)\b"
                        r"|\b(cargo|go|dotnet)\s+(test|build)\b|\bclaude\s+plugin\s+test\b", re.I)
+CODEX_RULES = (
+    "Work rules: report results, not process; no filler, preamble or closing summary. Keep exact terms, code, commands, errors, "
+    "numbers and every not, never and only. Verify APIs, versions and flags; never guess. For code: reuse what the codebase has, "
+    "then the stdlib or native features, then installed dependencies; never add one for a few lines. Minimum code: no unrequested "
+    "features, files, abstractions or config. Fix bugs at the root cause, and fix siblings with the same bug. Never cut validation, "
+    "security or error handling that prevents data loss."
+)
 EXPLORE_BUDGET = 3
 MAX_TRIES = 3
 HOUR = 3600
@@ -143,6 +150,8 @@ def brief(text, kind, check, level, effort, cwd):
             "\n\nReply in under 150 words: what you found or changed, with file paths."
         if a["kind"] == "claude":
             prompt = "/frugal:frugal " + prompt  # loads frugal's rules in the delegated session
+        else:
+            prompt = f"{CODEX_RULES}\n\n{prompt}"  # Codex cannot load the skill, so it gets the essentials
         env = {**os.environ, DELEGATED: "1", **({"CLAUDE_CONFIG_DIR": a["config_dir"]} if a.get("config_dir") else {})}
         try:
             code, out, err = run_cli(argv_for(a, kind, model, eff), prompt, cwd, env)
