@@ -125,7 +125,8 @@ def argv_for(a, kind, model, effort):
 def run_tree(cmd, timeout, input=None, **kw):
     # On timeout kill the whole tree: subprocess.run kills only the .cmd shim or shell, and the
     # grandchild keeps the pipes open, so communicate() never returns. None means timed out.
-    p = subprocess.Popen(cmd, stdin=subprocess.PIPE if input is not None else None, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    # Never inherit stdin: in the MCP server it carries the protocol, and a command that reads it would eat requests.
+    p = subprocess.Popen(cmd, stdin=subprocess.PIPE if input is not None else subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          text=True, encoding="utf-8", errors="replace", start_new_session=os.name != "nt", **kw)
     try:
         out, err = p.communicate(input, timeout=timeout)
@@ -508,6 +509,7 @@ def selftest():
     tmp.unlink()
     assert calls == 1 and "User: fix it" in text and "Result: file body" in text and "hook text" not in text
     assert transcript(None) == ("", 0)
+    assert run_tree([sys.executable, "-c", "import sys; print(repr(sys.stdin.read()))"], 30)[1].strip() == "''"
     assert HEAVY_RUN.search("cd x && npm test") and not HEAVY_RUN.search(re.split(r"<<-?\s*['\"]?\w+", "python - <<'EOF'\nnpm test\nEOF")[0])
     return "selftest ok"
 
