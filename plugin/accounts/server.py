@@ -8,7 +8,7 @@ One file, stdlib only, four roles:
   server.py list | add <claude|codex> <id> | remove <id> | login <id> | selftest
 Nothing happens while ~/.frugal/accounts.json lists no account, so frugal without accounts is unchanged.
 """
-import concurrent.futures, datetime, json, os, re, shutil, signal, subprocess, sys, threading, time
+import concurrent.futures, contextlib, datetime, json, os, re, shutil, signal, subprocess, sys, threading, time
 from pathlib import Path
 
 HOME = Path.home()
@@ -62,6 +62,31 @@ def load():
         return json.loads(FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {"accounts": []}
+
+
+@contextlib.contextmanager
+def file_lock():
+    """Serializes read-modify-write of frugal's files across processes: the MCP server and every session's hooks."""
+    path = DIR / "files.lock"
+    DIR.mkdir(exist_ok=True)
+    fd = None
+    for _ in range(500):  # 5 seconds, then go ahead unlocked rather than stall delegate or a hook
+        try:
+            fd = os.open(path, os.O_CREAT | os.O_EXCL)
+            break
+        except FileExistsError:
+            try:
+                if time.time() - path.stat().st_mtime > 10:
+                    path.unlink()  # left by a killed process
+            except OSError:
+                pass
+            time.sleep(0.01)
+    try:
+        yield
+    finally:
+        if fd is not None:
+            os.close(fd)
+            path.unlink(missing_ok=True)
 
 
 def save(data):
@@ -197,7 +222,7 @@ def brief(text, kind, check, level, effort, cwd):
         finally:
             with LOCK:
                 BUSY[a["id"]] -= 1
-        with LOCK:
+        with LOCK, file_lock():
             data = load()
             for x in data["accounts"]:
                 if x["id"] == a["id"]:
@@ -369,7 +394,8 @@ def heads_up_set(sid, arg):
         return "frugal: /frugal:heads-up takes on, off, on all or off all. Tell the user that in one line."
     off = words[0] == "off"
     if words[1:]:
-        save_heads_up({**heads_up(), "off": off})
+        with file_lock():
+            save_heads_up({**heads_up(), "off": off})
     s = read_state(sid)
     s["heads_up_off"] = off
     DIR.mkdir(exist_ok=True)
@@ -431,7 +457,8 @@ def hook_stop(event):
     s = read_state(sid)  # the check took a while; keep what other hooks wrote meanwhile
     s["heads_up_shown"] = s.get("heads_up_shown", 0) + 1
     state(sid).write_text(json.dumps(s), encoding="utf-8")
-    save_heads_up({**heads_up(), "seen": [*seen, note][-30:]})
+    with file_lock():
+        save_heads_up({**heads_up(), "seen": [*heads_up().get("seen", []), note][-30:]})
     return note
 
 
@@ -510,6 +537,9 @@ def selftest():
     assert calls == 1 and "User: fix it" in text and "Result: file body" in text and "hook text" not in text
     assert transcript(None) == ("", 0)
     assert run_tree([sys.executable, "-c", "import sys; print(repr(sys.stdin.read()))"], 30)[1].strip() == "''"
+    with file_lock():
+        assert (DIR / "files.lock").exists()
+    assert not (DIR / "files.lock").exists()
     assert HEAVY_RUN.search("cd x && npm test") and not HEAVY_RUN.search(re.split(r"<<-?\s*['\"]?\w+", "python - <<'EOF'\nnpm test\nEOF")[0])
     return "selftest ok"
 
@@ -534,4 +564,5 @@ if __name__ == "__main__":
     elif cmd[0] == "selftest":
         print(selftest())
     else:
-        print(cli(cmd))
+        with file_lock():
+            print(cli(cmd))
