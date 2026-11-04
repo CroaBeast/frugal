@@ -141,6 +141,8 @@ def brief(text, kind, check, level, effort, cwd):
         model, eff = choose(a, kind, level, effort)
         prompt = (f"{text}\n\nA previous attempt failed: {failure}" if failure else text) + \
             "\n\nReply in under 150 words: what you found or changed, with file paths."
+        if a["kind"] == "claude":
+            prompt = "/frugal:frugal " + prompt  # loads frugal's rules in the delegated session
         env = {**os.environ, DELEGATED: "1", **({"CLAUDE_CONFIG_DIR": a["config_dir"]} if a.get("config_dir") else {})}
         try:
             code, out, err = run_cli(argv_for(a, kind, model, eff), prompt, cwd, env)
