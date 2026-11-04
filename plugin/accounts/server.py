@@ -7,7 +7,7 @@ One file, stdlib only, four roles:
   server.py list | add <claude|codex> <id> | remove <id> | login <id> | selftest
 Nothing happens while ~/.frugal/accounts.json lists no account, so frugal without accounts is unchanged.
 """
-import concurrent.futures, datetime, json, os, re, shutil, subprocess, sys, threading, time
+import concurrent.futures, datetime, json, os, re, shutil, signal, subprocess, sys, threading, time
 from pathlib import Path
 
 HOME = Path.home()
@@ -108,23 +108,44 @@ def argv_for(a, kind, model, effort):
     return ["codex", "exec", "--skip-git-repo-check", *(["-m", model] if model else []), "-c", f"model_reasoning_effort={effort}", *sandbox, "-"]
 
 
+def run_tree(cmd, timeout, input=None, **kw):
+    # On timeout kill the whole tree: subprocess.run kills only the .cmd shim or shell, and the
+    # grandchild keeps the pipes open, so communicate() never returns. None means timed out.
+    p = subprocess.Popen(cmd, stdin=subprocess.PIPE if input is not None else None, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         text=True, encoding="utf-8", errors="replace", start_new_session=os.name != "nt", **kw)
+    try:
+        out, err = p.communicate(input, timeout=timeout)
+        return p.returncode, out, err
+    except subprocess.TimeoutExpired:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(p.pid)], capture_output=True)
+        else:
+            try:
+                os.killpg(p.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        try:
+            p.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            pass  # a process that escaped the tree still holds the pipes; give up on it
+        return None
+
+
 def run_cli(argv, prompt, cwd, env):
     exe = shutil.which(argv[0])  # finds npm's .cmd shims on Windows
     if not exe:
         return 127, "", f"{argv[0]} not found"
-    try:
-        p = subprocess.run([exe, *argv[1:]], input=prompt, cwd=cwd, env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
-        return p.returncode, p.stdout.strip(), p.stderr.strip()
-    except subprocess.TimeoutExpired:
+    r = run_tree([exe, *argv[1:]], 600, input=prompt, cwd=cwd, env=env)
+    if r is None:
         return 124, "", "timed out after 10 minutes"
+    return r[0], r[1].strip(), r[2].strip()
 
 
 def run_check(check, cwd):
-    try:
-        p = subprocess.run(check, shell=True, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
-        return p.returncode, (p.stdout + p.stderr)[-400:]
-    except subprocess.TimeoutExpired:
+    r = run_tree(check, 300, shell=True, cwd=cwd)
+    if r is None:
         return 124, "check timed out after 5 minutes"
+    return r[0], (r[1] + r[2])[-400:]
 
 
 BUSY = {}
