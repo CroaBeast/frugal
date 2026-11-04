@@ -335,9 +335,21 @@ def hook_prompt(event):
     return f"{rule(event)} {warn}".strip()
 
 
+def prune():
+    cutoff = time.time() - 7 * 86400
+    for f in DIR.glob("session-*.json"):
+        try:
+            if f.stat().st_mtime < cutoff:
+                f.unlink()
+        except OSError:
+            pass
+
+
 def rule(event):
     sid = event.get("session_id", "")
     s = read_state(sid)
+    if not s:
+        prune()  # once per new session: state files of week-old sessions
     ids = ", ".join(a["id"] for a in ready(load()["accounts"]))
     first = s.get("announced") != ids
     DIR.mkdir(exist_ok=True)
@@ -540,6 +552,11 @@ def selftest():
     with file_lock():
         assert (DIR / "files.lock").exists()
     assert not (DIR / "files.lock").exists()
+    old = DIR / "session-selftest-old.json"
+    old.write_text("{}", encoding="utf-8")
+    os.utime(old, (0, 0))
+    prune()
+    assert not old.exists()
     assert HEAVY_RUN.search("cd x && npm test") and not HEAVY_RUN.search(re.split(r"<<-?\s*['\"]?\w+", "python - <<'EOF'\nnpm test\nEOF")[0])
     return "selftest ok"
 
