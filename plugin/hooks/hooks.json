@@ -1,5 +1,5 @@
 {
-  "description": "frugal: load the session rules at the 10th user message, then every 15th",
+  "description": "frugal: load the session rules at the 10th user message, then every 15th; with secondary accounts set up, steer bounded work to them",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -7,6 +7,11 @@
           {
             "type": "command",
             "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/session-count.sh\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "sh -c '[ -f \"$HOME/.frugal/accounts.json\" ] || exit 0; exec python \"$1\" hook-prompt' sh \"${CLAUDE_PLUGIN_ROOT}/accounts/server.py\"",
             "timeout": 10
           }
         ]
