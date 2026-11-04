@@ -77,16 +77,16 @@ const MAX_TRIES = 3
 export const DELEGATE_TOOL = 'mcp__frugal-mod__delegate'
 export const DELEGATE_SPEC = {
   name: 'delegate',
-  description: `Run bounded work on the user's secondary accounts (other Claude logins, Codex, free models) instead of this session, which saves the main account's limits. Default to it for repo searches, reading and summarizing files, running tests or builds and reporting (kind "run"), and mechanical edits with a clear brief; pass a shell check when one exists. Put independent pieces in "tasks" so they run in parallel on different accounts. Keep design, judgment and the final verification here. If it answers "do it here", do the task yourself.`,
+  description: `Runs bounded work on the user's secondary accounts so this account's limits last: searches, reading or summarizing files, test or build runs, edits you can brief exactly. Independent pieces go in "tasks" and run in parallel. Keep design and the final check here; "do it here" means do it yourself.`,
   inputSchema: {
     type: 'object',
     properties: {
-      task: { type: 'string', description: 'One brief: goal, exact paths, done-when.' },
-      tasks: { type: 'array', items: { type: 'string' }, description: 'Several independent briefs, run in parallel across accounts.' },
-      kind: { type: 'string', enum: ['search', 'edit', 'run'], description: 'search: read-only. edit: changes files. run: runs commands (tests, builds) and reports.' },
-      check: { type: 'string', description: 'Shell command that exits 0 when the work is done right.' },
-      level: { type: 'string', enum: ['light', 'standard', 'heavy', 'max'], description: 'How hard the task is; frugal-mod maps it to the model and effort of each provider. light: searches, reads, summaries. standard: edits and test runs. heavy: hard multi-file work. max: only after heavy failed. Left out: light for search and run, standard for edit.' },
-      effort: { type: 'string', enum: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'], description: 'Overrides the effort of the level when this task needs more or less thinking than its level; fitted to what the provider takes.' },
+      task: { type: 'string', description: 'Goal, exact paths, done-when.' },
+      tasks: { type: 'array', items: { type: 'string' }, description: 'Independent briefs, run in parallel.' },
+      kind: { type: 'string', enum: ['search', 'edit', 'run'], description: 'search: read-only. edit: changes files. run: runs commands and reports.' },
+      check: { type: 'string', description: 'Shell command that exits 0 when done right.' },
+      level: { type: 'string', enum: ['light', 'standard', 'heavy', 'max'], description: 'light: searches, reads. standard: edits, test runs. heavy: hard multi-file work. max: after heavy failed.' },
+      effort: { type: 'string', enum: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'], description: 'Overrides the effort of the level.' },
     },
     required: ['kind'],
   },
